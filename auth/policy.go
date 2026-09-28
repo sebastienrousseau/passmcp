@@ -177,7 +177,8 @@ func envProxyHosts() []string {
 		if !strings.Contains(v, "://") {
 			v = "http://" + v
 		}
-		if u, err := url.Parse(v); err == nil && u.Hostname() != "" {
+		// Windows reads HTTPS_PROXY and https_proxy as one variable.
+		if u, err := url.Parse(v); err == nil && u.Hostname() != "" && !containsFold(out, u.Hostname()) {
 			out = append(out, u.Hostname())
 		}
 	}

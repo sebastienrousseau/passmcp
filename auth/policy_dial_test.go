@@ -137,10 +137,12 @@ func TestTransportUsesTheGuardedDialer(t *testing.T) {
 }
 
 func TestEndpointTransportTrustsTheEndpointAndTheProxy(t *testing.T) {
-	t.Setenv("HTTPS_PROXY", "proxy.corp:3128") // no scheme, as Go accepts
-	t.Setenv("http_proxy", "http://other.corp:8080")
-	t.Setenv("HTTP_PROXY", "")
+	// Lower case cleared first: on Windows the two spellings are one
+	// variable, so clearing it after would erase the value just set.
 	t.Setenv("https_proxy", "")
+	t.Setenv("http_proxy", "")
+	t.Setenv("HTTPS_PROXY", "proxy.corp:3128") // no scheme, as Go accepts
+	t.Setenv("HTTP_PROXY", "http://other.corp:8080")
 	got := envProxyHosts()
 	if strings.Join(got, ",") != "proxy.corp,other.corp" {
 		t.Fatalf("proxy hosts = %v", got)
