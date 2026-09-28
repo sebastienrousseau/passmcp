@@ -1,0 +1,463 @@
+/* SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+   SPDX-License-Identifier: GPL-3.0-only
+
+   The stylesheet for passmcp's HTML report. It has two jobs that pull in
+   different directions: read well on a screen in either theme, and print
+   to a document somebody puts in front of a board. The print rules at the
+   bottom are not an afterthought — print is the PDF pipeline. */
+
+:root {
+  --ground: #faf7f3;
+  --surface: #ffffff;
+  --sunk: #f5efe8;
+  --ink: #1c1d2c;
+  --ink-soft: #33344a;
+  --ink-mute: #594d51;
+  --rule: #d9cec5;
+  --rule-soft: #ebe3da;
+
+  --probe: #7b3d22;
+  --probe-wash: #fdeeda;
+
+  --pass: #1a5f3c;
+  --pass-wash: #e2f1e8;
+  --warn: #6f5300;
+  --warn-wash: #f8f0d8;
+  --fail: #8f1a2e;
+  --fail-wash: #fbe6e9;
+  --info: #4a5c8a;
+  --info-wash: #e8ecf6;
+  --skip: #3a4c50;
+  --skip-wash: #eef3f2;
+
+  --f-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --gutter: clamp(20px, 5vw, 56px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #14151f;
+    --surface: #1f2130;
+    --sunk: #272939;
+    --ink: #f6f2ed;
+    --ink-soft: #ded5cd;
+    --ink-mute: #c2b7b1;
+    --rule: #3b3949;
+    --rule-soft: #2a2937;
+    --probe: #f9a12c;
+    --probe-wash: #3a2a17;
+    --pass: #62d396;
+    --pass-wash: #11291d;
+    --warn: #ecd46b;
+    --warn-wash: #2b2514;
+    --fail: #ff8294;
+    --fail-wash: #2e161b;
+    --info: #9aaede;
+    --info-wash: #181f30;
+    --skip: #aec4c4;
+    --skip-wash: #162124;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #14151f;
+  --surface: #1f2130;
+  --sunk: #272939;
+  --ink: #f6f2ed;
+  --ink-soft: #ded5cd;
+  --ink-mute: #c2b7b1;
+  --rule: #3b3949;
+  --rule-soft: #2a2937;
+  --probe: #f9a12c;
+  --probe-wash: #3a2a17;
+  --pass: #62d396;
+  --pass-wash: #11291d;
+  --warn: #ecd46b;
+  --warn-wash: #2b2514;
+  --fail: #ff8294;
+  --fail-wash: #2e161b;
+  --info: #9aaede;
+  --info-wash: #181f30;
+  --skip: #aec4c4;
+  --skip-wash: #162124;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: 15px;
+  line-height: 1.58;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: var(--gutter); }
+
+h1, h2, h3 { margin: 0; line-height: 1.16; text-wrap: balance; }
+h1 { font-size: clamp(25px, 4vw, 34px); font-weight: 600; letter-spacing: -.02em; }
+h2 { font-size: clamp(18px, 2.4vw, 22px); font-weight: 600; letter-spacing: -.01em; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+/* ── Masthead ─────────────────────────────────────────────────────── */
+/* ── Cover and contents ───────────────────────────────────────────────
+ * Both are print-first. On a screen the verdict should be the first thing
+ * a reader meets, so these are hidden there; on paper a document that
+ * opens on its subject, and tells you what is inside, is the difference
+ * between a report and a long screenshot somebody sent you. */
+.cover, .toc { display: none; }
+
+/* ── Identity ─────────────────────────────────────────────────────────
+ * A report that does not say what produced it is a screenshot. This one
+ * gets read by people who were not in the room when it was run, and
+ * forwarded to people who have never heard of the tool, so the mark and
+ * the document type come before the verdict. The logo is inlined rather
+ * than linked because the file has to open with no network. */
+.brand { display: inline-flex; align-items: center; gap: 9px; }
+.brand .mark { width: auto; height: 22px; flex: none; }
+.brand .wordmark { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--ink); }
+
+.brandbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding-bottom: 18px; border-bottom: 1px solid var(--rule-soft); }
+.doctype { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; }
+
+.mast { background: var(--surface); border-bottom: 1px solid var(--rule); }
+.mast-in { padding-block: 34px 28px; display: flex; flex-direction: column; gap: 20px; }
+.target { display: flex; flex-direction: column; gap: 5px; }
+.target .endpoint { font-family: var(--f-mono); font-size: 15px; color: var(--ink); word-break: break-all; }
+.target .sub { font-size: 13.5px; color: var(--ink-mute); }
+
+.verdict { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: baseline; }
+.verdict h1 { flex: 1 1 auto; min-width: 12ch; }
+.verdict.fail h1 { color: var(--fail); }
+.verdict.warn h1 { color: var(--warn); }
+.verdict.pass h1 { color: var(--pass); }
+
+.score { display: flex; align-items: baseline; gap: 9px; }
+.score .num {
+  font-size: 34px; font-weight: 600; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.score .of { font-size: 14px; color: var(--ink-mute); }
+.score .grade {
+  font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 3px;
+  background: var(--probe-wash); color: var(--probe);
+}
+
+.explain { font-size: 15.5px; color: var(--ink-soft); max-width: 66ch; }
+
+.counts { display: flex; flex-wrap: wrap; gap: 7px; }
+.count {
+  font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .06em; padding: 4px 9px; border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.count.pass { background: var(--pass-wash); color: var(--pass); }
+.count.warn { background: var(--warn-wash); color: var(--warn); }
+.count.fail { background: var(--fail-wash); color: var(--fail); }
+.count.info { background: var(--info-wash); color: var(--info); }
+.count.skip { background: var(--skip-wash); color: var(--skip); }
+
+/* ── Sections ─────────────────────────────────────────────────────── */
+section { padding-block: 32px; border-bottom: 1px solid var(--rule); }
+section:last-of-type { border-bottom: 0; }
+.sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+
+.fix-first { display: flex; flex-direction: column; gap: 11px; margin: 0; padding: 0; list-style: none; }
+.fix-first li {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
+  padding-left: 14px; border-left: 3px solid var(--fail);
+}
+.fix-first li.warn { border-left-color: var(--warn); }
+.fix-first .what { font-weight: 600; grid-column: 2; }
+.fix-first .why { grid-column: 2; font-size: 14px; color: var(--ink-soft); }
+.fix-first .rank {
+  grid-row: span 2; font-family: var(--f-mono); font-size: 12px;
+  color: var(--ink-mute); font-variant-numeric: tabular-nums; padding-top: 2px;
+}
+
+/* ── Phase list ───────────────────────────────────────────────────── */
+.phases { display: flex; flex-direction: column; }
+.phase {
+  border-top: 1px solid var(--rule-soft);
+  padding-block: 15px;
+  break-inside: avoid;
+}
+.phase:first-child { border-top: 0; }
+.phase-head { display: flex; flex-wrap: wrap; gap: 5px 12px; align-items: baseline; }
+.phase-head .name { font-weight: 600; font-size: 15.5px; }
+.phase-head .dur {
+  margin-left: auto; font-family: var(--f-mono); font-size: 11.5px;
+  color: var(--ink-mute); font-variant-numeric: tabular-nums;
+}
+.phase-summary { font-size: 14px; color: var(--ink-soft); margin-top: 3px; }
+
+.status {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .09em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 3px;
+}
+.status.pass { background: var(--pass-wash); color: var(--pass); }
+.status.warn { background: var(--warn-wash); color: var(--warn); }
+.status.fail { background: var(--fail-wash); color: var(--fail); }
+.status.info { background: var(--info-wash); color: var(--info); }
+.status.skip { background: var(--skip-wash); color: var(--skip); }
+
+/* ── Findings ─────────────────────────────────────────────────────── */
+.findings { display: flex; flex-direction: column; margin-top: 12px; }
+.finding {
+  display: grid; grid-template-columns: 74px 1fr;
+  gap: 4px 14px; padding: 11px 0 11px 13px;
+  border-top: 1px solid var(--rule-soft);
+  border-left: 3px solid var(--rule);
+  break-inside: avoid;
+}
+.finding[data-status="fail"] { border-left-color: var(--fail); }
+.finding[data-status="warn"] { border-left-color: var(--warn); }
+.finding[data-status="pass"] { border-left-color: var(--pass); }
+.finding[data-status="info"] { border-left-color: var(--info); }
+.finding[data-status="skip"] { border-left-color: var(--rule); }
+.finding .f-title { font-weight: 600; font-size: 14.5px; }
+.finding .f-id { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-mute); word-break: break-all; }
+.finding .f-detail { font-size: 14px; color: var(--ink-soft); grid-column: 2; }
+.finding .f-advice {
+  grid-column: 2; font-size: 13.5px; color: var(--ink-soft);
+  background: var(--sunk); border-radius: 3px; padding: 8px 11px; margin-top: 3px;
+}
+.finding .f-advice::before {
+  content: "Try this"; display: block;
+  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--probe); margin-bottom: 3px;
+}
+.finding .f-ev {
+  grid-column: 2; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-mute);
+}
+
+/* ── Tables ───────────────────────────────────────────────────────── */
+.scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+thead th {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-mute); background: var(--sunk);
+  border-bottom: 1px solid var(--rule);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.name { font-family: var(--f-mono); font-size: 12.5px; }
+
+.pill {
+  display: inline-block; font-family: var(--f-mono); font-size: 9.5px;
+  font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 3px; background: var(--sunk); color: var(--ink-mute);
+}
+.pill.ro { background: var(--pass-wash); color: var(--pass); }
+.pill.dx { background: var(--fail-wash); color: var(--fail); }
+
+/* ── Meta grid ────────────────────────────────────────────────────── */
+.meta {
+  display: grid; gap: 1px; background: var(--rule-soft);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  border: 1px solid var(--rule-soft); border-radius: 4px; overflow: hidden;
+}
+.meta div { background: var(--surface); padding: 11px 14px; }
+.meta dt { font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.meta dd { margin: 3px 0 0; font-size: 13.5px; word-break: break-word; }
+
+footer { padding-block: 30px 44px; color: var(--ink-mute); font-size: 12.5px;
+  background: var(--surface); border-top: 1px solid var(--rule); }
+.colophon { display: grid; gap: 26px; align-items: start; }
+@media (min-width: 46rem) { .colophon { grid-template-columns: minmax(14rem, 22rem) 1fr; gap: 48px; } }
+.colo-brand .brand { margin-bottom: 12px; }
+.colo-brand .tagline { margin: 0 0 8px; line-height: 1.5; }
+.colo-brand .link { margin: 0; color: var(--probe); font-weight: 600; }
+.colo-notes p { margin: 0 0 10px; line-height: 1.55; max-width: 62ch; }
+.colo-notes strong { color: var(--ink-soft); }
+.colo-notes .fine { font-family: var(--f-mono); font-size: 11px; line-height: 1.6; color: var(--ink-mute); margin-bottom: 0; }
+
+/* Repeated on every printed page. Chrome repeats a fixed element per page,
+   which is the only running footer available to us: @page margin boxes
+   take no content there, so promising page numbers would be a promise the
+   PDF does not keep. */
+.print-rail { display: none; }
+
+.print-only { display: none; }
+
+
+/* ── Print: this is the PDF pipeline ──────────────────────────────── */
+@page {
+  size: A4;
+  margin: 18mm 16mm 20mm;
+}
+
+@media print {
+  /* Print always uses the light palette: a dark-theme screen would
+     otherwise flood a page with ink, and a board document is read on
+     paper or in a viewer that assumes white. */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --ground: #ffffff;
+    --surface: #ffffff;
+    --sunk: #f7f3ee;
+    --ink: #1c1d2c;
+    --ink-soft: #33344a;
+    --ink-mute: #56606b;
+    --rule: #ccc3ba;
+    --rule-soft: #e4ddd4;
+    --probe: #7b3d22;
+    --probe-wash: #fbf0e2;
+    --pass: #1a5f3c;
+    --pass-wash: #e8f2ec;
+    --warn: #6f5300;
+    --warn-wash: #f7f0d9;
+    --fail: #8f1a2e;
+    --fail-wash: #fce9ec;
+    --info: #3e4e78;
+    --info-wash: #ebeef7;
+    --skip: #56606b;
+    --skip-wash: #f4f1ec;
+  }
+
+  body { font-size: 10.5pt; line-height: 1.45; background: #fff; }
+  .wrap { max-width: none; padding-inline: 0; }
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+
+  /* Page one is the executive summary: verdict, score, what to fix.
+     Everything else starts on a fresh page, which is what makes the
+     document handable to two audiences at once. */
+  .mast { border-bottom: 1.5pt solid var(--probe); }
+  .brandbar { padding-bottom: 10pt; }
+
+  .cover { display: block; break-after: page; }
+  .cover-in { padding-block: 44pt 0; display: flex; flex-direction: column; min-height: 88vh; }
+  .cover-brand .mark { height: 26pt; }
+  .cover-brand .wordmark { font-size: 19pt; }
+  .cover-title { font-size: 34pt; line-height: 1.08; letter-spacing: -0.02em; margin: 54pt 0 0; }
+  .cover-sub { font-family: var(--f-mono); font-size: 11pt; color: var(--probe); margin: 10pt 0 0; word-break: break-all; }
+  .cover-meta { margin: auto 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 9pt 24pt;
+    border-top: 0.5pt solid var(--rule); padding-top: 14pt; }
+  .cover-meta div { display: flex; flex-direction: column; gap: 2pt; }
+  .cover-meta dt { font-size: 7.5pt; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-mute); }
+  .cover-meta dd { margin: 0; font-size: 10.5pt; color: var(--ink); }
+  .cover-foot { font-size: 8.5pt; color: var(--ink-mute); margin: 14pt 0 0; padding-bottom: 20pt; }
+
+  .toc { display: block; break-after: page; }
+  .toc h2 { font-size: 20pt; margin: 0 0 18pt; }
+  .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .toc li { counter-increment: toc; display: grid; grid-template-columns: 1.6em 1fr; gap: 6pt;
+    padding-block: 7pt; border-bottom: 0.5pt solid var(--rule-soft); break-inside: avoid; }
+  .toc li::before { content: counter(toc, decimal-leading-zero); font-family: var(--f-mono);
+    font-size: 9pt; color: var(--probe); padding-top: 1pt; }
+  .toc a { font-size: 11.5pt; font-weight: 600; color: var(--ink); text-decoration: none; }
+  .toc span { grid-column: 2; font-size: 9pt; color: var(--ink-mute); }
+  .brand .mark { height: 16pt; }
+  .brand .wordmark { font-size: 13pt; }
+
+  /* The running footer. Fixed elements repeat on every page in Chrome,
+     which is what turns a long scroll into a document somebody can hand
+     across a table with the third page still identifying itself. */
+  .print-rail {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12pt;
+    padding-top: 4pt;
+    border-top: 0.5pt solid var(--rule);
+    font-size: 8pt;
+    color: var(--ink-mute);
+  }
+  .print-rail .mark { height: 9pt; }
+  .print-rail .wordmark { font-size: 9pt; }
+  .print-rail .brand { gap: 5pt; }
+
+  /* The colophon closes the document rather than starting a new page for
+     two paragraphs. */
+  footer { break-before: avoid; border-top: 0.5pt solid var(--rule); padding-block: 10pt 0; }
+  .colophon { grid-template-columns: 1fr 2fr; gap: 18pt; }
+  section.detail { break-before: page; }
+  section { border-bottom: 0; padding-block: 14pt; }
+
+  h1 { font-size: 20pt; }
+  h2 { font-size: 13pt; }
+  .score .num { font-size: 24pt; }
+
+  /* A finding split across a page break loses its evidence. */
+  .phase, .finding, .fix-first li, tr { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  thead { display: table-header-group; }
+
+  .scroll { overflow: visible; border: 1px solid var(--rule); }
+  table { min-width: 0; }
+
+  /* A URL the reader cannot click should still be readable. */
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8.5pt; color: var(--ink-mute); }
+}
+
+/* Remediation. A finding says what is wrong; this says what it means and
+   what to change. It is indented under the finding so the list still scans
+   as a list when somebody is only counting problems. */
+.guide {
+  grid-column: 2 / -1;
+  margin-block-start: 0.85rem;
+  padding: 0.95rem 1.1rem;
+  border-left: 3px solid var(--rule);
+  background: var(--surface-sunk);
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.guide-means { margin: 0; color: var(--ink-soft); font-size: 0.9375rem; max-width: 72ch; }
+.guide-lead {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.guide-steps { margin: 0; padding-left: 1.35rem; display: flex; flex-direction: column; gap: 0.6rem; }
+/* The outer .fix-first li is a grid with a severity rule down its left
+   edge. These are nested inside one, so they inherit both and the step
+   title ends up in a column beside its own body, under a red bar that
+   means nothing here. Everything below is an override, not a style. */
+.guide-steps li {
+  display: list-item;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  list-style: decimal;
+}
+.guide-steps b { display: block; color: var(--ink); font-weight: 650; }
+.guide-steps span { display: block; }
+.guide-note {
+  margin: 0.85rem 0 0;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-mute);
+  font-size: 0.875rem;
+}
+.guide-more { margin: 0.6rem 0 0; font-size: 0.875rem; }
+
+@media print {
+  .guide { background: none; border-left: 2px solid #999; break-inside: avoid; }
+}

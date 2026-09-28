@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Manual
+
+# Builds the user manual so a change that breaks it is caught before it
+# merges. This workflow does not deploy.
+#
+# Publishing happens in satellion.com, the repository that builds
+# satellion.com: it checks out passmcp at its latest release, builds this
+# manual into /manual, and deploys it with the rest of the site from one
+# artifact.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build manual
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      # --require-hashes, not just a version pin. A version can be yanked and
+      # republished, and a compromised index can serve a different artefact
+      # under the same number; a hash cannot be satisfied by anything but the
+      # bytes that were reviewed. Scorecard flags the unpinned form, and it
+      # is right to.
+      #
+      # --strict so a broken nav entry or a dangling link inside the manual
+      # fails the build rather than the reader.
+      - name: Build with MkDocs
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check \
+            --require-hashes -r docs/requirements.txt
+          mkdocs build --strict --site-dir public

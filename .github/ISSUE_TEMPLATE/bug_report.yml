@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Bug report
+description: A finding passmcp got wrong, a phase that misbehaved, or a report that leaked something
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this is a security issue — a credential in a report, a token in the
+        telemetry — **stop** and report it privately through
+        [GitHub's private vulnerability reporting](https://github.com/sebastienrousseau/passmcp/security/advisories/new)
+        instead. See [SECURITY.md](https://github.com/sebastienrousseau/passmcp/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did passmcp report? Paste the finding or the stderr output, not a summary of it.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: If a finding is wrong, say what the server actually does and how you know.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The exact command, including flags. Redact tokens, client secrets and any URL you cannot share. `--report-dir` output is ideal; check it before attaching.
+      render: shell
+      placeholder: passmcp check https://mcp.example.com/mcp --auth client-credentials --client-id acme --client-secret-env ACME_SECRET
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: passmcp version
+      description: Output of `passmcp version`.
+    validations:
+      required: true
+
+  - type: input
+    id: server
+    attributes:
+      label: Server under test
+      description: What served the endpoint (name and version from the handshake finding), and whether it is public.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - WSL2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Did this touch the server?
+      description: A tool invoked that should not have been, data changed, a rate limit tripped.
+      options:
+        - label: Yes — passmcp invoked or changed something I did not expect

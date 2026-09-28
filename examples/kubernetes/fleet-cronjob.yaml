@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Run a passmcp fleet every six hours inside the cluster.
+#
+# The fleet file is mounted from a ConfigMap, each server's credential is a
+# Secret referenced by name, and every run's attestations, reports and diffs
+# land on the persistent volume at /data. The job writes nowhere else, and it
+# contacts only the servers the fleet file names and the authorization
+# servers they advertise: passmcp has no telemetry (ADR 0006).
+#
+# Replace the image digest with the release you have verified
+# (`cosign verify ghcr.io/sebastienrousseau/passmcp@<digest>`), and the claim
+# name with a volume of your own.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: passmcp-fleet
+data:
+  fleet.yaml: |
+    version: 1
+    pacing:
+      rps: 2
+      samples: 3
+    servers:
+      - name: docs
+        endpoint: https://docs-mcp.internal.example/mcp
+        credential:
+          token_env: DOCS_MCP_TOKEN
+      - name: billing
+        endpoint: https://billing-mcp.internal.example/mcp
+        credential:
+          mode: client-credentials
+          client_id: passmcp-fleet
+          client_secret_env: BILLING_CLIENT_SECRET
+          token_url: https://auth.internal.example/oauth/token
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: passmcp-fleet
+spec:
+  schedule: "17 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: passmcp
+              image: ghcr.io/sebastienrousseau/passmcp:0.0.1
+              args: ["fleet", "run", "/config/fleet.yaml", "--state", "/data", "--output", "json"]
+              env:
+                - name: DOCS_MCP_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: passmcp-fleet-credentials
+                      key: docs-mcp-token
+                - name: BILLING_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: passmcp-fleet-credentials
+                      key: billing-client-secret
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: fleet
+                  mountPath: /config
+                  readOnly: true
+                - name: state
+                  mountPath: /data
+          volumes:
+            - name: fleet
+              configMap:
+                name: passmcp-fleet
+            - name: state
+              persistentVolumeClaim:
+                claimName: passmcp-fleet-state

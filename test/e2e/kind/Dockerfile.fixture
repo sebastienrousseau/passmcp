@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# The e2e fixture: one static binary and nothing else. It doubles as the
+# stdio server, copied into the passmcp pod by an init container (-install)
+# because the passmcp image carries no MCP servers of its own.
+FROM scratch
+COPY fixture /fixture
+USER 65532:65532
+ENTRYPOINT ["/fixture"]

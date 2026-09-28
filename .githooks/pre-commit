@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+set -euo pipefail
+
+# Ensure code is formatted
+staged_go=$(git diff --cached --name-only --diff-filter=ACM -- '*.go')
+if [[ -n "$staged_go" ]]; then
+	echo "$staged_go" | xargs gofmt -w
+	echo "$staged_go" | xargs git add
+fi
+
+# Verify commit signing is configured
+if [[ "$(git config --get commit.gpgsign 2>/dev/null)" != "true" ]]; then
+	echo "ERROR: commit.gpgsign is not enabled. Run: git config --global commit.gpgsign true" >&2
+	exit 1
+fi

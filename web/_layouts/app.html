@@ -1,0 +1,166 @@
+{{#extends "base"}}{{#block "main"}}
+<section class="passmcp-hero" aria-labelledby="app-heading">
+  <div class="container">
+    <p class="eyebrow">{{eyebrow}}</p>
+    <h1 id="app-heading">{{headline}}</h1>
+    <p class="lead">{{lead}}</p>
+  </div>
+</section>
+
+<section class="section" id="run" aria-labelledby="run-heading">
+  <div class="container">
+    <h2 id="run-heading" class="sr-only">Run a diagnostic</h2>
+
+    <!-- What a run is, before anyone commits to one. The figures are the
+         real ones; docs/checks.md is generated and CI fails when this
+         number and the source disagree. -->
+    <ul class="run-facts">
+      <li><b>9</b><span>phases, in order</span></li>
+      <li><b>131</b><span>checks</span></li>
+      <li><b>Both</b><span>protocol revisions, detected</span></li>
+      <li><b>0</b><span>bytes uploaded</span></li>
+    </ul>
+
+    <form id="run-form" class="run-form" novalidate>
+
+      <section class="panel" aria-labelledby="p-connect">
+        <header class="panel-head">
+          <h3 id="p-connect">Connect</h3>
+          <p>Where to look, and what to authenticate with. Both the handshake
+             revisions and 2026-07-28 are detected from the server itself —
+             there is nothing to choose.</p>
+        </header>
+        <div class="panel-body">
+          <div class="field field-wide">
+            <label for="endpoint">MCP server endpoint</label>
+            <input id="endpoint" name="endpoint" type="url" inputmode="url" autocomplete="url"
+                   placeholder="https://mcp.example.com/mcp" required
+                   aria-describedby="endpoint-help" />
+            <p id="endpoint-help" class="field-help">The Streamable HTTP URL. Five of the 131 checks
+               apply only to a server that is a program rather than a URL; run those from the
+               command line with <code>passmcp check --stdio -- &lt;command&gt;</code>.</p>
+          </div>
+
+          <div class="field">
+            <label for="auth">Credentials</label>
+            <select id="auth" name="auth">
+              <option value="auto">Auto-detect</option>
+              <option value="none">None</option>
+              <option value="bearer">Bearer token</option>
+              <option value="client-credentials">OAuth client credentials</option>
+              <option value="authorization-code">Stored login</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="token-env">Token from environment variable</label>
+            <input id="token-env" name="token_env" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="MCP_TOKEN" aria-describedby="token-help" />
+            <p id="token-help" class="field-help">A name, not a token.</p>
+          </div>
+
+          <p class="assurance field-wide">
+            The browser sends the variable's <b>name</b>. passmcp reads the value
+            on this machine, uses it against the server you named, and never
+            writes it into the report. Nothing here reaches anybody else's
+            infrastructure.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="p-safety">
+        <header class="panel-head">
+          <h3 id="p-safety">Safety</h3>
+          <p>Only tools declaring <code>readOnlyHint</code> are called. Everything
+             here is an explicit opt-in, and belongs to a server you own.</p>
+        </header>
+        <div class="panel-body">
+          <fieldset class="field field-wide bare">
+            <legend class="sr-only">Safety opt-ins</legend>
+            <label class="check"><input type="checkbox" id="allow-mutations" name="allow_mutations" /> <span>Also call tools that mutate but are not destructive</span></label>
+            <label class="check"><input type="checkbox" id="allow-destructive" name="allow_destructive" /> <span>Also call destructive and unannotated tools</span></label>
+            <label class="check"><input type="checkbox" id="skip-era" name="skip_era_check" /> <span>Skip the protocol-generation probe (one fewer request)</span></label>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="p-tools">
+        <header class="panel-head">
+          <h3 id="p-tools">Tools</h3>
+          <p>The same selector <code>passmcp check -i</code> draws in a terminal.
+             Choosing a tool is an explicit opt-in, so picking a mutating one
+             widens the policy for that tool and nothing else.</p>
+        </header>
+        <div class="panel-body">
+          <div class="actions">
+            <button class="button secondary" type="button" id="load-tools">List this server&rsquo;s tools</button>
+            <span id="tools-status" class="run-status" role="status" aria-live="polite"></span>
+          </div>
+          <fieldset class="field field-wide bare" id="tool-list" hidden>
+            <legend class="sr-only">Tools to exercise</legend>
+            <div id="tool-rows"></div>
+            <p class="field-help">With nothing selected, every tool the policy
+               already permits is exercised, which is what a run does by
+               default.</p>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="p-pacing">
+        <header class="panel-head">
+          <h3 id="p-pacing">Pacing</h3>
+          <p>A scheduled diagnostic against somebody's production server is a
+             load test if you let it be.</p>
+        </header>
+        <div class="panel-body">
+          <div class="field">
+            <label for="rps">Requests per second</label>
+            <input id="rps" name="rps" type="number" min="0" max="50" step="0.5" value="2" />
+            <p class="field-help">0 removes the throttle.</p>
+          </div>
+
+          <div class="field">
+            <label for="timeout">Per-call timeout (seconds)</label>
+            <input id="timeout" name="timeout" type="number" min="1" max="120" step="1" value="30" />
+            <p class="field-help">Per call, not per run.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button class="button primary" type="submit" id="run-btn" disabled>Run diagnostic</button>
+        <button class="button secondary" type="button" id="cancel-btn" hidden>Cancel</button>
+        <span id="run-status" class="run-status" role="status" aria-live="polite">Enter an endpoint to begin.</span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section section-soft" id="live" aria-labelledby="live-heading" hidden>
+  <div class="container">
+    <h2 id="live-heading">Progress</h2>
+    <ol class="phase-list" id="phase-list"></ol>
+    <p class="field-help" id="live-note">Each phase reports as it finishes. Findings appear beneath the phase that produced them.</p>
+  </div>
+</section>
+
+<section class="section" id="result" aria-labelledby="result-heading" hidden>
+  <div class="container">
+    <h2 id="result-heading">Result</h2>
+    <div id="result-body"></div>
+    <div class="actions">
+      <a class="button primary" id="open-report" href="#" target="_blank" rel="noopener">Open the full report</a>
+      <a class="button secondary" id="download-json" href="#" download="passmcp-report.json">Download JSON</a>
+      <span class="field-help">The full report prints to PDF from your browser.</span>
+    </div>
+  </div>
+</section>
+
+<noscript>
+  <section class="section">
+    <div class="container">
+      <p class="lead">This page runs diagnostics in your browser and needs JavaScript. Without it, use the command line: <code>passmcp check https://mcp.example.com/mcp</code></p>
+    </div>
+  </section>
+</noscript>
+{{/block}}

@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# The REUSE linter CI runs over the whole tree. Pinned with hashes by
+# `make reuse-lock`, like docs/requirements.txt, so the licence gate
+# cannot change under the repository between two runs. The extra is
+# required: reuse cannot read files without an encoding detector, and
+# charset-normalizer is the pure-Python one.
+reuse[charset-normalizer]==6.2.0

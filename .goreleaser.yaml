@@ -1,0 +1,298 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+version: 2
+
+project_name: passmcp
+
+# Replace an existing GitHub release on re-run, so a release can be retried
+# after fixing a publishing secret.
+release:
+  mode: replace
+  header: |
+    Full notes are in
+    [CHANGELOG.md](https://github.com/sebastienrousseau/passmcp/blob/main/CHANGELOG.md).
+
+    **Verify what you downloaded:**
+
+    ```bash
+    gh attestation verify <asset> --owner sebastienrousseau
+    ```
+
+    Every asset is covered by `checksums.txt`, which is signed
+    (`checksums.txt.sigstore.json`), and SLSA build provenance ships as
+    `checksums.txt.intoto.jsonl`.
+
+# Manpages and shell completions are rendered from the cobra command tree
+# before anything is packaged. Generated, never committed: a checked-in .1
+# drifts from --help the first time a flag changes, and nothing catches it.
+before:
+  hooks:
+    - go run ./scripts/gen_docs.go build
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    # -trimpath removes the build machine's absolute paths from the binary,
+    # and the pinned timestamp makes two builds of the same commit
+    # byte-identical, which is what lets a third party check provenance
+    # rather than trust it.
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    main: ./cmd/passmcp
+    binary: passmcp
+    ldflags:
+      - -s -w -X satellion.com/passmcp/cmd.Version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - SECURITY.md
+      - src: build/man/*.1
+        dst: man
+      - src: build/completions/*
+        dst: completions
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+
+# GitHub Container Registry. One image per arch; docker_manifests below
+# fans them into a multi-arch manifest under the version and :latest tags.
+# Container images.
+#
+# dockers_v2 rather than dockers + docker_manifests: those two are
+# deprecated and goreleaser drops them in v3, and the replacement is not a
+# rename — it collapses three blocks into one. Where the old form needed a
+# stanza per architecture plus two manifest stanzas to stitch them together,
+# this describes the image once and buildx produces the multi-arch manifest.
+#
+# The binaries are the ones already built above. Nothing is compiled in the
+# Dockerfile: the image ships the same artefact the tarball does, which is
+# the only way `docker pull` and a downloaded release can be the same
+# program.
+dockers_v2:
+  - id: passmcp
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/sebastienrousseau/passmcp
+    tags:
+      # "latest" is guarded on prerelease. The old config published it
+      # unconditionally, so a prerelease tag would have moved the tag most
+      # people pull by default onto a release nobody said was ready.
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: "Onboard, test and diagnose remote MCP servers end to end"
+      org.opencontainers.image.url: "https://github.com/sebastienrousseau/passmcp"
+      org.opencontainers.image.source: "https://github.com/sebastienrousseau/passmcp"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.licenses: "GPL-3.0-only"
+    # Labels live on each platform image; a registry showing the multi-arch
+    # tag reads the index, which has none unless they are set here too.
+    annotations:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: "Onboard, test and diagnose remote MCP servers end to end"
+      org.opencontainers.image.source: "https://github.com/sebastienrousseau/passmcp"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.licenses: "GPL-3.0-only"
+
+# Keyless cosign signing of each per-arch image and both manifest tags,
+# with the sigstore OIDC identity of the GitHub Actions runner. Verify:
+#   cosign verify \
+#     --certificate-identity-regexp='https://github.com/sebastienrousseau/passmcp/.github/workflows/release.yml@refs/tags/.*' \
+#     --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+#     ghcr.io/sebastienrousseau/passmcp:<version>
+docker_signs:
+  - id: cosign-oidc
+    cmd: cosign
+    args:
+      - sign
+      - --yes
+      - '${artifact}'
+    # No `artifacts:` key on purpose. The enum values — all, images,
+    # manifests — address what the deprecated dockers/docker_manifests
+    # produced; images built by dockers_v2 are the empty default, so naming
+    # one of the old values here would sign nothing at all and report
+    # success. That is the same shape of failure the tap job had.
+    output: true
+
+# Native Linux packages (Debian, Ubuntu, WSL, Fedora, RHEL, openSUSE).
+nfpms:
+  - id: passmcp-packages
+    file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    homepage: "https://github.com/sebastienrousseau/passmcp"
+    maintainer: "Sebastien Rousseau <sebastian.rousseau@gmail.com>"
+    description: "Onboard, test and diagnose remote Model Context Protocol servers end to end, with the credentials you were given, and write a scored step-by-step report with every request's telemetry attached."
+    license: "GPL-3.0-only"
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    contents:
+      - src: build/man/*.1
+        dst: /usr/share/man/man1
+        file_info: {mode: 0644}
+      - src: build/completions/passmcp.bash
+        dst: /usr/share/bash-completion/completions/passmcp
+        file_info: {mode: 0644}
+      - src: build/completions/passmcp.zsh
+        dst: /usr/share/zsh/site-functions/_passmcp
+        file_info: {mode: 0644}
+      - src: build/completions/passmcp.fish
+        dst: /usr/share/fish/vendor_completions.d/passmcp.fish
+        file_info: {mode: 0644}
+      - src: LICENSE
+        dst: /usr/share/doc/passmcp/LICENSE
+        file_info: {mode: 0644}
+      - src: README.md
+        dst: /usr/share/doc/passmcp/README.md
+        file_info: {mode: 0644}
+      - src: CHANGELOG.md
+        dst: /usr/share/doc/passmcp/CHANGELOG.md
+        file_info: {mode: 0644}
+
+# Homebrew formula, generated from the release's own checksums and
+# published afterwards by the `brew` job in release.yml, which cannot fail
+# the release: an unreachable package host must not cost a release its
+# provenance.
+# Homebrew. A cask rather than a formula: `brews:` is deprecated, and
+# goreleaser drops it in a future major. A cask installs the prebuilt
+# binary from the release archive, which is what this tap always did — the
+# formula never compiled from source either.
+#
+# The declarative binary/manpages/completions replace the formula's Ruby
+# install block; goreleaser generates the equivalent stanzas.
+homebrew_casks:
+  - name: passmcp
+    repository:
+      owner: sebastienrousseau
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    skip_upload: true
+    directory: Casks
+    homepage: "https://github.com/sebastienrousseau/passmcp"
+    description: "Onboard, test and diagnose remote MCP servers end to end"
+    license: "GPL-3.0-only"
+    binaries:
+      - passmcp
+    manpages:
+      - man/passmcp.1
+    completions:
+      bash: completions/passmcp.bash
+      zsh: completions/passmcp.zsh
+      fish: completions/passmcp.fish
+    # Gatekeeper quarantines anything a cask downloads, and the release
+    # binaries are not notarised, so without this the first run dies with
+    # "cannot be opened because the developer cannot be verified". A
+    # formula was never subject to this; a cask is.
+    # Gatekeeper quarantines anything a cask downloads, and the release
+    # binaries are not notarised. Without this the first run dies silently:
+    # verified by installing without it, where the binary keeps
+    # com.apple.quarantine and `passmcp version` prints nothing at all.
+    #
+    # custom_block rather than the hooks: block, because hooks emit
+    # `postflight do ... end` and Homebrew deprecated calling postflight.
+    # goreleaser has no postflight_steps option, so the replacement is
+    # written out here. goreleaser places a custom block directly after
+    # `cask "passmcp" do`, before the version stanza, which is unusual to read
+    # and works: confirmed by installing it in both positions.
+    #
+    # chdir is the part that is easy to get wrong. A step's args are literal
+    # strings and are not resolved against the staged path, so a bare
+    # "passmcp" is looked up in whatever the current directory happens to be
+    # and the install fails with exit 1. chdir does resolve against the
+    # staged path, so "." puts the command where the binary is.
+    custom_block: |
+      postflight_steps do
+        run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "passmcp"], chdir: "."
+      end
+
+checksum:
+  name_template: 'checksums.txt'
+
+# A machine-readable CycloneDX SBOM per artefact. Generated beats curated.
+# The packages get their own, not only the archives: the EU Cyber
+# Resilience Act asks for an SBOM for the product as it is installed, and
+# a .deb is installed differently from a tarball. The published-release
+# audit (`scripts/cra/main.go release-assets`) fails a release where any
+# artefact lacks one.
+sboms:
+  - id: archive
+    artifacts: archive
+    cmd: syft
+    args: ["$artifact", "--output", "cyclonedx-json=$document"]
+    documents:
+      - '{{ .ArtifactName }}.cdx.sbom.json'
+  - id: package
+    artifacts: package
+    cmd: syft
+    args: ["$artifact", "--output", "cyclonedx-json=$document"]
+    documents:
+      - '{{ .ArtifactName }}.cdx.sbom.json'
+
+# Keyless cosign signature over checksums.txt as a Sigstore bundle. Verify:
+#   cosign verify-blob --bundle checksums.txt.sigstore.json \
+#     --certificate-identity-regexp 'https://github.com/sebastienrousseau/passmcp/.*' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     checksums.txt
+signs:
+  - cmd: cosign
+    signature: '${artifact}.sigstore.json'
+    args:
+      - sign-blob
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+    output: true
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\([^)]*\))?!?:'
+      order: 0
+    - title: Fixes
+      regexp: '^fix(\([^)]*\))?!?:'
+      order: 1
+    - title: Security and dependencies
+      regexp: '^(sec|deps|chore\(deps\)|chore\(docker\)|chore\(actions\))'
+      order: 2
+    - title: Other
+      order: 99
+  filters:
+    exclude:
+      - '^Merge pull request'
+      - '^Merge branch'
+      - '^docs:'
+      - '^test:'
+      - '^chore: '

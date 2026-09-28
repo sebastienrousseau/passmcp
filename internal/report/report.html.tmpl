@@ -1,0 +1,276 @@
+{{- /*
+SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+SPDX-License-Identifier: GPL-3.0-only
+
+The one report template. It serves the shareable HTML file, the browser in
+passmcp serve, and — through the print stylesheet — the PDF. Every string it
+renders came from a server nobody vetted, so html/template's contextual
+escaping is doing real work here and must not be bypassed.
+*/ -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>passmcp · {{ .Report.Target.Host }}</title>
+<style>{{ .CSS }}</style>
+</head>
+<body>
+
+<section class="cover" aria-label="Cover">
+  <div class="wrap cover-in">
+    <span class="brand cover-brand"><svg class="mark" viewBox="0 0 481 637" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path fill="#EC6F59" d="M228,636.4 C219.8,635.6 195.6,631 186.3,628.5C166.1,623.1 140.5,611.4 123.2,599.8C66.7,561.7 24.2,497 8,424.2C3,401.6 1.7,388.7 1.6,362.5C1.6,340.8 1.9,335.9 3.8,325.3C10.2,290.4 21.4,261.2 40.3,229.8C47,218.7 62,197 63.1,197C63.4,197 64.2,201.6 64.9,207.2C68.8,239.6 77.7,265.2 89.3,277.3C92.4,280.4 95.2,283 95.7,283C96.2,283 96.4,273 96.2,259.8C95.7,234.2 97.1,218.9 101.6,198.5C114.2,141.4 148.8,92.8 204.8,53.1C225.5,38.5 254.5,22.5 280,11.6C292,6.4 308.4,-0 309.6,-0C309.8,-0 307.7,3.3 305,7.4C294.7,22.7 287.5,40.3 285,56.2C283,68.5 284.2,96 287.3,109C294.8,140.2 305.3,163.6 340,226C378,294.4 390.6,323.8 395.1,355C395.8,359.7 396.7,363.9 397.1,364.4C398.4,365.9 408.7,343.5 414.3,327C423.4,300.3 429.9,264.8 431.5,234C431.8,227.1 432.3,220 432.6,218.1L433.2,214.6 436.2,219.6 C452.6,245.8 466.6,281.9 473.4,315.7C478.2,339.2 479.4,352.7 479.4,380.5C479.4,407.9 477.9,423.3 472.9,446.1C456.6,521 415,580.5 356.9,612.3C338.6,622.4 315.3,630.1 290.5,634.6C281.7,636.1 238.6,637.4 228,636.4 Z"/><path fill="#FAD15C" d="M230,635.9 C207.9,633.7 185.9,624.6 167.7,610.2C158.2,602.6 144.2,587.5 137.9,578C126.5,560.9 119.1,543.5 114.4,523.4C112,512.9 111.6,509.5 111.6,493.5C111.5,473.6 112.7,465.8 118.1,450.2C122.2,438.5 133.5,418 135.8,418C136.2,418 137.1,420.4 137.8,423.2C139.6,430.8 147.1,445.4 154.7,456.2C161.2,465.2 175.5,480.8 176.5,479.8C176.8,479.5 176.3,477.6 175.4,475.5C172.9,469.4 168.1,450.4 165.9,437.5C163.3,422.2 162.3,392.3 163.9,378.5C168.5,339.5 181.9,309.3 203.5,289.1C210,283.1 222.8,274 224.8,274C225.3,274 226,278.8 226.3,284.8C227.7,310.5 235.8,334.6 251.4,359.7C257,368.7 271.5,388.5 285.7,406.5C306,432.3 317.6,455 322.7,479C324.8,488.5 325.2,493.5 325.3,507.5C325.3,516.9 324.8,527.4 324.2,530.9C323.6,534.5 323.2,537.5 323.4,537.7C324,538.3 334.9,522.3 337.9,516.3C345.7,500.6 353.2,475.5 354.6,460.4C355,456.3 355.6,452.7 356,452.5C357.1,451.8 362.7,467.6 365.6,479.5C380.1,539.5 356.5,591.7 302,620.3C278.7,632.6 253.1,638.1 230,635.9 Z"/></svg><span class="wordmark">passmcp</span></span>
+    <h1 class="cover-title">MCP server<br>diagnostic report</h1>
+    <p class="cover-sub">{{ .Report.Target.Endpoint }}</p>
+    <dl class="cover-meta">
+      <div><dt>Verdict</dt><dd>{{ .Verdict }}</dd></div>
+      {{- if .Report.Score.Assessed }}<div><dt>Score</dt><dd>{{ .ScoreTotal }} / 100 · {{ .GradeWord }}</dd></div>{{ end }}
+      <div><dt>Subject</dt><dd>{{- with .Report.Server }}{{ .Name }} {{ .Version }}{{ else }}{{ .Report.Target.Host }}{{ end }}</dd></div>
+      <div><dt>Protocol</dt><dd>{{- with .Report.Server }}{{ .Protocol }}{{ else }}not negotiated{{ end }}</dd></div>
+      <div><dt>Run</dt><dd>{{ .Started }}</dd></div>
+      <div><dt>Produced by</dt><dd>passmcp {{ .Report.Passmcp.Version }}</dd></div>
+      <div><dt>Trace</dt><dd class="mono">{{ .Report.TraceID }}</dd></div>
+    </dl>
+    <p class="cover-foot">Produced locally. No endpoint, credential or response in this report left the machine that ran it.</p>
+  </div>
+</section>
+
+<nav class="toc" aria-label="Contents">
+  <div class="wrap">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#verdict">The verdict</a><span>What the run concluded, and why</span></li>
+      {{- if .FixFirst }}<li><a href="#fix-first">What to fix first</a><span>The findings that move the score most</span></li>{{ end }}
+      <li><a href="#checked">What passmcp checked</a><span>Every phase, in the order an agent meets them</span></li>
+      <li><a href="#catalog">What an agent sees</a><span>The tool catalogue as a model reads it</span></li>
+      <li><a href="#latency">How fast it answers</a><span>Latency under repeat and parallel calls</span></li>
+      <li><a href="#provenance">How this report was produced</a><span>Scope, method and provenance</span></li>
+    </ol>
+  </div>
+</nav>
+
+<header class="mast" id="verdict">
+  <div class="wrap mast-in">
+    <div class="brandbar">
+      <span class="brand"><svg class="mark" viewBox="0 0 481 637" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path fill="#EC6F59" d="M228,636.4 C219.8,635.6 195.6,631 186.3,628.5C166.1,623.1 140.5,611.4 123.2,599.8C66.7,561.7 24.2,497 8,424.2C3,401.6 1.7,388.7 1.6,362.5C1.6,340.8 1.9,335.9 3.8,325.3C10.2,290.4 21.4,261.2 40.3,229.8C47,218.7 62,197 63.1,197C63.4,197 64.2,201.6 64.9,207.2C68.8,239.6 77.7,265.2 89.3,277.3C92.4,280.4 95.2,283 95.7,283C96.2,283 96.4,273 96.2,259.8C95.7,234.2 97.1,218.9 101.6,198.5C114.2,141.4 148.8,92.8 204.8,53.1C225.5,38.5 254.5,22.5 280,11.6C292,6.4 308.4,-0 309.6,-0C309.8,-0 307.7,3.3 305,7.4C294.7,22.7 287.5,40.3 285,56.2C283,68.5 284.2,96 287.3,109C294.8,140.2 305.3,163.6 340,226C378,294.4 390.6,323.8 395.1,355C395.8,359.7 396.7,363.9 397.1,364.4C398.4,365.9 408.7,343.5 414.3,327C423.4,300.3 429.9,264.8 431.5,234C431.8,227.1 432.3,220 432.6,218.1L433.2,214.6 436.2,219.6 C452.6,245.8 466.6,281.9 473.4,315.7C478.2,339.2 479.4,352.7 479.4,380.5C479.4,407.9 477.9,423.3 472.9,446.1C456.6,521 415,580.5 356.9,612.3C338.6,622.4 315.3,630.1 290.5,634.6C281.7,636.1 238.6,637.4 228,636.4 Z"/><path fill="#FAD15C" d="M230,635.9 C207.9,633.7 185.9,624.6 167.7,610.2C158.2,602.6 144.2,587.5 137.9,578C126.5,560.9 119.1,543.5 114.4,523.4C112,512.9 111.6,509.5 111.6,493.5C111.5,473.6 112.7,465.8 118.1,450.2C122.2,438.5 133.5,418 135.8,418C136.2,418 137.1,420.4 137.8,423.2C139.6,430.8 147.1,445.4 154.7,456.2C161.2,465.2 175.5,480.8 176.5,479.8C176.8,479.5 176.3,477.6 175.4,475.5C172.9,469.4 168.1,450.4 165.9,437.5C163.3,422.2 162.3,392.3 163.9,378.5C168.5,339.5 181.9,309.3 203.5,289.1C210,283.1 222.8,274 224.8,274C225.3,274 226,278.8 226.3,284.8C227.7,310.5 235.8,334.6 251.4,359.7C257,368.7 271.5,388.5 285.7,406.5C306,432.3 317.6,455 322.7,479C324.8,488.5 325.2,493.5 325.3,507.5C325.3,516.9 324.8,527.4 324.2,530.9C323.6,534.5 323.2,537.5 323.4,537.7C324,538.3 334.9,522.3 337.9,516.3C345.7,500.6 353.2,475.5 354.6,460.4C355,456.3 355.6,452.7 356,452.5C357.1,451.8 362.7,467.6 365.6,479.5C380.1,539.5 356.5,591.7 302,620.3C278.7,632.6 253.1,638.1 230,635.9 Z"/></svg><span class="wordmark">passmcp</span></span>
+      <span class="doctype">MCP server diagnostic report</span>
+    </div>
+
+    <div class="target">
+      <span class="eyebrow">Subject</span>
+      <span class="endpoint">{{ .Report.Target.Endpoint }}</span>
+      <span class="sub">
+        {{- with .Report.Server }}{{ .Name }} {{ .Version }} · protocol {{ .Protocol }} · {{ end -}}
+        {{ .AuthLine }} · {{ .Started }}
+      </span>
+    </div>
+
+    <div class="verdict {{ .VerdictClass }}">
+      <h1>{{ .Verdict }}</h1>
+      {{- if .Report.Score.Assessed }}
+      <div class="score">
+        <span class="num">{{ .ScoreTotal }}</span>
+        <span class="of">/ 100</span>
+        <span class="grade">{{ .GradeWord }}</span>
+      </div>
+      {{- end }}
+    </div>
+
+    <p class="explain">{{ .Explain }}</p>
+
+    <div class="counts">
+      {{- if .Report.Counts.Fail }}<span class="count fail">{{ .Report.Counts.Fail }} failed</span>{{ end }}
+      {{- if .Report.Counts.Warn }}<span class="count warn">{{ .Report.Counts.Warn }} to improve</span>{{ end }}
+      {{- if .Report.Counts.Pass }}<span class="count pass">{{ .Report.Counts.Pass }} passed</span>{{ end }}
+      {{- if .Report.Counts.Info }}<span class="count info">{{ .Report.Counts.Info }} noted</span>{{ end }}
+      {{- if .Report.Counts.Skip }}<span class="count skip">{{ .Report.Counts.Skip }} skipped</span>{{ end }}
+    </div>
+  </div>
+</header>
+
+<main>
+
+{{- if .FixFirst }}
+<section id="fix-first">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Act on these</span>
+      <h2>What to fix first</h2>
+    </div>
+    <ol class="fix-first">
+      {{- range $i, $f := .FixFirst }}
+      <li{{ if eq $f.Status "warn" }} class="warn"{{ end }}>
+        <span class="rank">{{ inc $i }}</span>
+        <span class="what">{{ $f.Title }}</span>
+        <span class="why">{{ $f.Detail }}{{ with $f.Advice }} — {{ . }}{{ end }}</span>
+        {{- if $f.HasGuidance }}
+        <div class="guide">
+          <p class="guide-means">{{ $f.Remediation.Means }}</p>
+          <p class="guide-lead">How to fix it</p>
+          <ol class="guide-steps">
+            {{- range $f.Remediation.Steps }}
+            <li><b>{{ .Title }}</b><span>{{ .Body }}</span></li>
+            {{- end }}
+          </ol>
+          {{- with $f.Remediation.Note }}<p class="guide-note">{{ . }}</p>{{ end }}
+          {{- with $f.DocURL }}<p class="guide-more"><a href="{{ . }}">What this check asserts</a></p>{{ end }}
+        </div>
+        {{- end }}
+      </li>
+      {{- end }}
+    </ol>
+  </div>
+</section>
+{{- end }}
+
+<section class="detail" id="checked">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Step by step</span>
+      <h2>What passmcp checked</h2>
+    </div>
+    <div class="phases">
+      {{- range .Report.Phases }}
+      <div class="phase">
+        <div class="phase-head">
+          <span class="status {{ .Status }}">{{ .Status }}</span>
+          <span class="name">{{ .Title }}</span>
+          <span class="dur">{{ ms .Duration }}</span>
+        </div>
+        {{- with .Summary }}<p class="phase-summary">{{ . }}</p>{{ end }}
+        {{- with .Skipped }}<p class="phase-summary">Skipped: {{ . }}</p>{{ end }}
+        {{- $findings := visible .Findings $.Verbose }}
+        {{- if $findings }}
+        <div class="findings">
+          {{- range $findings }}
+          <div class="finding" data-status="{{ .Status }}">
+            <span class="status {{ .Status }}">{{ .Status }}</span>
+            <span class="f-title">{{ .Title }}</span>
+            <span class="f-id">{{ .ID }}</span>
+            {{- with .Detail }}<p class="f-detail">{{ . }}</p>{{ end }}
+            {{- with .Advice }}<p class="f-advice">{{ . }}</p>{{ end }}
+            {{- if and $.Verbose .Evidence }}<p class="f-ev">{{ join .Evidence ", " }}</p>{{ end }}
+          </div>
+          {{- end }}
+        </div>
+        {{- end }}
+      </div>
+      {{- end }}
+    </div>
+  </div>
+</section>
+
+{{- if .Report.Catalog.Tools }}
+<section id="catalog">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">{{ len .Report.Catalog.Tools }} tools</span>
+      <h2>What an agent sees</h2>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Tool</th><th>Description</th><th>Behaviour</th><th>Contract</th></tr>
+        </thead>
+        <tbody>
+          {{- range .Report.Catalog.Tools }}
+          <tr>
+            <td class="name">{{ .Name }}</td>
+            <td>{{ .Description }}</td>
+            <td>
+              {{- if .ReadOnly }}<span class="pill ro">read only</span>
+              {{- else if .Destructive }}<span class="pill dx">destructive</span>
+              {{- else }}<span class="pill">mutating</span>{{ end }}
+              {{- if not .Annotated }} <span class="pill">unannotated</span>{{ end }}
+            </td>
+            <td>{{ if .OutputSchema }}outputSchema{{ else }}<span class="pill">none</span>{{ end }}</td>
+          </tr>
+          {{- end }}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{{- end }}
+
+{{- with .Report.Perf }}
+{{- if .Tools }}
+<section id="latency">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Latency</span>
+      <h2>How fast it answers</h2>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Tool</th><th>Cold</th><th>p50</th><th>p95</th><th>Max</th><th>Errors</th></tr>
+        </thead>
+        <tbody>
+          {{- range .Tools }}
+          <tr>
+            <td class="name">{{ .Name }}</td>
+            <td class="num">{{ ms .Cold }}</td>
+            <td class="num">{{ ms .P50 }}</td>
+            <td class="num">{{ ms .P95 }}</td>
+            <td class="num">{{ ms .Max }}</td>
+            <td class="num">{{ .Errors }}</td>
+          </tr>
+          {{- end }}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{{- end }}
+{{- end }}
+
+<section id="provenance">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Provenance</span>
+      <h2>How this report was produced</h2>
+    </div>
+    <dl class="meta">
+      <div><dt>passmcp</dt><dd>{{ .Report.Passmcp.Version }}</dd></div>
+      <div><dt>Schema</dt><dd>v{{ .Report.Passmcp.SchemaVersion }}</dd></div>
+      <div><dt>Started</dt><dd>{{ .Started }}</dd></div>
+      <div><dt>Duration</dt><dd>{{ ms .Report.Duration }}</dd></div>
+      <div><dt>Requests</dt><dd>{{ .Report.Telemetry.Requests }}</dd></div>
+      <div><dt>Trace</dt><dd class="mono">{{ .Report.TraceID }}</dd></div>
+      <div><dt>Credentials</dt><dd>{{ .Report.Auth.Mode }}</dd></div>
+      {{- with .Report.Auth.Issuer }}<div><dt>Issuer</dt><dd>{{ . }}</dd></div>{{ end }}
+    </dl>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap colophon">
+    <div class="colo-brand">
+      <span class="brand"><svg class="mark" viewBox="0 0 481 637" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path fill="#EC6F59" d="M228,636.4 C219.8,635.6 195.6,631 186.3,628.5C166.1,623.1 140.5,611.4 123.2,599.8C66.7,561.7 24.2,497 8,424.2C3,401.6 1.7,388.7 1.6,362.5C1.6,340.8 1.9,335.9 3.8,325.3C10.2,290.4 21.4,261.2 40.3,229.8C47,218.7 62,197 63.1,197C63.4,197 64.2,201.6 64.9,207.2C68.8,239.6 77.7,265.2 89.3,277.3C92.4,280.4 95.2,283 95.7,283C96.2,283 96.4,273 96.2,259.8C95.7,234.2 97.1,218.9 101.6,198.5C114.2,141.4 148.8,92.8 204.8,53.1C225.5,38.5 254.5,22.5 280,11.6C292,6.4 308.4,-0 309.6,-0C309.8,-0 307.7,3.3 305,7.4C294.7,22.7 287.5,40.3 285,56.2C283,68.5 284.2,96 287.3,109C294.8,140.2 305.3,163.6 340,226C378,294.4 390.6,323.8 395.1,355C395.8,359.7 396.7,363.9 397.1,364.4C398.4,365.9 408.7,343.5 414.3,327C423.4,300.3 429.9,264.8 431.5,234C431.8,227.1 432.3,220 432.6,218.1L433.2,214.6 436.2,219.6 C452.6,245.8 466.6,281.9 473.4,315.7C478.2,339.2 479.4,352.7 479.4,380.5C479.4,407.9 477.9,423.3 472.9,446.1C456.6,521 415,580.5 356.9,612.3C338.6,622.4 315.3,630.1 290.5,634.6C281.7,636.1 238.6,637.4 228,636.4 Z"/><path fill="#FAD15C" d="M230,635.9 C207.9,633.7 185.9,624.6 167.7,610.2C158.2,602.6 144.2,587.5 137.9,578C126.5,560.9 119.1,543.5 114.4,523.4C112,512.9 111.6,509.5 111.6,493.5C111.5,473.6 112.7,465.8 118.1,450.2C122.2,438.5 133.5,418 135.8,418C136.2,418 137.1,420.4 137.8,423.2C139.6,430.8 147.1,445.4 154.7,456.2C161.2,465.2 175.5,480.8 176.5,479.8C176.8,479.5 176.3,477.6 175.4,475.5C172.9,469.4 168.1,450.4 165.9,437.5C163.3,422.2 162.3,392.3 163.9,378.5C168.5,339.5 181.9,309.3 203.5,289.1C210,283.1 222.8,274 224.8,274C225.3,274 226,278.8 226.3,284.8C227.7,310.5 235.8,334.6 251.4,359.7C257,368.7 271.5,388.5 285.7,406.5C306,432.3 317.6,455 322.7,479C324.8,488.5 325.2,493.5 325.3,507.5C325.3,516.9 324.8,527.4 324.2,530.9C323.6,534.5 323.2,537.5 323.4,537.7C324,538.3 334.9,522.3 337.9,516.3C345.7,500.6 353.2,475.5 354.6,460.4C355,456.3 355.6,452.7 356,452.5C357.1,451.8 362.7,467.6 365.6,479.5C380.1,539.5 356.5,591.7 302,620.3C278.7,632.6 253.1,638.1 230,635.9 Z"/></svg><span class="wordmark">passmcp</span></span>
+      <p class="tagline">A diagnostic for Model Context Protocol servers.<br>Runs on your machine. Your credentials never leave it.</p>
+      <p class="link">satellion.com</p>
+    </div>
+    <div class="colo-notes">
+      <p><strong>How to read this.</strong> Every finding above is tied to a request passmcp
+      made; nothing is reported as passing without one. Where a finding cites an exchange,
+      the full request and response are in the telemetry written beside this file.</p>
+      <p><strong>Sharing.</strong> Secrets are masked structurally at the recorder — headers
+      by name, credentials by value, including tokens this server issued during the run — so
+      this document is safe to circulate.</p>
+      <p class="fine">passmcp {{ .Report.Passmcp.Version }} · report schema v{{ .Report.Passmcp.SchemaVersion }} · trace {{ .Report.TraceID }}<br>
+      Generated {{ .Started }} · GPL-3.0-only · no telemetry was sent in producing this report</p>
+    </div>
+  </div>
+</footer>
+
+<div class="print-rail" aria-hidden="true">
+  <span class="brand"><svg class="mark" viewBox="0 0 481 637" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path fill="#EC6F59" d="M228,636.4 C219.8,635.6 195.6,631 186.3,628.5C166.1,623.1 140.5,611.4 123.2,599.8C66.7,561.7 24.2,497 8,424.2C3,401.6 1.7,388.7 1.6,362.5C1.6,340.8 1.9,335.9 3.8,325.3C10.2,290.4 21.4,261.2 40.3,229.8C47,218.7 62,197 63.1,197C63.4,197 64.2,201.6 64.9,207.2C68.8,239.6 77.7,265.2 89.3,277.3C92.4,280.4 95.2,283 95.7,283C96.2,283 96.4,273 96.2,259.8C95.7,234.2 97.1,218.9 101.6,198.5C114.2,141.4 148.8,92.8 204.8,53.1C225.5,38.5 254.5,22.5 280,11.6C292,6.4 308.4,-0 309.6,-0C309.8,-0 307.7,3.3 305,7.4C294.7,22.7 287.5,40.3 285,56.2C283,68.5 284.2,96 287.3,109C294.8,140.2 305.3,163.6 340,226C378,294.4 390.6,323.8 395.1,355C395.8,359.7 396.7,363.9 397.1,364.4C398.4,365.9 408.7,343.5 414.3,327C423.4,300.3 429.9,264.8 431.5,234C431.8,227.1 432.3,220 432.6,218.1L433.2,214.6 436.2,219.6 C452.6,245.8 466.6,281.9 473.4,315.7C478.2,339.2 479.4,352.7 479.4,380.5C479.4,407.9 477.9,423.3 472.9,446.1C456.6,521 415,580.5 356.9,612.3C338.6,622.4 315.3,630.1 290.5,634.6C281.7,636.1 238.6,637.4 228,636.4 Z"/><path fill="#FAD15C" d="M230,635.9 C207.9,633.7 185.9,624.6 167.7,610.2C158.2,602.6 144.2,587.5 137.9,578C126.5,560.9 119.1,543.5 114.4,523.4C112,512.9 111.6,509.5 111.6,493.5C111.5,473.6 112.7,465.8 118.1,450.2C122.2,438.5 133.5,418 135.8,418C136.2,418 137.1,420.4 137.8,423.2C139.6,430.8 147.1,445.4 154.7,456.2C161.2,465.2 175.5,480.8 176.5,479.8C176.8,479.5 176.3,477.6 175.4,475.5C172.9,469.4 168.1,450.4 165.9,437.5C163.3,422.2 162.3,392.3 163.9,378.5C168.5,339.5 181.9,309.3 203.5,289.1C210,283.1 222.8,274 224.8,274C225.3,274 226,278.8 226.3,284.8C227.7,310.5 235.8,334.6 251.4,359.7C257,368.7 271.5,388.5 285.7,406.5C306,432.3 317.6,455 322.7,479C324.8,488.5 325.2,493.5 325.3,507.5C325.3,516.9 324.8,527.4 324.2,530.9C323.6,534.5 323.2,537.5 323.4,537.7C324,538.3 334.9,522.3 337.9,516.3C345.7,500.6 353.2,475.5 354.6,460.4C355,456.3 355.6,452.7 356,452.5C357.1,451.8 362.7,467.6 365.6,479.5C380.1,539.5 356.5,591.7 302,620.3C278.7,632.6 253.1,638.1 230,635.9 Z"/></svg><span class="wordmark">passmcp</span></span>
+  <span>{{ .Report.Target.Host }}</span>
+  <span>{{ .Started }}</span>
+</div>
+
+</body>
+</html>

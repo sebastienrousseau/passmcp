@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: DCO
+
+# Enforces the Developer Certificate of Origin (https://developercertificate.org)
+# on every PR. Every commit a contributor authored in the PR range must carry a
+# "Signed-off-by: Name <email>" trailer. Contributors add it with
+# `git commit -s`; forgetting it becomes a clear CI failure rather than a
+# governance gap. Deliberately one `git log` and a grep, so there is no
+# third-party action to keep updated.
+#
+# Merge commits are excluded, which is what every other DCO implementation
+# does and for a good reason: a merge commit certifies nothing because it
+# introduces no authored content, and its message is written by whatever did
+# the merge rather than by a person. This repository requires branches to be
+# up to date before merging, so "Update branch" is a routine action — and it
+# produces a merge commit authored by GitHub with no trailer. Judging that
+# commit turned a green pull request red and told the contributor to amend
+# something they had not written.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: DCO check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify Signed-off-by on every PR commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # --no-merges: see the note at the top of this file. A merge commit
+          # introduces no authored content, so there is nothing for its author
+          # to certify.
+          commits=$(git rev-list --no-merges "${BASE_SHA}..${HEAD_SHA}")
+          if [ -z "${commits}" ]; then
+            echo "No commits in the PR range; nothing to check."
+            exit 0
+          fi
+          missing=()
+          for sha in ${commits}; do
+            if ! git show -s --format=%B "${sha}" | grep -qi '^Signed-off-by: .* <.*>$'; then
+              missing+=("${sha}")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::The following commits are missing a valid Signed-off-by trailer:"
+            for sha in "${missing[@]}"; do
+              subject=$(git log -1 --format='%s' "${sha}")
+              echo "::error::  ${sha}  ${subject}"
+            done
+            echo ""
+            echo "To fix: run 'git commit --amend --signoff' on each unsigned commit,"
+            echo "or for a range use 'git rebase --signoff BASE_SHA'."
+            echo "Merge commits are exempt and are not listed above."
+            echo "See CONTRIBUTING.md for the full DCO contributor flow."
+            exit 1
+          fi
+          echo "All PR commits carry a valid Signed-off-by trailer."

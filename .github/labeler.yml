@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# PR Labeler configuration, read by .github/workflows/labeler.yml.
+
+core:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'internal/**'
+      - 'auth/**'
+      - 'transport/**'
+      - 'diagnostics/**'
+      - 'trace/**'
+      - '*.go'
+
+cli:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'cmd/**'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '*.md'
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+test:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*_test.go'
+      - '**/testdata/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/**'
+      - '.goreleaser.yaml'
+      - 'Makefile'
+      - 'GNUmakefile'
+
+packaging:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pkg/**'
+      - 'Dockerfile'
+      - 'flake.nix'

@@ -1,0 +1,517 @@
+{
+  "framework": "gdpr",
+  "name": "General Data Protection Regulation (EU) 2016/679",
+  "version": "Regulation (EU) 2016/679",
+  "note": "GDPR compliance belongs to the controller and the processor. passmcp produces inputs for the record of processing (Art. 30) and the DPIA (Art. 35), and evidences the technical side of security of processing (Art. 32).",
+  "criteria": [
+    {
+      "id": "Art. 5(1)(c)",
+      "title": "Data minimisation",
+      "reason": "Whether the controller collects only the personal data it needs is a property of its purposes, not of a server's behaviour. passmcp's own minimisation (redaction, no telemetry) is documented in the manual."
+    },
+    {
+      "id": "Art. 25",
+      "title": "Data protection by design and by default"
+    },
+    {
+      "id": "Art. 28",
+      "title": "Processor",
+      "reason": "Contracts between controller and processor are legal documents, not server behaviour."
+    },
+    {
+      "id": "Art. 30",
+      "title": "Records of processing activities"
+    },
+    {
+      "id": "Art. 32",
+      "title": "Security of processing"
+    },
+    {
+      "id": "Art. 33",
+      "title": "Notification of a personal data breach to the supervisory authority",
+      "reason": "Breach notification is an organisational process."
+    },
+    {
+      "id": "Art. 35",
+      "title": "Data protection impact assessment"
+    },
+    {
+      "id": "Art. 44",
+      "title": "General principle for transfers"
+    }
+  ],
+  "checks": {
+    "a2a.card_schema": {
+      "none": "protocol conformance and interoperability: it shows the agent card is valid A2A, which no control in this framework requires"
+    },
+    "a2a.card_signature": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "a2a.transport": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "a2a.unauthenticated": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "auth.mode": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "auth.registration": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "auth.rejects_garbage": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "auth.source.*": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "auth.token": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "auth.token.expiry": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "auth.token.scope": {
+      "controls": [
+        "Art. 25"
+      ]
+    },
+    "auth.token.type": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "auth.unauthenticated_tools": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "auth.wrong_audience": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "catalog.baseline": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.budget.tokens": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.cache_hints": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.empty": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.names.confusable": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.personal_data": {
+      "controls": [
+        "Art. 30",
+        "Art. 35"
+      ]
+    },
+    "catalog.prompts.descriptions": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.prompts.list": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.resources.list": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.resources.mime": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.resources.templates": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.resources.uris": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.semantic.ambiguity": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.text.comments": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.text.cross_server_shadowing": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.text.encoded": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.text.hidden": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.text.instructions": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.text.secret_paths": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "catalog.text.shadowing": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "catalog.tools.annotation_honesty": {
+      "controls": [
+        "Art. 25"
+      ]
+    },
+    "catalog.tools.annotations": {
+      "controls": [
+        "Art. 25"
+      ]
+    },
+    "catalog.tools.descriptions": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.tools.idempotency": {
+      "controls": [
+        "Art. 25"
+      ]
+    },
+    "catalog.tools.input_schema": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.tools.list": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.tools.output_schema": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.tools.title": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.tools.unique": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.toxic_combination": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.as": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.as.grants": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "discovery.as.https": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.as.pkce": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.assemble": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "discovery.challenge": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.challenge.scope": {
+      "controls": [
+        "Art. 25"
+      ]
+    },
+    "discovery.creds_unused": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "discovery.dpop": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.enterprise_managed": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "discovery.first_contact": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.override": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "discovery.override.build": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "discovery.prm": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.prm.resource": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "discovery.registration": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "egress.hosts": {
+      "controls": [
+        "Art. 30",
+        "Art. 32",
+        "Art. 44"
+      ]
+    },
+    "egress.undeclared_host": {
+      "controls": [
+        "Art. 30",
+        "Art. 32",
+        "Art. 44"
+      ]
+    },
+    "execution.content": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "execution.error_guidance": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "execution.output_injection": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "execution.payload_size": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "execution.policy": {
+      "none": "records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls"
+    },
+    "execution.prompts": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "execution.resources": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "execution.tools": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "execution.validation": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "fs.canary_exfiltrated": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "fs.credential_probe": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "handshake.capabilities": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "handshake.initialize": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "handshake.instructions": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "handshake.protocol_era": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "handshake.protocol_version": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "handshake.server_info": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "handshake.session": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "handshake.stateless": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "net.dns": {
+      "none": "a connectivity precondition for every other check, not evidence of a control"
+    },
+    "net.scheme": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "net.tcp": {
+      "none": "a connectivity precondition for every other check, not evidence of a control"
+    },
+    "net.tls": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "net.tls.cert": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "net.tls.version": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "performance.concurrency": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "performance.ping": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "performance.rate_limit": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "performance.throttle": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "performance.tools": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "performance.warmup": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "protocol.accept_header": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.bogus_session": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "protocol.deprecated_features": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.extensions": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.get_stream": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.id_echo": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.invalid_params": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "protocol.malformed_json": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "protocol.mrtr": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.origin": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "protocol.ping": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.routing_headers": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.tasks.capability": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.tasks.lifecycle": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.tasks.undeclared": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.tasks.unknown_id": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.unknown_method": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "protocol.unknown_tool": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "protocol.version_header": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "resilience.session_reinit": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "resilience.soak_memory": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "resilience.stateless": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "resilience.token_refresh": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "resilience.upstream_down": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "stdio.alive": {
+      "none": "process hygiene of the server as a child program: it matters for running it reliably, not for a control in this framework"
+    },
+    "stdio.bind_all": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "stdio.clean_exit": {
+      "none": "process hygiene of the server as a child program: it matters for running it reliably, not for a control in this framework"
+    },
+    "stdio.environment": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "stdio.launch_config": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "stdio.no_zombie": {
+      "none": "process hygiene of the server as a child program: it matters for running it reliably, not for a control in this framework"
+    },
+    "stdio.post_init_connections": {
+      "controls": [
+        "Art. 32"
+      ]
+    },
+    "stdio.post_init_processes": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "stdio.post_init_writes": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "stdio.process": {
+      "none": "process hygiene of the server as a child program: it matters for running it reliably, not for a control in this framework"
+    },
+    "stdio.stderr": {
+      "none": "process hygiene of the server as a child program: it matters for running it reliably, not for a control in this framework"
+    },
+    "stdio.stdout_clean": {
+      "none": "process hygiene of the server as a child program: it matters for running it reliably, not for a control in this framework"
+    },
+    "supply.buildinfo": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
+    "supply.provenance": {
+      "none": "no data protection obligation is evidenced by this check"
+    }
+  }
+}

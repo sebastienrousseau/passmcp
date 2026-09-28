@@ -1,0 +1,111 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+site_name: passmcp
+site_description: Onboard, test and diagnose remote MCP servers end to end.
+site_url: https://satellion.com/passmcp/docs/
+repo_url: https://github.com/sebastienrousseau/passmcp
+repo_name: sebastienrousseau/passmcp
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: public
+strict: true
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    # Three states rather than two: a reader whose system is dark should
+    # not have to click to get the dark manual.
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow the system
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light
+
+extra_css:
+  - assets/brand.css
+
+repo_url: https://github.com/sebastienrousseau/passmcp
+repo_name: sebastienrousseau/passmcp
+edit_uri: edit/main/docs/
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Credentials: credentials.md
+  - The nine phases: phases.md
+  - Servers that are programs: stdio.md
+  - Every check: checks.md
+  - The stateless revision: stateless.md
+  - Reports and telemetry: reports.md
+  - Reading the evidence: evidence.md
+  - Acceptance policies: policy.md
+  - Signing attestations: signing.md
+  - Running passmcp in CI: ci.md
+  - Fleets and drift: fleet.md
+  - Discovering endpoints: discovery.md
+  - A2A Agent Cards: a2a.md
+  - OCSF export: ocsf.md
+  - Compliance evidence:
+      - SOC 2: compliance/soc2.md
+      - ISO/IEC 27001: compliance/iso27001.md
+      - "passmcp's Statement of Applicability": compliance/iso27001-soa.md
+      - GDPR: compliance/gdpr.md
+      - EU Cyber Resilience Act: compliance/cra.md
+  - Configuration: configuration.md
+  - Library use: library.md
+  - Coming from another tool:
+      - Overview: migrating/README.md
+      - From MCP Inspector: migrating/from-mcp-inspector.md
+      - From a curl script: migrating/from-a-curl-script.md
+      - From an online playground: migrating/from-an-online-playground.md
+      - Comparison: COMPARISON.md
+  - Benchmarks: BENCHMARKS.md
+  - For contributors:
+      - Ecosystem: ecosystem.md
+      - Architecture: architecture.md
+      - Security model: security-model.md
+      - Packaging: packaging.md
+      - Release notes: releases/README.md
+      - Decision records:
+          - Index: adr/README.md
+          - 0001 Bare transport for unauthenticated probes: adr/0001-bare-transport-for-unauthenticated-probes.md
+          - 0002 Findings cite requests: adr/0002-findings-cite-requests.md
+          - 0003 Structural redaction at the recorder: adr/0003-structural-redaction-at-the-recorder.md
+          - 0004 Read-only by default: adr/0004-read-only-by-default.md
+          - 0005 Public mode is the same binary: adr/0005-public-mode-is-the-same-binary.md
+          - 0006 passmcp never phones home: adr/0006-no-client-telemetry.md
+          - 0007 An instrument, not a gateway: adr/0007-not-a-gateway.md
+          - 0008 No adversarial mode: adr/0008-no-adversarial-mode.md
+          - 0009 Token counts are estimates: adr/0009-token-counts-are-estimates.md
+          - 0010 Provenance is reported, not verified: adr/0010-provenance-is-reported-not-verified.md
+          - 0011 The attestation format is Apache-2.0: adr/0011-attestation-format-is-apache.md
+          - 0012 Everything stays open for now: adr/0012-everything-stays-open.md

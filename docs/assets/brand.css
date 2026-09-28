@@ -1,0 +1,56 @@
+/* SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+   SPDX-License-Identifier: GPL-3.0-only
+
+   The manual is part of the product, so it carries the product's colours.
+   Material's own palette options do not reach these, so the tokens are set
+   directly — the same values the site uses, from the same source.
+
+   Severity keeps a separate scale for the reason the site stylesheet gives:
+   a reader must never have to work out whether a colour means "brand" or
+   "broken". */
+
+:root {
+  --md-primary-fg-color:        #7b3d22;
+  --md-primary-fg-color--light: #984e2d;
+  --md-primary-fg-color--dark:  #5e2e1a;
+  --md-accent-fg-color:         #984e2d;
+  --md-default-bg-color:        #faf7f3;
+  --md-typeset-a-color:         #7b3d22;
+  --md-footer-bg-color:         #1c1d2c;
+  --md-footer-bg-color--dark:   #14151f;
+}
+
+/* Dark scheme. The brand accent is the orange here, which reads at 8.78:1
+   on the dark ground where the sienna would not. */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #f9a12c;
+  --md-primary-fg-color--light: #fdb757;
+  --md-primary-fg-color--dark:  #1c1d2c;
+  --md-accent-fg-color:         #fdb757;
+  --md-default-bg-color:        #14151f;
+  --md-default-fg-color:        #f6f2ed;
+  --md-default-fg-color--light: #ded5cd;
+  --md-default-fg-color--lighter: #c2b7b1;
+  --md-typeset-a-color:         #f9a12c;
+  --md-code-bg-color:           #1f2130;
+}
+
+/* The header is the navy from the brand rather than the primary, so the
+   flame reads against it in both schemes. */
+.md-header, .md-tabs { background-color: #1c1d2c; }
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs { background-color: #0f1018; }
+
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg { height: 1.5rem; width: auto; }
+
+/* Tables carry the check inventory, which is long. A sticky head keeps the
+   column meaning visible while scrolling it. */
+.md-typeset table:not([class]) th {
+  position: sticky;
+  top: 0;
+  background: var(--md-default-bg-color);
+}
+
+/* Code is read here more than prose is. */
+.md-typeset code, .md-typeset pre { font-feature-settings: "liga" 0; }

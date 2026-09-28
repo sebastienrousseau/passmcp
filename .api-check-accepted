@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Packages whose incompatible API change against the last release is
+# accepted, one per line: the import path, then the reason. `make api-check`
+# fails on any other package apidiff reports. Remove an entry once the
+# release that carries the change is tagged, because the next comparison is
+# against that release and the entry would hide something new.

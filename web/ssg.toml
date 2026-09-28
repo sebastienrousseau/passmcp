@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# passmcp's own site, built with the passmcp theme from the SSG theme suite.
+#
+# The layouts are vendored under _layouts so this builds in CI with nothing
+# but the ssg binary: a product site that needs a second repository checked
+# out to build is a product site that breaks the week nobody is looking.
+site_name = "passmcp"
+site_title = "passmcp — test any MCP server, from your own machine"
+site_description = "A diagnostic for Model Context Protocol servers. Nine phases, 131 checks, every finding tied to the request that produced it. Runs where your credentials already live."
+base_url = "https://satellion.com/"
+language = "en-GB"
+
+content_dir = "web/content"
+template_dir = "web/_layouts"
+output_dir = "internal/web/dist"
+
+[agents]
+agents_txt = true
+ai_plugin = true
+
+[agents.mcp]
+enabled = true
+
+[edge_headers]
+targets = ["netlify", "cloudflare"]

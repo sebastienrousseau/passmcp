@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+cff-version: 1.2.0
+title: "passmcp: a step-by-step diagnostic for remote MCP servers"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - family-names: Rousseau
+    given-names: Sebastien
+    email: sebastian.rousseau@gmail.com
+repository-code: "https://github.com/sebastienrousseau/passmcp"
+abstract: >-
+  passmcp connects to a remote Model Context Protocol server with the
+  credentials an operator supplies and reports, step by step, what it
+  observed: network and TLS, OAuth discovery, token acquisition, the
+  initialize handshake, protocol conformance, the tool, resource and
+  prompt catalog, safe execution with content validation, latency and
+  concurrency, and recovery. Every finding cites the requests that
+  produced it, and the score is derived from the findings.
+keywords:
+  - model-context-protocol
+  - mcp
+  - oauth
+  - diagnostics
+  - cli
+  - golang
+license: GPL-3.0-only

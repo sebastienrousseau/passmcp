@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+set -euo pipefail
+
+echo "Running pre-push checks..."
+
+make format vet test build
+
+# Verify commit signing on all unpushed commits
+while read -r _ local_sha _ remote_sha; do
+	if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
+		continue
+	fi
+	range="${remote_sha}..${local_sha}"
+	if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+		range="$local_sha"
+	fi
+	unsigned="$(git log --format='%H %G?' "$range" | grep -E ' N$' || true)"
+	if [[ -n "$unsigned" ]]; then
+		echo "ERROR: Unsigned commits detected:" >&2
+		echo "$unsigned" >&2
+		exit 1
+	fi
+done
+
+echo "Pre-push checks passed."

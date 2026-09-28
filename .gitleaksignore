@@ -1,0 +1,11 @@
+# Accepted gitleaks findings, by fingerprint.
+#
+# Each line names the exact commit, file, rule and line it covers, so an
+# exception can never grow beyond the finding it was written for. See the
+# note in .gitleaks.toml: nothing is muted at the rule level.
+
+# A test fixture in the credential-leak regression test that was shaped like
+# a real vendor key. It never was one, and the working tree no longer uses
+# that shape, but the string remains in the import commit. Kept as a pinned
+# fingerprint rather than rewriting history.
+a10ecde1c51e4cb5a5d0c74263a03cea6610c069:auth/origin_test.go:generic-api-key:129

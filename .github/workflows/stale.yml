@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Stale
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Daily at midnight
+
+permissions: {}
+
+jobs:
+  stale:
+    name: Mark Stale
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
+        with:
+          days-before-stale: 60
+          days-before-close: 14
+          exempt-issue-labels: 'pinned,security,bug'
+          exempt-pr-labels: 'pinned,security'
+          stale-issue-message: >-
+            This issue has had no activity for 60 days and will be closed in
+            14 more unless it is updated or labelled `pinned`.
+          stale-pr-message: >-
+            This pull request has had no activity for 60 days and will be
+            closed in 14 more unless it is updated or labelled `pinned`.

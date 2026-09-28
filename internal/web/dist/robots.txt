@@ -1,0 +1,2 @@
+User-agent: *
+Sitemap: https://satellion.com/sitemap.xml

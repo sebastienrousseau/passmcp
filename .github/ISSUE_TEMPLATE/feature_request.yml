@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Feature request
+description: A check passmcp should make, a credential shape it should accept, or something the report should show
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to learn about a server that passmcp makes hard or impossible? Describe the situation, not the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like passmcp to do
+      description: If it is a new finding, say what request would show it and what pass, warn and fail would each mean.
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
+      description: The curl command, the browser devtools session, the other tool. This is often the most useful part.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: I have checked this is not already possible with existing flags (`passmcp check --help`)

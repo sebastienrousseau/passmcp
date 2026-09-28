@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# tcpdump, run in the kind node's network namespace to record every packet
+# the passmcp pods send. It never runs inside the cluster.
+FROM alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+RUN apk add --no-cache tcpdump
+ENTRYPOINT ["tcpdump"]

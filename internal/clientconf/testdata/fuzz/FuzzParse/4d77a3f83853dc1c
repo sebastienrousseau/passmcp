@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"mcpServers\":{\"\":{\"CommAnd\":\" \",\"0000\":[\"00000\"]}}}")

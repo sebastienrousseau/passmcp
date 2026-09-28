@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Prose and licence gates.
+#
+# Cheap checks that catch the things review reliably misses: a typo in a
+# heading, a link that 404s after a file moves, a new file with no licence
+# header. None of these break the build in any other job, which is exactly
+# why they need one of their own: a standard that is not a CI gate decays.
+name: Docs Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  spdx:
+    name: Licence Headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Every source file carries an SPDX header
+        env:
+          GOTOOLCHAIN: auto
+        run: make spdx-check
+
+      - name: The README follows the template
+        run: scripts/readme-check.sh
+
+  markdown:
+    name: Markdown & Spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
+        with:
+          globs: |
+            **/*.md
+            !public/**
+            !build/**
+            !dist/**
+
+      - name: codespell
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
+        with:
+          skip: ./.git,./public,./go.sum,./dist,./build,./testdata,./*/testdata
+          # intoto - the in-toto attestation format, spelled correctly
+          # unparseable - accepted variant spelling used throughout
+          # re-use - the official title of ISO/IEC 27001:2022 A.7.14
+          ignore_words_list: intoto,unparseable,re-use
+
+  links:
+    name: Link Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Only internal links are gated: external ones fail for reasons outside
+      # this repository's control, so they are reported without failing the
+      # build.
+      - name: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --offline
+            --include-fragments
+            --no-progress
+            --exclude-path public
+            --exclude-path dist
+            --exclude-path build
+            '**/*.md'
+          fail: true

@@ -1,0 +1,21 @@
+{
+  "api": "ssg-agent-api",
+  "counts": {
+    "posts": 1,
+    "topics": 0
+  },
+  "links": {
+    "index": "https://satellion.com/api/agents/index.json",
+    "person": "https://satellion.com/api/agents/person.json",
+    "posts": "https://satellion.com/api/agents/posts.json",
+    "topics": "https://satellion.com/api/agents/topics.json"
+  },
+  "site": {
+    "description": "A diagnostic for Model Context Protocol servers. Nine phases, 131 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
+    "language": "en-GB",
+    "name": "passmcp",
+    "title": "passmcp — test any MCP server, from your own machine",
+    "url": "https://satellion.com"
+  },
+  "version": "0.0.63"
+}

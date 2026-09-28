@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Fuzzing
+
+# The long fuzz run. ci.yml fuzzes every target for 30s on every push so a
+# target cannot rot; this gives each one real time, weekly and on demand.
+#
+# Every target runs through scripts/fuzz.sh, which tells a finding apart
+# from the clock running out: a new corpus entry, a reproducible input or a
+# panic is a failure; a bare deadline is a warning.
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: 'Time per target (Go duration)'
+        default: '10m'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Run Fuzz Targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GOTOOLCHAIN: auto
+      FUZZTIME: ${{ inputs.fuzztime || '10m' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The parsers on the untrusted boundary: the WWW-Authenticate header
+      # a server sends, the SSE stream it answers with, the JSON Schema it
+      # publishes, and the arguments generated from that schema.
+      - name: Fuzz every target
+        run: make fuzz
+
+      - name: Keep any new corpus entries
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-corpus
+          path: '**/testdata/fuzz/**'
+          if-no-files-found: ignore

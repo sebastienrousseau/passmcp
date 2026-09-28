@@ -1,0 +1,11 @@
+/passmcp
+/build/
+# goreleaser writes here. A release build leaves nine archives, four
+# packages and the unpacked binaries in the tree; without this the next
+# `git add -A` commits them.
+/dist/
+*.test
+*.out
+# mkdocs.yml's site_dir. `mkdocs build` is how the manual is checked
+# locally, and it leaves a full copy of the rendered site here.
+/public/

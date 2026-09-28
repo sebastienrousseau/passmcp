@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Dependabot Auto-merge
+
+# Enables GitHub's auto-merge on Dependabot pull requests inside a narrow
+# policy: github-actions and docker updates of any size (both are pinned by
+# SHA or digest, so the diff is one reference), and Go module patch and
+# minor bumps. Major Go bumps are left for a human. Auto-merge bypasses
+# nothing: branch protection still has to be satisfied.
+#
+# pull_request_target runs with a writable token. That is only safe because
+# this workflow never checks out or executes code from the pull request.
+# Do not add a checkout step here.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  automerge:
+    name: Auto-merge Dependabot PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide
+        id: policy
+        env:
+          ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+        run: |
+          set -euo pipefail
+          eligible=false
+          case "${ECOSYSTEM}" in
+            github_actions|docker)
+              eligible=true
+              ;;
+            go_modules)
+              case "${UPDATE_TYPE}" in
+                version-update:semver-patch|version-update:semver-minor)
+                  eligible=true
+                  ;;
+              esac
+              ;;
+          esac
+          echo "eligible=${eligible}" >> "$GITHUB_OUTPUT"
+          echo "ecosystem=${ECOSYSTEM} update=${UPDATE_TYPE} eligible=${eligible}"
+
+      - name: Enable auto-merge
+        if: steps.policy.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          gh pr merge --auto --merge "${PR_URL}"
+
+      - name: Explain why not
+        if: steps.policy.outputs.eligible != 'true'
+        env:
+          ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+        run: |
+          echo "::notice::Left for manual review: ${ECOSYSTEM} ${UPDATE_TYPE}."

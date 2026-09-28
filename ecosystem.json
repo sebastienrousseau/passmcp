@@ -1,0 +1,259 @@
+{
+  "_comment": "Generated from internal/ecosystem by scripts/ecosystem. Do not edit by hand. Every repository in the family verifies its own row against this file in CI.",
+  "schema_version": 1,
+  "family": "passmcp",
+  "standard": "REPO-STANDARD.md",
+  "repositories": [
+    {
+      "name": "passmcp",
+      "status": "shipping",
+      "role": "The engine, every check, and the three peer surfaces: CLI, TUI and the embedded local web UI.",
+      "language": "go",
+      "license": "GPL-3.0-only",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "DEVELOPMENT.md",
+        "SECURITY.md",
+        "SUPPORT.md",
+        "GOVERNANCE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "CITATION.cff",
+        "Makefile",
+        "GNUmakefile",
+        "docs",
+        "docs/adr",
+        "examples",
+        "pkg",
+        "scripts",
+        "supply-chain",
+        ".devcontainer",
+        ".editorconfig",
+        ".pre-commit-config.yaml",
+        ".github/workflows"
+      ]
+    },
+    {
+      "name": "passmcp-reporting",
+      "status": "shipping",
+      "role": "The attestation predicate, its JSON Schema and the offline verifier, as a module with no dependencies; the report schema, the renderers and the rubric as data follow when a consumer needs them.",
+      "language": "go",
+      "license": "Apache-2.0",
+      "boundary": "Licence and dependency graph. A GPL-3.0 library cannot be embedded by the gateways and registries the strategy depends on, and a package inside passmcp's module drags passmcp's dependencies into any importer's go.sum, so the format and the verifier have to live where they can be imported clean.",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "DEVELOPMENT.md",
+        "SECURITY.md",
+        "SUPPORT.md",
+        "GOVERNANCE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "CITATION.cff",
+        "Makefile",
+        "docs",
+        "docs/adr",
+        "examples",
+        "scripts",
+        ".editorconfig",
+        ".pre-commit-config.yaml",
+        ".github/workflows"
+      ],
+      "archive_when": "No third party has adopted the predicate twelve months after v1. Fold it back into passmcp and stop paying the two-repository cost."
+    },
+    {
+      "name": "passmcp-server",
+      "status": "shipping",
+      "role": "An MCP server exposing passmcp's diagnostics as read-only tools, so an agent can evaluate a server, or check an attestation about one, from inside the editor.",
+      "language": "go",
+      "license": "GPL-3.0-only",
+      "boundary": "Distribution surface. Its deliverable is a registry listing — server.json, glama.json, a container catalogue entry — which is a different release artefact with a different review path.",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "DEVELOPMENT.md",
+        "SECURITY.md",
+        "SUPPORT.md",
+        "GOVERNANCE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "CITATION.cff",
+        "Makefile",
+        "docs",
+        "docs/adr",
+        "scripts",
+        ".editorconfig",
+        ".pre-commit-config.yaml",
+        ".github/workflows"
+      ],
+      "archive_when": "Registry listings produce no measurable referrals across two quarters."
+    },
+    {
+      "name": "satellion.com",
+      "status": "shipping",
+      "role": "The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates.",
+      "language": "web",
+      "license": "GPL-3.0-only",
+      "boundary": "A different release cadence and toolchain: the site follows passmcp's releases daily and builds with SSG and MkDocs, which the engine's CI should not need.",
+      "lockstep": false,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "SECURITY.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "Makefile",
+        "scripts",
+        ".github/workflows"
+      ],
+      "archive_when": "The page's numbers stop coming from a passmcp release."
+    },
+    {
+      "name": "passmcp-action",
+      "status": "shipping",
+      "role": "The GitHub Action wrapping the published image by digest, and a GitLab CI template.",
+      "language": "composite",
+      "license": "Apache-2.0",
+      "boundary": "The Marketplace requires its own repository. It is also the cheapest verifiable traction signal, because GitHub publishes the usage count.",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "DEVELOPMENT.md",
+        "SECURITY.md",
+        "SUPPORT.md",
+        "GOVERNANCE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "CITATION.cff",
+        "Makefile",
+        "docs",
+        "docs/adr",
+        "examples",
+        "scripts",
+        ".editorconfig",
+        ".pre-commit-config.yaml",
+        ".github/workflows"
+      ],
+      "archive_when": "None. It is the lowest-cost, highest-signal artefact in the family."
+    },
+    {
+      "name": "passmcp-lsp",
+      "status": "planned",
+      "role": "A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue.",
+      "language": "go",
+      "license": "Apache-2.0",
+      "boundary": "Editor embedding. It ships inside editors and extension marketplaces whose licensing and release cadence are not passmcp's; the extensions live in its own editors/ directory rather than a repository each.",
+      "lockstep": false,
+      "archive_when": "The guidance hover goes unused. Scoped so that cutting it costs one repository and no capability."
+    },
+    {
+      "name": "passmcp-census",
+      "status": "planned",
+      "role": "The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.",
+      "language": "data",
+      "license": "CC-BY-4.0",
+      "boundary": "Licence and cadence. A GPL repository cannot cleanly carry a CC-BY dataset, and a quarterly data release has no business sharing a version with a fortnightly tool release.",
+      "lockstep": false,
+      "archive_when": "The census is not repeated on schedule. Delete it rather than leave a stale dataset presented as current."
+    },
+    {
+      "name": "passmcp-gateway",
+      "status": "rejected",
+      "role": "An in-path MCP gateway.",
+      "language": "—",
+      "lockstep": false,
+      "rejected_because": "Fourteen incumbents, two of them free and open source, one of them AWS. Being in the data path would also convert passmcp from a tool that touches nothing into a production dependency trusted with traffic."
+    },
+    {
+      "name": "passmcp-registry",
+      "status": "rejected",
+      "role": "An index of MCP servers.",
+      "language": "—",
+      "lockstep": false,
+      "rejected_because": "Contested by the official registry, the container catalogue and four directories, two of which already publish a score. Supply the signal they display instead."
+    },
+    {
+      "name": "passmcp-wasm",
+      "status": "rejected",
+      "role": "A browser build of the engine.",
+      "language": "—",
+      "lockstep": false,
+      "rejected_because": "CORS blocks a browser build against most servers. A build target, not a repository."
+    }
+  ],
+  "sites": [
+    {
+      "name": "web-shell",
+      "config": "web/ssg.toml",
+      "layouts": "web/_layouts",
+      "output": "internal/web/dist",
+      "embedded": true,
+      "theme": "passmcp",
+      "upstream": "https://github.com/sebastienrousseau/ssg-themes.github.io",
+      "revision": "e32f60c",
+      "min_ssg_version": "0.0.56",
+      "declared_deltas": [
+        {
+          "file": "base.html",
+          "reason": "The shell is served from a binary on the operator's machine, so it carries a stricter Content-Security-Policy and drops the analytics and external font hooks the public theme has."
+        },
+        {
+          "file": "header.html",
+          "reason": "Navigation leaves for satellion.com rather than linking local pages that the single-page shell does not have."
+        },
+        {
+          "file": "footer.html",
+          "reason": "States that the run is local and nothing is uploaded, which is a product guarantee rather than a theme concern."
+        },
+        {
+          "file": "styles.css",
+          "reason": "Adds the run form, the panel and the assurance block — application chrome that has no counterpart in a content theme."
+        },
+        {
+          "file": "app.html",
+          "reason": "The application itself. There is no upstream counterpart."
+        },
+        {
+          "file": "app.js",
+          "reason": "The application itself. There is no upstream counterpart."
+        },
+        {
+          "file": "index.html",
+          "reason": "The shell has one page and no index listing, so the layout is reduced to the application mount point."
+        },
+        {
+          "file": "404.html",
+          "reason": "A 404 inside a binary serving one page means the token was wrong, and it says so."
+        },
+        {
+          "file": "styles.styl",
+          "reason": "The Stylus source behind styles.css, vendored at an older theme revision than the compiled CSS beside it; reconciling them is upstream work, not a local edit."
+        }
+      ]
+    }
+  ]
+}

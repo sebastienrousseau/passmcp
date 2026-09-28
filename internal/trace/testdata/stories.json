@@ -1,0 +1,14 @@
+[
+  {
+    "number": 1,
+    "title": "A closed story",
+    "state": "closed",
+    "body": "### Acceptance criteria\n\n- **ALPHA-01**: **Given** a, **when** b, **then** c.\n- **ALPHA-02**: **Given** d, **when** e, **then** f.\n\n---\n\n**Regression tests.** Each criterion's ID (for example `SOC2-01`) is its test's name. CVE-2026-48039 is a mention, and so is BETA-01 here.\n"
+  },
+  {
+    "number": 2,
+    "title": "An open story",
+    "state": "open",
+    "body": "- **BETA-01**: **Given** g, **when** h, **then** i.\n- **BETA-02**: **Given** j, **when** k, **then** l.\n* **BETA-01**: defined twice, counted once.\n"
+  }
+]

@@ -1,0 +1,5 @@
+# passmcp
+
+> A diagnostic for Model Context Protocol servers. Nine phases, 131 checks, every finding tied to the request that produced it. Runs where your credentials already live.
+
+Language: en-GB

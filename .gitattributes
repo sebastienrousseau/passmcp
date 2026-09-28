@@ -1,0 +1,19 @@
+# Force LF line endings for shell scripts on all platforms
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.go text eol=lf
+# JSON fixtures and generated schemas are compared byte for byte; a CRLF
+# checkout on Windows would make every one of them read as stale.
+*.json text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+Makefile text eol=lf
+GNUmakefile text eol=lf
+
+# Binary files
+LICENSE binary
+*.png binary
+*.gif binary

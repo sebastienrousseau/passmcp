@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+[codespell]
+skip = ./build,./.git,./go.sum,*.svg,*.png,*.har,./site
+# te: TokenError receiver; nd: NDJSON buffer; hashi: hasHi bound flag; ded: deduct helper; intoto: in-toto attestation format;
+# re-use: the official title of ISO/IEC 27001:2022 A.7.14, quoted in spec/controls.
+ignore-words-list = te,nd,hashi,ded,intoto,passs,re-use
+quiet-level = 3

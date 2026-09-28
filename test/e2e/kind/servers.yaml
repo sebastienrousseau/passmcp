@@ -1,0 +1,154 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# The servers the end-to-end fleet is pointed at: Ory Hydra as a real
+# OAuth 2.0 authorization server, and two MCP fixture servers behind TLS
+# from a private CA. "docs" accepts one static bearer token and reflects it
+# into a tool description, so the run proves the redactor masks a token the
+# server hands back; "billing" accepts only tokens Hydra introspects as
+# active for the fleet's client. FIXTURE_IMAGE is replaced by run.sh.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fleet-servers
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydra
+  namespace: fleet-servers
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: hydra}
+  template:
+    metadata:
+      labels: {app: hydra}
+    spec:
+      containers:
+        - name: hydra
+          image: oryd/hydra:v2.3.0@sha256:b94007e19a1f7f78157e7f4ea340da8a55b5f104a0f1198755c256f38ef32b4b
+          args: ["serve", "all"]
+          env:
+            - {name: DSN, value: memory}
+            - {name: URLS_SELF_ISSUER, value: "https://hydra.fleet-servers.svc:4444/"}
+            - {name: SERVE_TLS_ENABLED, value: "true"}
+            - {name: SERVE_TLS_CERT_PATH, value: /tls/tls.crt}
+            - {name: SERVE_TLS_KEY_PATH, value: /tls/tls.key}
+            - name: SECRETS_SYSTEM
+              valueFrom:
+                secretKeyRef: {name: hydra-system, key: secret}
+          ports:
+            - {containerPort: 4444}
+            - {containerPort: 4445}
+          readinessProbe:
+            httpGet: {path: /health/ready, port: 4444, scheme: HTTPS}
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: e2e-tls}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydra
+  namespace: fleet-servers
+spec:
+  selector: {app: hydra}
+  ports:
+    - {name: public, port: 4444, targetPort: 4444}
+    - {name: admin, port: 4445, targetPort: 4445}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs
+  namespace: fleet-servers
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: docs}
+  template:
+    metadata:
+      labels: {app: docs}
+    spec:
+      containers:
+        - name: fixture
+          image: FIXTURE_IMAGE
+          args:
+            - -resource=https://docs.fleet-servers.svc/mcp
+            - -as=https://hydra.fleet-servers.svc:4444/
+            - -token-env=DOCS_TOKEN
+            - -reflect-token
+            - -log-tokens
+          env:
+            - {name: FIXTURE_READONLY, value: "true"}
+            - name: DOCS_TOKEN
+              valueFrom:
+                secretKeyRef: {name: fixture-credentials, key: docs-token}
+          ports:
+            - {containerPort: 8443}
+          readinessProbe:
+            tcpSocket: {port: 8443}
+          securityContext: {runAsUser: 65532, runAsNonRoot: true, readOnlyRootFilesystem: true}
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: e2e-tls}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docs
+  namespace: fleet-servers
+spec:
+  selector: {app: docs}
+  ports:
+    - {port: 443, targetPort: 8443}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing
+  namespace: fleet-servers
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: billing}
+  template:
+    metadata:
+      labels: {app: billing}
+    spec:
+      containers:
+        - name: fixture
+          image: FIXTURE_IMAGE
+          args:
+            - -resource=https://billing.fleet-servers.svc/mcp
+            - -as=https://hydra.fleet-servers.svc:4444/
+            - -introspect=https://hydra.fleet-servers.svc:4445/admin/oauth2/introspect
+            - -log-tokens
+          env:
+            - {name: SSL_CERT_FILE, value: /tls/ca.crt}
+            - {name: FIXTURE_CLIENT_ID, value: ""}
+          ports:
+            - {containerPort: 8443}
+          readinessProbe:
+            tcpSocket: {port: 8443}
+          securityContext: {runAsUser: 65532, runAsNonRoot: true, readOnlyRootFilesystem: true}
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: e2e-tls}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing
+  namespace: fleet-servers
+spec:
+  selector: {app: billing}
+  ports:
+    - {port: 443, targetPort: 8443}

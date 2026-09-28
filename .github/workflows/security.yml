@@ -1,0 +1,139 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Security
+
+# Dependency advisories from two independent databases: osv-scanner reads
+# go.mod against OSV, and govulncheck reports only what is reachable from
+# this module's call graph. Weekly as well as on push, because an advisory
+# published against an unchanged dependency is still an advisory.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday
+
+permissions: {}
+
+jobs:
+  osv:
+    name: OSV Scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Turning call analysis off is not a relaxation: govulncheck runs below
+      # as its own job and does reachability properly, against the toolchain
+      # go.mod names. osv-scanner's version shells out to a govulncheck
+      # bundled in the action's container, pinned to that image's own Go, and
+      # it has already broken once when this module's floor moved past it.
+      #
+      # --no-call-analysis takes a LANGUAGE LIST, not a boolean. Written bare
+      # it consumes the next argument as its value, which silently ate
+      # --format=sarif: the scan then wrote a plain table into osv.sarif and
+      # left call analysis on. The flags below were run against osv-scanner
+      # 2.6.0 directly before being written here.
+      #
+      # The subcommand is explicit for the same reason. The action prepends
+      # none, so a bare invocation relies on legacy argument handling.
+      - name: Scan go.mod against OSV
+        id: osv
+        uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        with:
+          scan-args: |
+            scan
+            source
+            --lockfile=go.mod
+            --no-call-analysis=go
+            --format=sarif
+            --output-file=osv.sarif
+        # A findings-only failure must not break the build: they surface as
+        # code-scanning alerts, and an advisory against an unreachable
+        # dependency should not block unrelated work. The step below is what
+        # separates "found something" from "did not run".
+        continue-on-error: true
+
+      # The failure mode this guards against is silence. An osv.sarif that is
+      # missing, unparsable, or carries no rules is indistinguishable from a
+      # clean scan once uploaded — and uploading it would close every open
+      # alert. Better to fail the job than to report all-clear on no evidence.
+      - name: The scan actually produced results
+        run: |
+          set -euo pipefail
+          if [ ! -s osv.sarif ]; then
+            echo "::error::osv-scanner produced no SARIF; the scan did not run"
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, sys
+          with open("osv.sarif") as fh:
+              doc = json.load(fh)
+          runs = doc.get("runs") or []
+          if not runs:
+              print("::error::osv.sarif has no runs; the scan did not complete")
+              sys.exit(1)
+          results = sum(len(r.get("results") or []) for r in runs)
+          print(f"osv-scanner reported {results} result(s)")
+          PY
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          sarif_file: osv.sarif
+          category: osv-scanner
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run govulncheck
+        env:
+          GOTOOLCHAIN: auto
+          GOBIN: ${{ github.workspace }}/.gobin
+        run: |
+          set -euo pipefail
+          # GOTOOLCHAIN=auto so the install resolves whatever toolchain the
+          # scanner itself needs; the analysis runs against this module as
+          # declared in go.mod either way.
+          GOTOOLCHAIN=auto go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          "${GOBIN}/govulncheck" ./...
+
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure

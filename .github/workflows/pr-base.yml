@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: PR Base
+
+# Every pull request must target the default branch. Every other workflow
+# here filters on `pull_request: branches: [main]`, so a PR aimed anywhere
+# else is invisible to CI, and once its parent branch lands GitHub marks it
+# merged with an empty commit range, which reads downstream as a merged,
+# untested pull request. This job carries no `branches` filter on purpose.
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions: {}
+
+jobs:
+  base-is-default-branch:
+    name: PR targets default branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check base branch
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          DEFAULT: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ "${BASE}" = "${DEFAULT}" ]; then
+            echo "base branch is '${BASE}'"
+            exit 0
+          fi
+          echo "::error::This pull request targets '${BASE}', but every pull" \
+            "request must target '${DEFAULT}'. Rebase onto '${DEFAULT}' and" \
+            "retarget this PR, or fold the change into the pull request it" \
+            "is stacked on."
+          exit 1
