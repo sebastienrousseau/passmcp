@@ -14,7 +14,7 @@ COVER_MIN ?= 85
 
 .PHONY: spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
         fuzz sbom coverage bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
-        ecosystem ecosystem-verify commitlint ssg-check readme-check trace trace-check trace-refresh e2e-kind clean help name-guard
+        ecosystem ecosystem-verify commitlint ssg-check readme-check verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
 all: format vet lint spdx-check example-check ecosystem-verify ssg-check test test-race build
 
@@ -79,8 +79,8 @@ ICONS = favicon.ico favicon.svg apple-touch-icon.png icon-192.png icon-512.png i
 # this being run — which is how it shipped advertising the wrong check count
 # with every asset under a /passmcp/ base path.
 # The SSG release the shell is built with, and the one ssgcheck compares with
-# each theme's minimum. The public site moved to satellion.com, which pins
-# its own.
+# each theme's minimum. The public site moved to its own repository,
+# satellion.github.io, which pins its own.
 SSG_VERSION ?= 0.0.63
 
 web-shell:
@@ -241,6 +241,11 @@ spdx-check:
 readme-check:
 	scripts/readme-check.sh
 
+# Every place that states the version agrees with CHANGELOG.md's newest
+# heading: install snippets, the README's family sentence, the release notes.
+verify-versions:
+	scripts/verify-release-versions.sh
+
 example-check:
 	go run ./scripts/example_check.go
 
@@ -254,7 +259,7 @@ clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage bench api-check vet lint format spdx-check example-check readme-check fuzz sbom trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage bench api-check vet lint format spdx-check example-check readme-check verify-versions fuzz sbom trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).

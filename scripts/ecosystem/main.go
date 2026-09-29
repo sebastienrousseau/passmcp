@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"satellion.com/passmcp/internal/ecosystem"
@@ -43,10 +44,15 @@ const (
 )
 
 const (
-	docPath    = "docs/ecosystem.md"
-	jsonPath   = "ecosystem.json"
-	readmePath = "README.md"
+	docPath       = "docs/ecosystem.md"
+	jsonPath      = "ecosystem.json"
+	readmePath    = "README.md"
+	changelogPath = "CHANGELOG.md"
 )
+
+// versionHeading matches the newest release heading; the first match is the
+// newest because the changelog is in reverse order.
+var versionHeading = regexp.MustCompile(`(?m)^## \[(\d+\.\d+\.\d+)\]`)
 
 func main() {
 	check := flag.Bool("check", false, "verify the committed files match the manifest instead of writing them")
@@ -62,60 +68,85 @@ func main() {
 		os.Exit(1)
 	}
 
-	doc, err := os.ReadFile(docPath)
+	files, err := render()
 	if err != nil {
 		fail(err)
 	}
-	updated, err := replaceRegion(string(doc), renderTable(), begin, end, docPath)
+	if *check {
+		verify(files)
+		return
+	}
+	for _, f := range files {
+		if err := os.WriteFile(f.path, f.want, 0o644); err != nil { //nolint:gosec // documentation and a published manifest, not secrets
+			fail(err)
+		}
+	}
+	fmt.Printf("ecosystem: wrote %s, %s and %s (%d repositories: %d released, %d unreleased, %d rejected)\n",
+		docPath, readmePath, jsonPath, len(ecosystem.Family),
+		len(ecosystem.ByStatus(ecosystem.Released)),
+		len(ecosystem.ByStatus(ecosystem.Unreleased)),
+		len(ecosystem.ByStatus(ecosystem.Rejected)))
+}
+
+// generated is one file this program owns, as committed and as it should be.
+type generated struct {
+	path      string
+	committed []byte
+	want      []byte
+}
+
+// render reads the committed files and computes what each should contain.
+func render() ([]generated, error) {
+	doc, err := os.ReadFile(docPath)
 	if err != nil {
-		fail(err)
+		return nil, err
 	}
 	readme, err := os.ReadFile(readmePath)
 	if err != nil {
-		fail(err)
+		return nil, err
 	}
-	updatedReadme, err := replaceRegion(string(readme), renderReadmeTable(), readmeBegin, readmeEnd, readmePath)
+	changelog, err := os.ReadFile(changelogPath)
 	if err != nil {
-		fail(err)
+		return nil, err
+	}
+	version, err := changelogVersion(string(changelog))
+	if err != nil {
+		return nil, err
+	}
+	wantDoc, err := replaceRegion(string(doc), renderTable(), begin, end, docPath)
+	if err != nil {
+		return nil, err
+	}
+	wantReadme, err := replaceRegion(string(readme), renderReadmeTable(version), readmeBegin, readmeEnd, readmePath)
+	if err != nil {
+		return nil, err
 	}
 	manifest, err := renderJSON()
 	if err != nil {
-		fail(err)
+		return nil, err
 	}
+	// A missing ecosystem.json is simply stale; the write path creates it.
+	committedJSON, _ := os.ReadFile(jsonPath)
+	return []generated{
+		{docPath, doc, []byte(wantDoc)},
+		{readmePath, readme, []byte(wantReadme)},
+		{jsonPath, committedJSON, manifest},
+	}, nil
+}
 
-	if *check {
-		var stale []string
-		if updated != string(doc) {
-			stale = append(stale, docPath)
+// verify fails the process when any generated file has drifted.
+func verify(files []generated) {
+	var stale []string
+	for _, f := range files {
+		if !bytes.Equal(f.committed, f.want) {
+			stale = append(stale, f.path)
 		}
-		if updatedReadme != string(readme) {
-			stale = append(stale, readmePath)
-		}
-		if committed, err := os.ReadFile(jsonPath); err != nil || !bytes.Equal(committed, manifest) {
-			stale = append(stale, jsonPath)
-		}
-		if len(stale) > 0 {
-			fmt.Fprintf(os.Stderr, "ecosystem: %s is stale — the manifest in internal/ecosystem says something else.\nRun: make ecosystem\n", strings.Join(stale, " and "))
-			os.Exit(1)
-		}
-		fmt.Printf("ecosystem: %s and %s match the manifest (%d repositories)\n", docPath, jsonPath, len(ecosystem.Family))
-		return
 	}
-
-	if err := os.WriteFile(docPath, []byte(updated), 0o644); err != nil { //nolint:gosec // documentation, not a secret
-		fail(err)
+	if len(stale) > 0 {
+		fmt.Fprintf(os.Stderr, "ecosystem: %s is stale — the manifest in internal/ecosystem says something else.\nRun: make ecosystem\n", strings.Join(stale, " and "))
+		os.Exit(1)
 	}
-	if err := os.WriteFile(readmePath, []byte(updatedReadme), 0o644); err != nil { //nolint:gosec // documentation, not a secret
-		fail(err)
-	}
-	if err := os.WriteFile(jsonPath, manifest, 0o644); err != nil { //nolint:gosec // a published manifest
-		fail(err)
-	}
-	fmt.Printf("ecosystem: wrote %s and %s (%d repositories: %d shipping, %d planned, %d rejected)\n",
-		docPath, jsonPath, len(ecosystem.Family),
-		len(ecosystem.ByStatus(ecosystem.Shipping)),
-		len(ecosystem.ByStatus(ecosystem.Planned)),
-		len(ecosystem.ByStatus(ecosystem.Rejected)))
+	fmt.Printf("ecosystem: %s, %s and %s match the manifest (%d repositories)\n", docPath, readmePath, jsonPath, len(ecosystem.Family))
 }
 
 func fail(err error) {
@@ -133,45 +164,54 @@ func replaceRegion(doc, body, from, to, path string) (string, error) {
 	return doc[:i+len(from)] + "\n\n" + body + "\n" + doc[j:], nil
 }
 
-// renderReadmeTable is the one-glance version: every repository, its status,
-// its licence and what it owns. The manual carries the reasoning; a README
-// that carried all of it would bury the install instructions.
-func renderReadmeTable() string {
+// renderReadmeTable is the family section every README in the family
+// carries word for word: the version sentence and the component table. The
+// version is read from CHANGELOG.md's newest heading, the one place it is
+// authored, so a release cannot leave the sentence behind.
+func renderReadmeTable(version string) string {
 	var b strings.Builder
-	b.WriteString("| Repository | Status | Licence | What it owns |\n|---|---|---|---|\n")
+	fmt.Fprintf(&b, "Every component is released at **%s** and moves in lockstep: one version "+
+		"across the family, released together "+
+		"([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).\n\n", version)
+	b.WriteString("| Component | Purpose | Use case |\n| :--- | :--- | :--- |\n")
 	for _, r := range ecosystem.Family {
 		if r.Status == ecosystem.Rejected {
 			continue
 		}
-		name := "`" + r.Name + "`"
-		if r.Name == "passmcp" {
-			name = "**`" + r.Name + "`**"
-		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", name, r.Status, r.Licence, r.Role)
+		fmt.Fprintf(&b, "| [%s](%s) | %s | %s |\n", r.Name, r.URL(), r.Purpose, r.UseCase)
 	}
 	return tidyMarkdown(b.String())
 }
 
-// renderTable writes the three tables the manual carries: what exists, what
-// is planned, and what was rejected. The third is not padding — a rejection
+// changelogVersion is the newest "## [x.y.z]" heading in CHANGELOG.md.
+func changelogVersion(changelog string) (string, error) {
+	m := versionHeading.FindStringSubmatch(changelog)
+	if m == nil {
+		return "", fmt.Errorf("%s has no '## [x.y.z]' heading to take the family version from", changelogPath)
+	}
+	return m[1], nil
+}
+
+// renderTable writes the three tables the manual carries: what is released,
+// what is not yet released, and what was rejected. The third is not padding — a rejection
 // with a recorded reason is the only kind that stays rejected.
 func renderTable() string {
 	var b strings.Builder
 
-	b.WriteString("### Shipping\n\n")
+	b.WriteString("### Released\n\n")
 	b.WriteString("| Repository | Licence | Lockstep | What it owns |\n|---|---|---|---|\n")
-	for _, r := range ecosystem.ByStatus(ecosystem.Shipping) {
-		fmt.Fprintf(&b, "| `%s` | %s | %s | %s |\n", r.Name, r.Licence, yesNo(r.Lockstep), r.Role)
+	for _, r := range ecosystem.ByStatus(ecosystem.Released) {
+		fmt.Fprintf(&b, "| [`%s`](%s) | %s | %s | %s |\n", r.Name, r.URL(), r.Licence, yesNo(r.Lockstep), r.Role)
 	}
 
-	if planned := ecosystem.ByStatus(ecosystem.Planned); len(planned) > 0 {
-		b.WriteString("\n### Planned\n\n")
-		b.WriteString("**These do not exist yet.** They are recorded so the layout cannot drift\n")
-		b.WriteString("silently once they do, and so nobody goes looking for them. Every row states\n")
-		b.WriteString("the boundary that forces a separate repository and the criterion for\n")
+	if unreleased := ecosystem.ByStatus(ecosystem.Unreleased); len(unreleased) > 0 {
+		b.WriteString("\n### Not yet released\n\n")
+		b.WriteString("**Nothing is installable from these yet.** Each starts at the family's\n")
+		b.WriteString("version and joins the release with its first tag. Every row states the\n")
+		b.WriteString("boundary that forces a separate repository and the criterion for\n")
 		b.WriteString("archiving it.\n\n")
-		for _, r := range planned {
-			fmt.Fprintf(&b, "#### `%s`\n\n", r.Name)
+		for _, r := range unreleased {
+			fmt.Fprintf(&b, "#### [`%s`](%s)\n\n", r.Name, r.URL())
 			fmt.Fprintf(&b, "%s\n\n", r.Role)
 			fmt.Fprintf(&b, "- **Licence** %s · **%s** · **Lockstep** %s\n", r.Licence, r.Language, yesNo(r.Lockstep))
 			fmt.Fprintf(&b, "- **Why separate** %s\n", r.Boundary)
@@ -180,7 +220,7 @@ func renderTable() string {
 	}
 
 	b.WriteString("\n### The ssg surfaces\n\n")
-	b.WriteString("Both web surfaces are generated by [`ssg`](https://static-site-generator.com/)\n")
+	b.WriteString("Every web surface built here is generated by [`ssg`](https://static-site-generator.com/)\n")
 	b.WriteString("from a theme in the [SSG theme suite](https://github.com/sebastienrousseau/ssg-themes.github.io).\n")
 	b.WriteString("That is an invariant, not a habit: `make ssg-check` fails the build when a\n")
 	b.WriteString("page appears outside a layout, when a configuration stops matching this\n")
@@ -240,16 +280,17 @@ func tidyMarkdown(md string) string {
 // purpose: this one is a contract with repositories that are not written in
 // Go, so it changes only deliberately.
 type jsonRepo struct {
-	Name      string   `json:"name"`
-	Status    string   `json:"status"`
-	Role      string   `json:"role"`
-	Language  string   `json:"language"`
-	Licence   string   `json:"license,omitempty"`
-	Boundary  string   `json:"boundary,omitempty"`
-	Lockstep  bool     `json:"lockstep"`
-	Artefacts []string `json:"artifacts,omitempty"`
-	Kill      string   `json:"archive_when,omitempty"`
-	Reason    string   `json:"rejected_because,omitempty"`
+	Name       string   `json:"name"`
+	Repository string   `json:"repository"`
+	Status     string   `json:"status"`
+	Role       string   `json:"role"`
+	Language   string   `json:"language"`
+	Licence    string   `json:"license,omitempty"`
+	Boundary   string   `json:"boundary,omitempty"`
+	Lockstep   bool     `json:"lockstep"`
+	Artefacts  []string `json:"artifacts,omitempty"`
+	Kill       string   `json:"archive_when,omitempty"`
+	Reason     string   `json:"rejected_because,omitempty"`
 }
 
 // jsonSite and jsonDelta are the published shape of the ssg surfaces, so a
@@ -286,13 +327,15 @@ func renderJSON() ([]byte, error) {
 	}{
 		Comment: "Generated from internal/ecosystem by scripts/ecosystem. Do not edit by hand. " +
 			"Every repository in the family verifies its own row against this file in CI.",
-		SchemaVersion: 1,
+		// 2: statuses became released/unreleased/rejected, and repository
+		// names a row whose component name is not its repository.
+		SchemaVersion: 2,
 		Family:        "passmcp",
 		Standard:      "REPO-STANDARD.md",
 	}
 	for _, r := range ecosystem.Family {
 		jr := jsonRepo{
-			Name: r.Name, Status: string(r.Status), Role: r.Role, Language: r.Language,
+			Name: r.Name, Repository: r.RepoName(), Status: string(r.Status), Role: r.Role, Language: r.Language,
 			Licence: r.Licence, Boundary: r.Boundary, Lockstep: r.Lockstep,
 			Kill: r.Kill, Reason: r.Reason,
 		}

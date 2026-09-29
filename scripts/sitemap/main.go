@@ -3,7 +3,7 @@
 
 //go:build ignore
 
-// sitemap writes <root>/sitemap.xml from what is actually on disk. satellion.com
+// sitemap writes <root>/sitemap.xml from what is actually on disk. satellion.github.io
 // runs it against the built satellion.com, passing its dist directory as root.
 //
 // The generator that ran before this produced an empty <urlset> in CI and a

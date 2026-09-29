@@ -38,6 +38,9 @@ jobs:
       - name: The README follows the template
         run: scripts/readme-check.sh
 
+      - name: Every version-bearing place agrees with CHANGELOG.md
+        run: scripts/verify-release-versions.sh
+
   markdown:
     name: Markdown & Spelling
     runs-on: ubuntu-latest

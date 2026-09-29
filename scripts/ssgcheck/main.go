@@ -52,7 +52,7 @@ import (
 )
 
 // pagesWorkflow is where the ssg version the embedded shell is built with is
-// pinned. The public site moved to its own repository, satellion.com,
+// pinned. The public site moved to its own repository, satellion.github.io,
 // which pins its own; the web shell is the only site built here.
 const pagesWorkflow = "Makefile"
 

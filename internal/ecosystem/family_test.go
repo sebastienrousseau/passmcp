@@ -36,29 +36,29 @@ func TestValidateCatchesTheThingsItIsFor(t *testing.T) {
 	}{
 		"a satellite with no boundary": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
-				{Name: "passmcp-x", Status: Planned, Role: "something", Licence: "Apache-2.0", Kill: "when"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
+				{Name: "passmcp-x", Status: Unreleased, Role: "something", Licence: "Apache-2.0", Kill: "when"},
 			},
 			want: "no boundary",
 		},
 		"a satellite with no kill criterion": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
-				{Name: "passmcp-x", Status: Planned, Role: "something", Licence: "Apache-2.0", Boundary: "because"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
+				{Name: "passmcp-x", Status: Unreleased, Role: "something", Licence: "Apache-2.0", Boundary: "because"},
 			},
 			want: "no kill criterion",
 		},
 		"a rejection with no reason": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
 				{Name: "passmcp-x", Status: Rejected, Role: "something"},
 			},
 			want: "no reason",
 		},
 		"a duplicated row": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
 			},
 			want: "listed twice",
 		},
@@ -70,20 +70,20 @@ func TestValidateCatchesTheThingsItIsFor(t *testing.T) {
 		},
 		"a row with no name": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
-				{Status: Planned, Role: "nameless"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
+				{Status: Unreleased, Role: "nameless"},
 			},
 			want: "no name",
 		},
 		"a row with no role": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Licence: "GPL-3.0-only"},
+				{Name: "passmcp", Status: Released, Licence: "GPL-3.0-only"},
 			},
 			want: "no role",
 		},
 		"a shipping row with no licence": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre"},
+				{Name: "passmcp", Status: Released, Role: "centre"},
 			},
 			want: "no licence",
 		},
@@ -95,20 +95,33 @@ func TestValidateCatchesTheThingsItIsFor(t *testing.T) {
 		},
 		"a rejection reason on a live row": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only", Reason: "but why"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only", Reason: "but why"},
 			},
 			want: "not rejected",
 		},
 		"a rejected row still carrying lockstep": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only"},
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only"},
 				{Name: "passmcp-x", Status: Rejected, Role: "gone", Reason: "no", Lockstep: true},
 			},
 			want: "carries artefacts or lockstep",
 		},
+		"a live row outside the lockstep": {
+			rows: []Repo{
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only",
+					Purpose: "p", UseCase: "u"},
+			},
+			want: "not in lockstep",
+		},
+		"a live row with no family-table cells": {
+			rows: []Repo{
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only", Lockstep: true},
+			},
+			want: "no purpose or use case",
+		},
 		"the same artefact claimed twice": {
 			rows: []Repo{
-				{Name: "passmcp", Status: Shipping, Role: "centre", Licence: "GPL-3.0-only",
+				{Name: "passmcp", Status: Released, Role: "centre", Licence: "GPL-3.0-only",
 					Artefacts: []Artefact{Readme, Readme}},
 			},
 			want: "listed twice",
@@ -155,13 +168,35 @@ func TestPassmcpRowIsTrueOfTheWorkingTree(t *testing.T) {
 	}
 }
 
-// TestEveryLockstepRepoIsShippingOrPlanned: lockstep binds a release
-// process, so a rejected row carrying it would put a tag on something that
-// does not exist.
-func TestEveryLockstepRepoIsShippingOrPlanned(t *testing.T) {
+// TestLockstepIsExactlyTheLiveRows: lockstep binds a release process, so a
+// rejected row carrying it would put a tag on something that does not exist,
+// and a live row without it would be a repository the one-version rule
+// silently skips.
+func TestLockstepIsExactlyTheLiveRows(t *testing.T) {
 	for _, r := range Family {
-		if r.Lockstep && r.Status == Rejected {
-			t.Errorf("%s is rejected and in lockstep", r.Name)
+		if r.Lockstep != (r.Status != Rejected) {
+			t.Errorf("%s is %s with lockstep=%v", r.Name, r.Status, r.Lockstep)
+		}
+	}
+}
+
+// TestRepositoryNamesAndLinks: the website is the one row whose component
+// name is not its repository, and every README's family table links the
+// repository, so a wrong link here is a broken link in nine READMEs.
+func TestRepositoryNamesAndLinks(t *testing.T) {
+	site, ok := Lookup("satellion.com")
+	if !ok {
+		t.Fatal("no website row")
+	}
+	if got := site.URL(); got != "https://github.com/sebastienrousseau/satellion.github.io" {
+		t.Errorf("website links %s", got)
+	}
+	if got := (Repo{Name: "passmcp-x"}).URL(); got != "https://github.com/sebastienrousseau/passmcp-x" {
+		t.Errorf("a plain row links %s", got)
+	}
+	for _, r := range Family {
+		if r.Status != Rejected && strings.ContainsAny(r.RepoName(), " /") {
+			t.Errorf("%s: repository name %q is not a repository name", r.Name, r.RepoName())
 		}
 	}
 }
@@ -207,9 +242,14 @@ func TestLookupAndByStatusAgreeWithTheManifest(t *testing.T) {
 	if _, ok := Lookup("passmcp-does-not-exist"); ok {
 		t.Error("Lookup invented a repository")
 	}
+}
 
+// TestByStatusAgreesWithTheManifest is the ByStatus half of
+// TestLookupAndByStatusAgreeWithTheManifest, split out to keep each under the
+// complexity ceiling.
+func TestByStatusAgreesWithTheManifest(t *testing.T) {
 	var counted int
-	for _, s := range []Status{Shipping, Planned, Rejected} {
+	for _, s := range []Status{Released, Unreleased, Rejected} {
 		rows := ByStatus(s)
 		counted += len(rows)
 		for _, r := range rows {
@@ -250,14 +290,17 @@ func TestArtefactListIsSortedAndComplete(t *testing.T) {
 	}
 }
 
-// TestEveryPlannedRepoHasADistinctBoundary.
+// TestEverySatelliteHasADistinctBoundary.
 //
 // Two satellites with the same stated reason for existing are one satellite
 // with a duplicated justification, which is how a family acquires a
 // repository nobody can defend.
-func TestEveryPlannedRepoHasADistinctBoundary(t *testing.T) {
+func TestEverySatelliteHasADistinctBoundary(t *testing.T) {
 	seen := map[string]string{}
-	for _, r := range ByStatus(Planned) {
+	for _, r := range Family {
+		if r.Status == Rejected || r.Name == "passmcp" {
+			continue
+		}
 		// Compare the first clause: the boundary's category, before the
 		// explanation.
 		key := strings.ToLower(strings.TrimSpace(strings.SplitN(r.Boundary, ".", 2)[0]))
@@ -272,7 +315,7 @@ func TestEveryPlannedRepoHasADistinctBoundary(t *testing.T) {
 		seen[key] = r.Name
 	}
 	if len(seen) == 0 {
-		t.Error("no planned repositories have boundaries, so this asserts nothing")
+		t.Error("no satellites have boundaries, so this asserts nothing")
 	}
 }
 
@@ -299,7 +342,7 @@ func TestSiteManifestIsTrueOfTheWorkingTree(t *testing.T) {
 		// Output is only required to exist when it is embedded. The shell's
 		// output is committed because go:embed needs it at compile time; a
 		// site whose output is built on demand, as the public site's was
-		// before it moved to satellion.com, is not asserted, because that
+		// before it moved to satellion.github.io, is not asserted, because that
 		// passed locally for the wrong reason and failed on every CI runner.
 		if s.Embedded {
 			required = append(required, s.Output)
