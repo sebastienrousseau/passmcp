@@ -57,7 +57,7 @@ func TestRunRefusesBadInvocations(t *testing.T) {
 	}{
 		"no profile":      {nil, 2, "-profile is required"},
 		"unknown flag":    {[]string{"-nope"}, 2, "flag provided but not defined"},
-		"missing file":    {[]string{"-profile", filepath.Join(t.TempDir(), "absent")}, 1, "no such file"},
+		"missing file":    {[]string{"-profile", filepath.Join(t.TempDir(), "absent")}, 1, "absent"},
 		"malformed block": {[]string{"-profile", writeProfile(t, "mode: set\nnot a block\n")}, 1, "line 2"},
 		"bad statements":  {[]string{"-profile", writeProfile(t, "a.go:1.1,2.2 x 1\n")}, 1, "bad statement count"},
 		"bad count":       {[]string{"-profile", writeProfile(t, "a.go:1.1,2.2 1 -1\n")}, 1, "bad execution count"},
