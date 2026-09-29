@@ -14,6 +14,16 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Fixed
+
+- **The family manifest lists passmcp-lsp and passmcp-census as
+  released.** Both shipped 0.0.2 with the rest of the family, but the
+  manifest tagged with passmcp 0.0.2 still called them unreleased, so
+  every page generated from it, satellion.com's family table included,
+  said so too.
+
 ## [0.0.2] — 2026-09-29
 
 The family's second release, and the first in which every repository in

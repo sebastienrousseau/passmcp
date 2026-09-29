@@ -232,7 +232,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-lsp",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue.",
 		Purpose:  "A language server for MCP artefacts, with check-id hover from the guidance catalogue",
 		UseCase:  "Catch mistakes in server.json, tool schemas and client configuration while editing",
@@ -244,7 +244,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-census",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.",
 		Purpose:  "The published reliability census: dataset, methodology, disclosure log and reproduction command",
 		UseCase:  "Cite ecosystem-wide reliability figures, and reproduce them",
