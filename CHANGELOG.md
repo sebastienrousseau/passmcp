@@ -14,7 +14,19 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [Unreleased]
+## [0.0.2]
+
+The family's second release, and the first in which every repository in
+the family moves together: passmcp-lsp and passmcp-census, never tagged
+at 0.0.1, first ship at 0.0.2.
+
+### Added
+
+- **Servers that fail on purpose.** `go run ./examples/servers -flaw NAME`
+  serves a local MCP server with one deliberate defect, and `-list` names
+  each defect and the check that catches it. A test runs passmcp's engine
+  against every one on each CI run, so the table cannot drift from what
+  passmcp reports.
 
 ### Changed
 
@@ -35,6 +47,12 @@ project announces that a change felt big.
   endpoint document from the figure CI measures.
 - **`scripts/verify-release-versions.sh` runs on every push**, reading the
   version from `CHANGELOG.md` when no tag is given.
+
+### Fixed
+
+- **`protocol.id_echo` names the id the server sent back.** A server that
+  answered with the wrong id was reported as `got 0x…`, a memory address,
+  rather than the id it returned; a reply with no id now says so.
 
 ## [0.0.1] — 2026-09-29
 

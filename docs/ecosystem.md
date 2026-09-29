@@ -117,7 +117,10 @@ worth more than a tidy page:
   29 Sep 2026 that the whole family carries one version, including both: a
   reader should never have to ask which version of which piece they are
   looking at. The cost that argument named is accepted, as it already was for
-  the site (see [the version rule](#the-version-rule)).
+  the site (see [the version rule](#the-version-rule)). Neither had been
+  tagged, so on the same day the owner decided both skip 0.0.1 and first ship
+  at the family's next version, 0.0.2: an untagged changelog section is not a
+  release, and a member joining the lockstep joins at the family's version.
 - **`passmcp-graph` and `passmcp-registry` have no recorded archive
   criterion.** Every other satellite states when it should be archived; for
   these two the owner has not yet said, and their rows say so rather than
