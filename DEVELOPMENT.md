@@ -11,16 +11,17 @@ bug in this file — please report it.
 
 ## Contents
 
-- [Toolchain](#toolchain)
+- [Requirements](#requirements)
 - [Everyday tasks](#everyday-tasks)
 - [Reproducing every CI gate](#reproducing-every-ci-gate)
+- [Coverage](#coverage)
 - [Test layout](#test-layout)
 - [Trying it against a real server](#trying-it-against-a-real-server)
 - [Generated artefacts](#generated-artefacts)
 - [Release model](#release-model)
 - [Conventions](#conventions)
 
-## Toolchain
+## Requirements
 
 | Tool | Version | Why |
 |---|---|---|
@@ -89,9 +90,7 @@ is the cross-platform matrix.
 | Manpage rendering | `make docs && groff -man -Tutf8 -ww build/man/passmcp.1 >/dev/null` |
 | Docs lint (markdown, spelling, links) | `pre-commit run --all-files` |
 
-Coverage is not a separate job — the suite reports it. The threshold is
-85% of statements per package, and the rationale is in
-[Conventions](#conventions) below.
+Coverage has its own section below.
 
 To check a release without publishing anything:
 
@@ -102,6 +101,20 @@ goreleaser release --snapshot --clean --skip=publish,sign,announce
 That builds every target, runs the manpage/completion generation hook, and
 produces the archives and packages in `dist/` for inspection. The same path
 runs in CI via the release workflow's `workflow_dispatch` dry-run.
+
+## Coverage
+
+The threshold is 85% of statements, per package, and the rationale is in
+[Conventions](#conventions) below. Two workflows measure it:
+
+| Workflow | What it does | Reproduce locally |
+|---|---|---|
+| CI, Coverage Gate | Fails when any package is below 85% (`cmd/passmcp`, a two-line `main`, is exempt) | `make coverage` |
+| Coverage Badge (`coverage.yml`) | On every push to `main`, measures the whole module and publishes the result as a shields.io endpoint document at <https://sebastienrousseau.com/passmcp/coverage.json>, which the README's badge renders | `go test -coverprofile=coverage.out ./... && go run ./scripts/coveragebadge -profile coverage.out -exclude /cmd/passmcp/main.go` |
+
+The badge's colour is brightgreen from 90%, green from 85%, yellow from 70%
+and red below. The figure is truncated to one decimal rather than rounded, so
+it never shows the gate as met when it is not.
 
 ## Test layout
 
