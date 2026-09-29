@@ -1,12 +1,13 @@
 {
   "_comment": "Generated from internal/ecosystem by scripts/ecosystem. Do not edit by hand. Every repository in the family verifies its own row against this file in CI.",
-  "schema_version": 1,
+  "schema_version": 2,
   "family": "passmcp",
   "standard": "REPO-STANDARD.md",
   "repositories": [
     {
       "name": "passmcp",
-      "status": "shipping",
+      "repository": "passmcp",
+      "status": "released",
       "role": "The engine, every check, and the three peer surfaces: CLI, TUI and the embedded local web UI.",
       "language": "go",
       "license": "GPL-3.0-only",
@@ -41,7 +42,8 @@
     },
     {
       "name": "passmcp-reporting",
-      "status": "shipping",
+      "repository": "passmcp-reporting",
+      "status": "released",
       "role": "The attestation predicate, its JSON Schema and the offline verifier, as a module with no dependencies; the report schema, the renderers and the rubric as data follow when a consumer needs them.",
       "language": "go",
       "license": "Apache-2.0",
@@ -74,7 +76,8 @@
     },
     {
       "name": "passmcp-server",
-      "status": "shipping",
+      "repository": "passmcp-server",
+      "status": "released",
       "role": "An MCP server exposing passmcp's diagnostics as read-only tools, so an agent can evaluate a server, or check an attestation about one, from inside the editor.",
       "language": "go",
       "license": "GPL-3.0-only",
@@ -105,31 +108,9 @@
       "archive_when": "Registry listings produce no measurable referrals across two quarters."
     },
     {
-      "name": "satellion.com",
-      "status": "shipping",
-      "role": "The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates.",
-      "language": "web",
-      "license": "GPL-3.0-only",
-      "boundary": "A different release cadence and toolchain: the site follows passmcp's releases daily and builds with SSG and MkDocs, which the engine's CI should not need.",
-      "lockstep": false,
-      "artifacts": [
-        "README.md",
-        "CHANGELOG.md",
-        "LICENSE",
-        "LICENSES",
-        "REUSE.toml",
-        "SECURITY.md",
-        "CODE_OF_CONDUCT.md",
-        "CONTRIBUTING.md",
-        "Makefile",
-        "scripts",
-        ".github/workflows"
-      ],
-      "archive_when": "The page's numbers stop coming from a passmcp release."
-    },
-    {
       "name": "passmcp-action",
-      "status": "shipping",
+      "repository": "passmcp-action",
+      "status": "released",
       "role": "The GitHub Action wrapping the published image by digest, and a GitLab CI template.",
       "language": "composite",
       "license": "Apache-2.0",
@@ -161,27 +142,111 @@
       "archive_when": "None. It is the lowest-cost, highest-signal artefact in the family."
     },
     {
+      "name": "passmcp-graph",
+      "repository": "passmcp-graph",
+      "status": "released",
+      "role": "A local graph of which agents use which MCP servers, which tools those servers expose and which identities reach them, built from passmcp's attestations, reports and MCP client configurations, queried offline and gated by policy in CI.",
+      "language": "go",
+      "license": "GPL-3.0-only",
+      "boundary": "It consumes evidence rather than producing it. It reads attestations, reports and client configurations, makes no network request, and carries a store and a query language of its own that the diagnostic does not need.",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "SECURITY.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "Makefile",
+        "docs",
+        "scripts",
+        ".editorconfig",
+        ".github/workflows"
+      ],
+      "archive_when": "Not yet recorded: the owner has not stated one, and this row is the reminder that one is owed."
+    },
+    {
+      "name": "passmcp-registry",
+      "repository": "passmcp-registry",
+      "status": "released",
+      "role": "A signed public scorecard of the remote servers in the MCP Registry: each checked read-only and without credentials by a pinned passmcp release, every result an offline-verifiable attestation, and anything that would expose a vulnerability withheld for its owner first.",
+      "language": "go",
+      "license": "AGPL-3.0-only AND CC-BY-4.0",
+      "boundary": "A hosted service with its own operational and disclosure duties, under its own licences: the code is AGPL-3.0-only and the published scorecard CC-BY-4.0.",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "DEVELOPMENT.md",
+        "SECURITY.md",
+        "SUPPORT.md",
+        "GOVERNANCE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "AGENTS.md",
+        "Makefile",
+        "docs",
+        "scripts",
+        ".editorconfig",
+        ".github/workflows"
+      ],
+      "archive_when": "Not yet recorded: the owner has not stated one, and this row is the reminder that one is owed."
+    },
+    {
       "name": "passmcp-lsp",
-      "status": "planned",
+      "repository": "passmcp-lsp",
+      "status": "unreleased",
       "role": "A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue.",
       "language": "go",
       "license": "Apache-2.0",
-      "boundary": "Editor embedding. It ships inside editors and extension marketplaces whose licensing and release cadence are not passmcp's; the extensions live in its own editors/ directory rather than a repository each.",
-      "lockstep": false,
+      "boundary": "Editor embedding. It ships inside editors and extension marketplaces whose licensing is not passmcp's; the extensions live in its own editors/ directory rather than a repository each.",
+      "lockstep": true,
       "archive_when": "The guidance hover goes unused. Scoped so that cutting it costs one repository and no capability."
     },
     {
       "name": "passmcp-census",
-      "status": "planned",
+      "repository": "passmcp-census",
+      "status": "unreleased",
       "role": "The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.",
       "language": "data",
       "license": "CC-BY-4.0",
-      "boundary": "Licence and cadence. A GPL repository cannot cleanly carry a CC-BY dataset, and a quarterly data release has no business sharing a version with a fortnightly tool release.",
-      "lockstep": false,
+      "boundary": "Licence. A GPL repository cannot cleanly carry a CC-BY dataset.",
+      "lockstep": true,
       "archive_when": "The census is not repeated on schedule. Delete it rather than leave a stale dataset presented as current."
     },
     {
+      "name": "satellion.com",
+      "repository": "satellion.github.io",
+      "status": "released",
+      "role": "The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates.",
+      "language": "web",
+      "license": "GPL-3.0-only",
+      "boundary": "A different toolchain: the site builds with SSG and MkDocs against passmcp's latest release, which the engine's CI should not need.",
+      "lockstep": true,
+      "artifacts": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "LICENSES",
+        "REUSE.toml",
+        "SECURITY.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "Makefile",
+        "scripts",
+        ".github/workflows"
+      ],
+      "archive_when": "The page's numbers stop coming from a passmcp release."
+    },
+    {
       "name": "passmcp-gateway",
+      "repository": "passmcp-gateway",
       "status": "rejected",
       "role": "An in-path MCP gateway.",
       "language": "—",
@@ -189,20 +254,31 @@
       "rejected_because": "Fourteen incumbents, two of them free and open source, one of them AWS. Being in the data path would also convert passmcp from a tool that touches nothing into a production dependency trusted with traffic."
     },
     {
-      "name": "passmcp-registry",
-      "status": "rejected",
-      "role": "An index of MCP servers.",
-      "language": "—",
-      "lockstep": false,
-      "rejected_because": "Contested by the official registry, the container catalogue and four directories, two of which already publish a score. Supply the signal they display instead."
-    },
-    {
       "name": "passmcp-wasm",
+      "repository": "passmcp-wasm",
       "status": "rejected",
       "role": "A browser build of the engine.",
       "language": "—",
       "lockstep": false,
       "rejected_because": "CORS blocks a browser build against most servers. A build target, not a repository."
+    },
+    {
+      "name": "passmcp-proxy",
+      "repository": "passmcp-proxy",
+      "status": "rejected",
+      "role": "An in-path proxy that inspects, or sanitises and rewrites, live traffic between an agent and a server (also proposed as passmcp-inspector and passmcp-shield).",
+      "language": "—",
+      "lockstep": false,
+      "rejected_because": "The gateway again under another name: in the data path is in the data path whether it only watches or also rewrites (ADR 0007). A rewriting shield would also judge by classifier rather than cite the request that showed the property (ADR 0002). Live inspection is the official MCP Inspector's job."
+    },
+    {
+      "name": "passmcp-fuzz",
+      "repository": "passmcp-fuzz",
+      "status": "rejected",
+      "role": "A stress and fuzzing tool that sends servers malformed input, oversized payloads and connection churn (also proposed as passmcp-chaos).",
+      "language": "—",
+      "lockstep": false,
+      "rejected_because": "An adversarial mode in its own repository, which ADR 0008 rules out behind a flag and behind a verb alike: the read-only posture is what lets a security team approve passmcp. Resilience is already a phase of the check, and passmcp fuzzes its own parsers."
     }
   ],
   "sites": [

@@ -6,7 +6,7 @@ name: Manual
 # Builds the user manual so a change that breaks it is caught before it
 # merges. This workflow does not deploy.
 #
-# Publishing happens in satellion.com, the repository that builds
+# Publishing happens in satellion.github.io, the repository that builds
 # satellion.com: it checks out passmcp at its latest release, builds this
 # manual into /manual, and deploys it with the rest of the site from one
 # artifact.

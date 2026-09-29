@@ -12,16 +12,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sebastienrousseau/passmcp/actions"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/passmcp/ci.yml?style=for-the-badge&logo=github" alt="Build Status" /></a>
-  <a href="https://pkg.go.dev/satellion.com/passmcp"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?style=for-the-badge&logo=go&logoColor=white" alt="Go Reference" /></a>
-  <a href="https://golangci-lint.run/"><img src="https://img.shields.io/badge/lint-golangci--lint-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="golangci-lint" /></a>
-  <a href="https://codecov.io/gh/sebastienrousseau/passmcp"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/passmcp?style=for-the-badge&logo=codecov" alt="Code Coverage" /></a>
-  <a href="https://scorecard.dev/viewer/?uri=satellion.com/passmcp"><img src="https://img.shields.io/ossf-scorecard/satellion.com/passmcp?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" /></a>
-  <a href="https://www.bestpractices.dev/projects/15080"><img src="https://img.shields.io/cii/level/15080?style=for-the-badge&label=OpenSSF%20Best%20Practices&logo=openssf" alt="OpenSSF Best Practices" /></a>
-  <a href="https://satellion.com/passmcp/docs/"><img src="https://img.shields.io/badge/docs-manual-brightgreen?style=for-the-badge&logo=github" alt="Documentation" /></a>
-  <a href="https://github.com/sebastienrousseau/passmcp/releases/latest"><img src="https://img.shields.io/github/v/release/sebastienrousseau/passmcp?style=for-the-badge" alt="Release Version" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge" alt="License" /></a>
-  <a href="#requirements"><img src="https://img.shields.io/github/go-mod/go-version/sebastienrousseau/passmcp?style=for-the-badge&logo=go&logoColor=white&label=Go" alt="Minimum Go version" /></a>
+  <a href="https://github.com/sebastienrousseau/passmcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sebastienrousseau/passmcp/ci.yml?branch=main&style=for-the-badge&logo=github&label=Build" alt="Build" /></a>
+  <a href="https://github.com/sebastienrousseau/passmcp/blob/main/DEVELOPMENT.md#coverage"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fsebastienrousseau.com%2Fpassmcp%2Fcoverage.json&style=for-the-badge&logo=codecov&logoColor=white" alt="Coverage" /></a>
+  <a href="https://github.com/sebastienrousseau/passmcp/releases"><img src="https://img.shields.io/github/v/release/sebastienrousseau/passmcp?style=for-the-badge&color=fc8d62&logo=github&label=Release" alt="Release" /></a>
+  <a href="https://pkg.go.dev/satellion.com/passmcp"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?style=for-the-badge&labelColor=555555&logo=go&logoColor=white" alt="Docs" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/passmcp"><img src="https://img.shields.io/ossf-scorecard/github.com/sebastienrousseau/passmcp?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue.svg?style=for-the-badge" alt="License: GPL-3.0-only" /></a>
+  <a href="https://github.com/sebastienrousseau/passmcp/blob/main/DEVELOPMENT.md#requirements"><img src="https://img.shields.io/badge/go-1.26.8%2B-93450a.svg?style=for-the-badge&logo=go" alt="Go 1.26.8+" /></a>
 </p>
 
 ---
@@ -36,7 +33,7 @@
 
 **The passmcp ecosystem**
 
-- [The passmcp ecosystem](#the-passmcp-ecosystem) — `passmcp`, `passmcp-reporting`, `passmcp-server`, `passmcp-action`, `passmcp-lsp`, `passmcp-census`
+- [The passmcp ecosystem](#the-passmcp-ecosystem) — `passmcp`, `passmcp-reporting`, `passmcp-server`, `passmcp-action`, `passmcp-graph`, `passmcp-registry`, `passmcp-lsp`, `passmcp-census`, `satellion.com`
 
 **Library reference**
 
@@ -106,7 +103,7 @@ The flake ships the binary with its manpages and shell completions, and
 ### Go toolchain
 
 ```bash
-go install satellion.com/passmcp/cmd/passmcp@v0.0.1
+go install satellion.com/passmcp/cmd/passmcp@v0.0.2
 ```
 
 Installs into `$(go env GOPATH)/bin` (or `$GOBIN` when set). A binary
@@ -354,40 +351,37 @@ The full picture is in [the manual](https://satellion.com/passmcp/docs/stdio/).
 
 ## The passmcp ecosystem
 
-passmcp is one engine with three peer surfaces, plus a family of satellites that
-reach places a single binary cannot: an editor, a registry listing, a licence
-that permits embedding. The table below is generated from
-[`internal/ecosystem`](internal/ecosystem/family.go), so it cannot disagree
-with the manifest — `make ecosystem-verify` fails the build when it does.
-
 <!-- BEGIN generated readme family table — run `make ecosystem`; do not edit by hand -->
 
-| Repository | Status | Licence | What it owns |
-|---|---|---|---|
-| **`passmcp`** | shipping | GPL-3.0-only | The engine, every check, and the three peer surfaces: CLI, TUI and the embedded local web UI. |
-| `passmcp-reporting` | shipping | Apache-2.0 | The attestation predicate, its JSON Schema and the offline verifier, as a module with no dependencies; the report schema, the renderers and the rubric as data follow when a consumer needs them. |
-| `passmcp-server` | shipping | GPL-3.0-only | An MCP server exposing passmcp's diagnostics as read-only tools, so an agent can evaluate a server, or check an attestation about one, from inside the editor. |
-| `satellion.com` | shipping | GPL-3.0-only | The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates. |
-| `passmcp-action` | shipping | Apache-2.0 | The GitHub Action wrapping the published image by digest, and a GitLab CI template. |
-| `passmcp-lsp` | planned | Apache-2.0 | A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue. |
-| `passmcp-census` | planned | CC-BY-4.0 | The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command. |
+Every component is released at **0.0.2** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
+
+| Component | Purpose | Use case |
+| :--- | :--- | :--- |
+| [passmcp](https://github.com/sebastienrousseau/passmcp) | The MCP server diagnostic: checks in nine phases, every finding tied to the request that showed it, signed attestations | Test a server before your agents trust it, and gate it in CI |
+| [passmcp-reporting](https://github.com/sebastienrousseau/passmcp-reporting) | The attestation format, its JSON Schemas and offline verifier, the graph model, and the agentgateway processor | Verify an attestation in a gateway, registry or pipeline |
+| [passmcp-server](https://github.com/sebastienrousseau/passmcp-server) | passmcp's diagnostics as read-only MCP tools | Evaluate a server, or check an attestation, from inside the agent |
+| [passmcp-action](https://github.com/sebastienrousseau/passmcp-action) | passmcp in GitHub Actions and GitLab CI, the image pinned by digest | Fail a build on the findings you choose |
+| [passmcp-graph](https://github.com/sebastienrousseau/passmcp-graph) | A local graph of agents, servers, tools and identities built from attestations | Find inherited risk and over-privilege, and gate on policy |
+| [passmcp-registry](https://github.com/sebastienrousseau/passmcp-registry) | A signed public scorecard of the MCP Registry's remote servers | Check a public server's standing before connecting to it |
+| [passmcp-lsp](https://github.com/sebastienrousseau/passmcp-lsp) | A language server for MCP artefacts, with check-id hover from the guidance catalogue | Catch mistakes in server.json, tool schemas and client configuration while editing |
+| [passmcp-census](https://github.com/sebastienrousseau/passmcp-census) | The published reliability census: dataset, methodology, disclosure log and reproduction command | Cite ecosystem-wide reliability figures, and reproduce them |
+| [satellion.com](https://github.com/sebastienrousseau/satellion.github.io) | The website, the Go module paths and the format URIs | Read the manual, and resolve `satellion.com/...` imports |
 <!-- END generated readme family table -->
 
-**Everything except `passmcp` is planned, not shipping.** They are listed because
-a layout recorded before it exists cannot drift silently once it does — and so
-nobody goes looking for a repository that is not there.
-[`docs/ecosystem.md`](docs/ecosystem.md) carries the full entry for each,
-including why it is a separate repository at all and the criterion for
-archiving it, plus the three that were considered and rejected with the reasons
-kept.
+The table is generated from [`internal/ecosystem`](internal/ecosystem/family.go),
+and the version in its first sentence from this file's newest `CHANGELOG.md`
+heading, so neither can disagree with its source: `make ecosystem-verify` fails
+the build when they do. [`docs/ecosystem.md`](docs/ecosystem.md) carries the
+full entry for each repository — its licence, why it is a separate repository at
+all, and the criterion for archiving it — and the two ideas considered and
+rejected, with the reasons kept. `passmcp-lsp` and `passmcp-census` have no
+tag yet: nothing is installable from them until they do.
 
 ### Install the pieces
 
-Only one of them exists today, which is why there is one command:
-
-```bash
-mise use -g ubi:sebastienrousseau/passmcp          # the engine, CLI, TUI and local web UI
-```
+The engine, with the CLI, TUI and local web UI, installs with any method in
+[Install](#install). Every other component documents its own installation in
+its repository's README, linked from the table above.
 
 ### The three surfaces
 
@@ -404,12 +398,12 @@ other two surfaces can never have.
 
 ### The version rule
 
-Every repository whose **Lockstep** column says yes carries the same version as
-`passmcp`, propagated automatically on release, with a required check that blocks
-a merge on disagreement. Ambiguity about which build sits behind a hosted
-diagnostic is the expensive kind for a security tool. The dataset and the
-language server sit outside it deliberately: a census edition is not a build of
-the tool, and editor marketplaces keep their own cadence.
+Every repository in the family carries the same version as `passmcp`. Ambiguity
+about which build sits behind a hosted diagnostic is the expensive kind for a
+security tool, so a typo on the site bumps the whole family rather than ship
+as a site-only patch. [`docs/ecosystem.md`](docs/ecosystem.md#the-version-rule)
+states the rule, how each repository meets it today, and why the census and the
+language server, once outside it, are now inside it.
 
 ---
 
@@ -417,16 +411,16 @@ the tool, and editor marketplaces keep their own cadence.
 
 | Area | Capability | Status |
 | :--- | :--- | :--- |
-| Diagnosis | Nine phases from DNS to token recovery, 131 checks, each finding citing the requests that showed it | Shipped |
-| Transports | Streamable HTTP, and stdio servers run under process custody with `--stdio` | Shipped |
-| Credentials | Bearer, API key, basic, OAuth 2.1 client credentials, user login with PKCE, dynamic and metadata-document registration | Shipped |
-| Safety | Read-only by default; mutations and destructive tools only by explicit opt-in | Shipped |
-| Behaviour | Egress witness, credential canaries, upstream fault injection, memory soak (stdio) | Shipped |
-| Reports | Text, JSON, NDJSON, Markdown and HTML; HAR and OTLP telemetry; a weighted, explained score | Shipped |
-| Gating | `--policy`, baselines, `passmcp verify --against`, `passmcp watch`, exit status 2 on a failed finding | Shipped |
-| Attestation | In-toto statements with `passmcp attest`, offline checks with `passmcp verify`, reproduction from the recorded plan | Shipped |
-| Surfaces | CLI, interactive TUI, `passmcp serve` web UI, Go library, GitHub Action, MCP server | Shipped |
-| Supply chain | `passmcp sbom` for binaries and lockfiles, with opt-in OSV advisories | Shipped |
+| Diagnosis | Nine phases from DNS to token recovery, 131 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Transports | Streamable HTTP, and stdio servers run under process custody with `--stdio` | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Credentials | Bearer, API key, basic, OAuth 2.1 client credentials, user login with PKCE, dynamic and metadata-document registration | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Safety | Read-only by default; mutations and destructive tools only by explicit opt-in | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Behaviour | Egress witness, credential canaries, upstream fault injection, memory soak (stdio) | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Reports | Text, JSON, NDJSON, Markdown and HTML; HAR and OTLP telemetry; a weighted, explained score | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Gating | `--policy`, baselines, `passmcp verify --against`, `passmcp watch`, exit status 2 on a failed finding | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Attestation | In-toto statements with `passmcp attest`, offline checks with `passmcp verify`, reproduction from the recorded plan | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Surfaces | CLI, interactive TUI, `passmcp serve` web UI, Go library, GitHub Action, MCP server | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Supply chain | `passmcp sbom` for binaries and lockfiles, with opt-in OSV advisories | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 
 ### The nine phases
 
@@ -990,6 +984,10 @@ see the self-contained, copy-pasteable Go code examples in the
 2. **[Safe diagnostics](examples/safe_diagnostics.go)** — Run the
    library's read-only `diagnostics` runner against an open server and
    print the quality score with its deductions.
+3. **[Flawed servers](examples/servers/)** — A local MCP server with one
+   deliberate defect per flag, from a wrong JSON-RPC id to a tool result
+   that instructs the model, each paired with the check that catches it.
+   `go run ./examples/servers -list` shows them.
 
 ---
 
@@ -1084,7 +1082,7 @@ the evidence tables and the print stylesheet that turns a report into a PDF.
 The shell's layouts are vendored under `web/_layouts` on purpose, so it builds
 with nothing but the `ssg` binary. The public site at satellion.com is built in
 its own repository,
-[satellion.com](https://github.com/sebastienrousseau/satellion.com), against
+[satellion.github.io](https://github.com/sebastienrousseau/satellion.github.io), against
 passmcp's latest release: its manual is this repository's `docs/`, its sample
 report is passmcp's own output, and its numbers, check count included, are read
 from that release when it builds.

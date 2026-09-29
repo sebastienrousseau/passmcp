@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The compliance tier this repository targets (~/Code/AGENTS.md §5.1).
+# Public repositories default to L2; L3 and criticality "core" are only ever
+# declared explicitly, by the owner, never inferred.
+tier: L2
+criticality: standard
+owner: sebastienrousseau

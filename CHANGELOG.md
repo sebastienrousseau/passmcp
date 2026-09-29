@@ -14,6 +14,48 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [0.0.2] — 2026-09-29
+
+The family's second release, and the first in which every repository in
+the family moves together: passmcp-lsp and passmcp-census, never tagged
+at 0.0.1, first ship at 0.0.2.
+
+### Added
+
+- **Servers that fail on purpose.** `go run ./examples/servers -flaw NAME`
+  serves a local MCP server with one deliberate defect, and `-list` names
+  each defect and the check that catches it. A test runs passmcp's engine
+  against every one on each CI run, so the table cannot drift from what
+  passmcp reports.
+
+### Changed
+
+- **The family manifest lists every repository, in one version.**
+  `passmcp-graph` and `passmcp-registry` join it as released repositories,
+  `passmcp-lsp` and `passmcp-census` as not yet released, and every row is
+  in lockstep. Statuses name facts (`released`, `unreleased`, `rejected`)
+  rather than intentions, and `ecosystem.json` moves to schema version 2 with
+  a `repository` field, because the website's repository is
+  `satellion.github.io`.
+- **passmcp requires passmcp-reporting v0.0.2**, the family's release of
+  the attestation format; its API and predicate are unchanged from v0.0.1.
+- **Two more proposals are recorded as considered and rejected**:
+  `passmcp-proxy` (an in-path inspector or sanitising shield, ADR 0007) and
+  `passmcp-fuzz` (a stress and fuzzing tool, ADR 0008), each with its reason
+  in the family table so neither is re-argued from scratch.
+- **The README carries the family's standard badge row and component
+  table**, and `scripts/readme-check.sh` enforces the badge row.
+- **Coverage is published.** A Pages workflow writes the coverage badge's
+  endpoint document from the figure CI measures.
+- **`scripts/verify-release-versions.sh` runs on every push**, reading the
+  version from `CHANGELOG.md` when no tag is given.
+
+### Fixed
+
+- **`protocol.id_echo` names the id the server sent back.** A server that
+  answered with the wrong id was reported as `got 0x…`, a memory address,
+  rather than the id it returned; a reply with no id now says so.
+
 ## [0.0.1] — 2026-09-29
 
 The first release.

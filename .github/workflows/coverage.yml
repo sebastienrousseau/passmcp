@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Coverage Badge
+
+# Publishes the statement coverage main measured as a shields.io endpoint
+# document at https://sebastienrousseau.com/passmcp/coverage.json, which the
+# README's coverage badge renders. The number is computed here, on every push
+# to main, and never typed by hand.
+#
+# This is the repository's only GitHub Pages deployment: the manual is
+# published by satellion.github.io, not from here (see docs.yml).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CGO_ENABLED: '0'
+
+jobs:
+  measure:
+    name: Measure coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      # The same exclusion as the Coverage Gate in ci.yml: the entry point is
+      # a two-line main() with no behaviour of its own.
+      - name: Write coverage.json
+        env:
+          GOTOOLCHAIN: auto
+        run: |
+          set -euo pipefail
+          go test -count=1 -coverprofile=coverage.out ./...
+          mkdir -p site
+          go run ./scripts/coveragebadge -profile coverage.out -exclude /cmd/passmcp/main.go > site/coverage.json
+          cat site/coverage.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: Deploy
+    needs: measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

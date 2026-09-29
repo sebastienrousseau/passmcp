@@ -110,7 +110,7 @@ var publishedCountFiles = []string{
 	// to remember.
 	"internal/web/dist/index.html",
 	// The vendored layouts, which is where the figure is actually edited.
-	// satellion.com's own layouts moved to satellion.com, whose build reads
+	// satellion.com's own layouts moved to satellion.github.io, whose build reads
 	// this count from docs/checks.md and fails on a page that disagrees.
 	"web/_layouts/app.html",
 }

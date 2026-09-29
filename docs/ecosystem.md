@@ -2,13 +2,13 @@
 # SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only
 description: >-
-  What exists around passmcp today and what is only planned — the CLI, the library packages, the site, and the repositories that hold them.
+  Every repository in the passmcp family, what each one owns, which are released and which are not yet, and the one-version rule that binds them.
 ---
 
 # The passmcp ecosystem
 
-What exists, what each piece is for, and what is only planned. Nothing on
-this page is aspirational unless it says so: a map that lists things which
+What exists, what each piece is for, and what is not yet released. Nothing
+on this page is aspirational unless it says so: a map that lists things which
 do not exist is worse than no map, because it costs a reader the trip.
 
 ## The family
@@ -19,42 +19,44 @@ build when they do.
 
 <!-- BEGIN generated family table — run `make ecosystem`; do not edit by hand -->
 
-### Shipping
+### Released
 
 | Repository | Licence | Lockstep | What it owns |
 |---|---|---|---|
-| `passmcp` | GPL-3.0-only | yes | The engine, every check, and the three peer surfaces: CLI, TUI and the embedded local web UI. |
-| `passmcp-reporting` | Apache-2.0 | yes | The attestation predicate, its JSON Schema and the offline verifier, as a module with no dependencies; the report schema, the renderers and the rubric as data follow when a consumer needs them. |
-| `passmcp-server` | GPL-3.0-only | yes | An MCP server exposing passmcp's diagnostics as read-only tools, so an agent can evaluate a server, or check an attestation about one, from inside the editor. |
-| `satellion.com` | GPL-3.0-only | no | The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates. |
-| `passmcp-action` | Apache-2.0 | yes | The GitHub Action wrapping the published image by digest, and a GitLab CI template. |
+| [`passmcp`](https://github.com/sebastienrousseau/passmcp) | GPL-3.0-only | yes | The engine, every check, and the three peer surfaces: CLI, TUI and the embedded local web UI. |
+| [`passmcp-reporting`](https://github.com/sebastienrousseau/passmcp-reporting) | Apache-2.0 | yes | The attestation predicate, its JSON Schema and the offline verifier, as a module with no dependencies; the report schema, the renderers and the rubric as data follow when a consumer needs them. |
+| [`passmcp-server`](https://github.com/sebastienrousseau/passmcp-server) | GPL-3.0-only | yes | An MCP server exposing passmcp's diagnostics as read-only tools, so an agent can evaluate a server, or check an attestation about one, from inside the editor. |
+| [`passmcp-action`](https://github.com/sebastienrousseau/passmcp-action) | Apache-2.0 | yes | The GitHub Action wrapping the published image by digest, and a GitLab CI template. |
+| [`passmcp-graph`](https://github.com/sebastienrousseau/passmcp-graph) | GPL-3.0-only | yes | A local graph of which agents use which MCP servers, which tools those servers expose and which identities reach them, built from passmcp's attestations, reports and MCP client configurations, queried offline and gated by policy in CI. |
+| [`passmcp-registry`](https://github.com/sebastienrousseau/passmcp-registry) | AGPL-3.0-only AND CC-BY-4.0 | yes | A signed public scorecard of the remote servers in the MCP Registry: each checked read-only and without credentials by a pinned passmcp release, every result an offline-verifiable attestation, and anything that would expose a vulnerability withheld for its owner first. |
+| [`satellion.com`](https://github.com/sebastienrousseau/satellion.github.io) | GPL-3.0-only | yes | The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates. |
 
-### Planned
+### Not yet released
 
-**These do not exist yet.** They are recorded so the layout cannot drift
-silently once they do, and so nobody goes looking for them. Every row states
-the boundary that forces a separate repository and the criterion for
+**Nothing is installable from these yet.** Each starts at the family's
+version and joins the release with its first tag. Every row states the
+boundary that forces a separate repository and the criterion for
 archiving it.
 
-#### `passmcp-lsp`
+#### [`passmcp-lsp`](https://github.com/sebastienrousseau/passmcp-lsp)
 
 A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue.
 
-- **Licence** Apache-2.0 · **go** · **Lockstep** no
-- **Why separate** Editor embedding. It ships inside editors and extension marketplaces whose licensing and release cadence are not passmcp's; the extensions live in its own editors/ directory rather than a repository each.
+- **Licence** Apache-2.0 · **go** · **Lockstep** yes
+- **Why separate** Editor embedding. It ships inside editors and extension marketplaces whose licensing is not passmcp's; the extensions live in its own editors/ directory rather than a repository each.
 - **Archive when** The guidance hover goes unused. Scoped so that cutting it costs one repository and no capability.
 
-#### `passmcp-census`
+#### [`passmcp-census`](https://github.com/sebastienrousseau/passmcp-census)
 
 The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.
 
-- **Licence** CC-BY-4.0 · **data** · **Lockstep** no
-- **Why separate** Licence and cadence. A GPL repository cannot cleanly carry a CC-BY dataset, and a quarterly data release has no business sharing a version with a fortnightly tool release.
+- **Licence** CC-BY-4.0 · **data** · **Lockstep** yes
+- **Why separate** Licence. A GPL repository cannot cleanly carry a CC-BY dataset.
 - **Archive when** The census is not repeated on schedule. Delete it rather than leave a stale dataset presented as current.
 
 ### The ssg surfaces
 
-Both web surfaces are generated by [`ssg`](https://static-site-generator.com/)
+Every web surface built here is generated by [`ssg`](https://static-site-generator.com/)
 from a theme in the [SSG theme suite](https://github.com/sebastienrousseau/ssg-themes.github.io).
 That is an invariant, not a habit: `make ssg-check` fails the build when a
 page appears outside a layout, when a configuration stops matching this
@@ -75,30 +77,54 @@ one is a fork nobody decided to make. The list is in
 | Repository | Why not |
 |---|---|
 | `passmcp-gateway` | Fourteen incumbents, two of them free and open source, one of them AWS. Being in the data path would also convert passmcp from a tool that touches nothing into a production dependency trusted with traffic. |
-| `passmcp-registry` | Contested by the official registry, the container catalogue and four directories, two of which already publish a score. Supply the signal they display instead. |
 | `passmcp-wasm` | CORS blocks a browser build against most servers. A build target, not a repository. |
+| `passmcp-proxy` | The gateway again under another name: in the data path is in the data path whether it only watches or also rewrites (ADR 0007). A rewriting shield would also judge by classifier rather than cite the request that showed the property (ADR 0002). Live inspection is the official MCP Inspector's job. |
+| `passmcp-fuzz` | An adversarial mode in its own repository, which ADR 0008 rules out behind a flag and behind a verb alike: the read-only posture is what lets a security team approve passmcp. Resilience is already a phase of the check, and passmcp fuzzes its own parsers. |
 <!-- END generated family table -->
 
-Two names in that table are still open questions, recorded here rather than
-settled quietly:
+Decisions in that table that were once made the other way, recorded here
+rather than reversed quietly — a reversed decision with its history intact is
+worth more than a tidy page:
 
 - **`passmcp-server`** was previously reserved for the public site and hosted
   diagnostic. It is listed above as an MCP server instead, because a
   repository with that name containing no MCP server misleads everyone who
   finds it. The public site moved to its own repository,
-  [satellion.com](https://github.com/sebastienrousseau/satellion.com),
-  on 26 Sep 2026. The drift that kept it here is closed from that side:
-  its build reads the check count, score, ledger and evidence from the passmcp
-  release it builds against and fails when the page disagrees. The embedded
-  shell stays here, `go:embed`ed, under the same count gate.
+  [satellion.github.io](https://github.com/sebastienrousseau/satellion.github.io),
+  which serves satellion.com, on 26 Sep 2026. The drift that kept it here is
+  closed from that side: its build reads the check count, score, ledger and
+  evidence from the passmcp release it builds against and fails when the page
+  disagrees. The embedded shell stays here, `go:embed`ed, under the same count
+  gate.
 - **`passmcp-lsp`** was considered and deliberately deferred, on the grounds
   that a language server is a large permanent surface with no demand behind
   it. That reasoning holds for a language server over MCP *server source* and
   not for one over MCP *artefacts* — `server.json`, tool schemas, client
   configuration, and passmcp's own policy and attestation files, where hovering
   a check id can return the guidance catalogue's remediation. It is listed
-  above at that narrower scope. The original objection is kept because a
-  reversed decision with its history intact is worth more than a tidy page.
+  above at that narrower scope.
+- **`passmcp-registry`** was once rejected as *an index of MCP servers*:
+  contested by the official registry, the container catalogue and four
+  directories, two of which already publish a score, with the advice to
+  "supply the signal they display instead". The repository that now carries
+  the name is that advice taken: not an index but a signed, per-server
+  scorecard of the official registry's remote servers, each result an
+  attestation anyone can verify offline. The objection to an index stands.
+- **`passmcp-lsp` and `passmcp-census` were outside the lockstep.** The census
+  was held out because a census edition is not a build of the tool and binding
+  it would force a no-op tool release every quarter; the language server
+  because editor marketplaces keep their own cadence. The owner decided on
+  29 Sep 2026 that the whole family carries one version, including both: a
+  reader should never have to ask which version of which piece they are
+  looking at. The cost that argument named is accepted, as it already was for
+  the site (see [the version rule](#the-version-rule)). Neither had been
+  tagged, so on the same day the owner decided both skip 0.0.1 and first ship
+  at the family's next version, 0.0.2: an untagged changelog section is not a
+  release, and a member joining the lockstep joins at the family's version.
+- **`passmcp-graph` and `passmcp-registry` have no recorded archive
+  criterion.** Every other satellite states when it should be archived; for
+  these two the owner has not yet said, and their rows say so rather than
+  carry a guess.
 
 ## Today: three surfaces, one engine
 
@@ -158,23 +184,24 @@ patch. It bumps the whole ecosystem, including a `passmcp` release in which
 nothing changed. A no-op release is cheap and automated; not knowing what is
 deployed is not.
 
-*All three rules are in force: the first satellites exist.* Two facts about
-them are worth stating. `passmcp-action` and `passmcp-server` follow passmcp's release
-exactly as rule 2 describes: the release fires `repository_dispatch` at
-them, each pins the new image by digest, and each one's `Version Lockstep`
-check refuses a version that is not passmcp's latest.
-`passmcp-reporting` runs the other way, because passmcp *imports* it: it tags
-first, so that passmcp's `go.mod` can name the version, and its lockstep check
-allows it to be exactly one release ahead of passmcp's latest and nothing
-else. The dispatch reaches it too, as the signal that the release it tagged
-for has shipped.
+*All three rules are in force.* How each repository meets them differs, and
+is stated here as it is, not as it will be. `passmcp-action` and
+`passmcp-server` follow passmcp's release exactly as rule 2 describes: the
+release fires `repository_dispatch` at them, each pins the new image by
+digest, and each one's `Version Lockstep` check refuses a version that is not
+passmcp's latest. `passmcp-reporting` runs the other way, because passmcp
+*imports* it: it tags first, so that passmcp's `go.mod` can name the version,
+and its lockstep check allows it to be exactly one release ahead of passmcp's
+latest and nothing else. The dispatch reaches it too, as the signal that the
+release it tagged for has shipped.
 
-The rule binds every repository whose **Lockstep** column says yes. Two rows
-are deliberately outside it. `passmcp-census` publishes a dataset, and a census
-edition is not a build of the tool — binding them would force a no-op tool
-release every quarter. `passmcp-lsp` follows editor and marketplace cadences
-that are not this project's. Anything that embeds or reports a passmcp version
-stays in lockstep, because that is the ambiguity the rule exists to remove.
+The rule binds every repository in the family: every row above says yes in
+its **Lockstep** column, and `internal/ecosystem` refuses a row that does not.
+The dispatch in `release.yml` reaches the three repositories named above
+today. `passmcp-graph`, `passmcp-registry`, `passmcp-lsp`, `passmcp-census`
+and the website carry the version in their own `CHANGELOG.md`; the dispatch
+does not reach them yet, and adding them needs the dispatch token's scope
+widened to them, which is a repository setting rather than a change here.
 
 ## Where to go next
 
