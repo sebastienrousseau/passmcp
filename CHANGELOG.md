@@ -14,6 +14,14 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Fixed
+
+- **`protocol.id_echo` names the id the server sent back.** A server that
+  answered with the wrong id was reported as `got 0x…`, a memory address,
+  rather than the id it returned; a reply with no id now says so.
+
 ## [0.0.1] — 2026-09-29
 
 The first release.
