@@ -78,6 +78,8 @@ one is a fork nobody decided to make. The list is in
 |---|---|
 | `passmcp-gateway` | Fourteen incumbents, two of them free and open source, one of them AWS. Being in the data path would also convert passmcp from a tool that touches nothing into a production dependency trusted with traffic. |
 | `passmcp-wasm` | CORS blocks a browser build against most servers. A build target, not a repository. |
+| `passmcp-proxy` | The gateway again under another name: in the data path is in the data path whether it only watches or also rewrites (ADR 0007). A rewriting shield would also judge by classifier rather than cite the request that showed the property (ADR 0002). Live inspection is the official MCP Inspector's job. |
+| `passmcp-fuzz` | An adversarial mode in its own repository, which ADR 0008 rules out behind a flag and behind a verb alike: the read-only posture is what lets a security team approve passmcp. Resilience is already a phase of the check, and passmcp fuzzes its own parsers. |
 <!-- END generated family table -->
 
 Decisions in that table that were once made the other way, recorded here

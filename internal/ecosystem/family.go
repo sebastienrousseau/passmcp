@@ -285,6 +285,20 @@ var Family = []Repo{
 		Language: "—",
 		Reason:   "CORS blocks a browser build against most servers. A build target, not a repository.",
 	},
+	{
+		Name:     "passmcp-proxy",
+		Status:   Rejected,
+		Role:     "An in-path proxy that inspects, or sanitises and rewrites, live traffic between an agent and a server (also proposed as passmcp-inspector and passmcp-shield).",
+		Language: "—",
+		Reason:   "The gateway again under another name: in the data path is in the data path whether it only watches or also rewrites (ADR 0007). A rewriting shield would also judge by classifier rather than cite the request that showed the property (ADR 0002). Live inspection is the official MCP Inspector's job.",
+	},
+	{
+		Name:     "passmcp-fuzz",
+		Status:   Rejected,
+		Role:     "A stress and fuzzing tool that sends servers malformed input, oversized payloads and connection churn (also proposed as passmcp-chaos).",
+		Language: "—",
+		Reason:   "An adversarial mode in its own repository, which ADR 0008 rules out behind a flag and behind a verb alike: the read-only posture is what lets a security team approve passmcp. Resilience is already a phase of the check, and passmcp fuzzes its own parsers.",
+	},
 }
 
 // Validate reports every way the manifest contradicts itself.
