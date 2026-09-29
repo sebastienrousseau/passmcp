@@ -17,8 +17,6 @@ Three packages, all maintained by `srousseau`:
 yay -S passmcp    # or: paru -S passmcp
 ```
 
-`passmcp-bin` on the AUR is an unrelated project with the same name.
-
 ## The recipe
 
 **The source of truth is each package's AUR repository**
