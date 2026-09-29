@@ -326,6 +326,12 @@ func TestHandshakeAndProtocolBranches(t *testing.T) {
 	_, fs = run(t, f, bearer, func(o *Options) { o.Only = []string{"net", "discovery", "auth", "handshake", "protocol", "resilience"} })
 	expect(t, fs, "protocol.unknown_method", Warn, "-32601 expected")
 	expect(t, fs, "protocol.id_echo", Fail, "sent id")
+	// The detail is the evidence a reader acts on, so it names both ids by
+	// value: the fake answers with the request's id plus 1000.
+	var sent, got int64
+	if _, err := fmt.Sscanf(fs["protocol.id_echo"].Detail, "sent id %d, got %d", &sent, &got); err != nil || got != sent+1000 {
+		t.Errorf("protocol.id_echo detail %q does not name both ids", fs["protocol.id_echo"].Detail)
+	}
 	expect(t, fs, "protocol.malformed_json", Fail, "truncated body")
 	expect(t, fs, "protocol.invalid_params", Fail, "succeeded")
 	expect(t, fs, "protocol.unknown_tool", Fail, "returned success")

@@ -265,8 +265,10 @@ func probeIDEcho(s *Session, raw rawProbe, live string, liveParams any) Finding 
 		return c.warn("request failed: "+err.Error(), "")
 	case rep.Response == nil:
 		return c.fail(Major, fmt.Sprintf("the answer is not a JSON-RPC response: %s", truncate(string(rep.Body), 120)), "")
-	case rep.Response.ID == nil || *rep.Response.ID != id:
-		return c.fail(Major, fmt.Sprintf("sent id %d, got %v", id, rep.Response.ID), "echo the request id")
+	case rep.Response.ID == nil:
+		return c.fail(Major, fmt.Sprintf("sent id %d, got no id", id), "echo the request id")
+	case *rep.Response.ID != id:
+		return c.fail(Major, fmt.Sprintf("sent id %d, got %d", id, *rep.Response.ID), "echo the request id")
 	case rep.Response.JSONRPC != "2.0":
 		return c.warn(`jsonrpc field is not "2.0"`, "set jsonrpc: \"2.0\"")
 	default:
