@@ -14,7 +14,7 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [0.0.2]
+## [0.0.2] — 2026-09-29
 
 The family's second release, and the first in which every repository in
 the family moves together: passmcp-lsp and passmcp-census, never tagged
@@ -37,6 +37,8 @@ at 0.0.1, first ship at 0.0.2.
   rather than intentions, and `ecosystem.json` moves to schema version 2 with
   a `repository` field, because the website's repository is
   `satellion.github.io`.
+- **passmcp requires passmcp-reporting v0.0.2**, the family's release of
+  the attestation format; its API and predicate are unchanged from v0.0.1.
 - **Two more proposals are recorded as considered and rejected**:
   `passmcp-proxy` (an in-path inspector or sanitising shield, ADR 0007) and
   `passmcp-fuzz` (a stress and fuzzing tool, ADR 0008), each with its reason
