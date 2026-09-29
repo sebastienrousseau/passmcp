@@ -984,6 +984,10 @@ see the self-contained, copy-pasteable Go code examples in the
 2. **[Safe diagnostics](examples/safe_diagnostics.go)** — Run the
    library's read-only `diagnostics` runner against an open server and
    print the quality score with its deductions.
+3. **[Flawed servers](examples/servers/)** — A local MCP server with one
+   deliberate defect per flag, from a wrong JSON-RPC id to a tool result
+   that instructs the model, each paired with the check that catches it.
+   `go run ./examples/servers -list` shows them.
 
 ---
 
