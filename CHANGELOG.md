@@ -25,6 +25,10 @@ project announces that a change felt big.
   rather than intentions, and `ecosystem.json` moves to schema version 2 with
   a `repository` field, because the website's repository is
   `satellion.github.io`.
+- **Two more proposals are recorded as considered and rejected**:
+  `passmcp-proxy` (an in-path inspector or sanitising shield, ADR 0007) and
+  `passmcp-fuzz` (a stress and fuzzing tool, ADR 0008), each with its reason
+  in the family table so neither is re-argued from scratch.
 - **The README carries the family's standard badge row and component
   table**, and `scripts/readme-check.sh` enforces the badge row.
 - **Coverage is published.** A Pages workflow writes the coverage badge's
