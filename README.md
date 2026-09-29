@@ -17,7 +17,7 @@
   <a href="https://golangci-lint.run/"><img src="https://img.shields.io/badge/lint-golangci--lint-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="golangci-lint" /></a>
   <a href="https://codecov.io/gh/sebastienrousseau/passmcp"><img src="https://img.shields.io/codecov/c/github/sebastienrousseau/passmcp?style=for-the-badge&logo=codecov" alt="Code Coverage" /></a>
   <a href="https://scorecard.dev/viewer/?uri=satellion.com/passmcp"><img src="https://img.shields.io/ossf-scorecard/satellion.com/passmcp?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" /></a>
-  <a href="https://www.bestpractices.dev/projects/14698"><img src="https://img.shields.io/cii/level/14698?style=for-the-badge&label=OpenSSF%20Best%20Practices&logo=openssf" alt="OpenSSF Best Practices" /></a>
+  <a href="https://www.bestpractices.dev/projects/15080"><img src="https://img.shields.io/cii/level/15080?style=for-the-badge&label=OpenSSF%20Best%20Practices&logo=openssf" alt="OpenSSF Best Practices" /></a>
   <a href="https://satellion.com/passmcp/docs/"><img src="https://img.shields.io/badge/docs-manual-brightgreen?style=for-the-badge&logo=github" alt="Documentation" /></a>
   <a href="https://github.com/sebastienrousseau/passmcp/releases/latest"><img src="https://img.shields.io/github/v/release/sebastienrousseau/passmcp?style=for-the-badge" alt="Release Version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge" alt="License" /></a>
@@ -91,7 +91,7 @@ yay -S passmcp    # or: paru -S passmcp
 `passmcp` builds from the release's source, with the manpages and shell
 completions. `passmcp-server-bin` and `passmcp-agentgateway-extmcp` install
 [passmcp-server](https://github.com/sebastienrousseau/passmcp-server) and the
-agentgateway processor. (`passmcp-bin` on the AUR is an unrelated project.)
+agentgateway processor.
 
 ### Nix (any platform)
 
