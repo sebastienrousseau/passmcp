@@ -18,7 +18,7 @@ Set TypingSpeed 40ms
 
 Hide
 # The server stops itself after 90s: a hidden kill would still print a line.
-Type "PS1='$ '; timeout 90 passmcp-example-server -flaw toxic-pair -addr 127.0.0.1:17801 >/dev/null 2>&1 &" Enter
+Type "PS1='$ '; timeout 240 passmcp-example-server -flaw toxic-pair -addr 127.0.0.1:17801 >/dev/null 2>&1 &" Enter
 # Let the set-up finish and clear it before recording starts.
 Sleep 2s
 Type "clear" Enter
@@ -27,4 +27,7 @@ Show
 
 Type "passmcp check http://127.0.0.1:17801/mcp" Sleep 400ms Enter
 # The performance phase alone takes about 17s.
-Sleep 22s
+# Wait for the report to finish, however long this machine takes,
+# then hold the full report on screen.
+Wait+Screen@180s /requests ·/
+Sleep 4s
