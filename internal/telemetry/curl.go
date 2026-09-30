@@ -145,15 +145,24 @@ func shellWord(s string, vars map[string]bool) string {
 // anything but that variable's value.
 var shellVar = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 
+// varAlphabet is every byte a placeholder name may contain.
+const varAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+
 // safeVarName is name when it is a plain variable name, and
 // PASSMCP_SECRET otherwise. varName already produces only that shape; the
 // check keeps it true at the point the name meets the shell, whatever a
-// later change to the naming does.
+// later change to the naming does. An accepted name is copied out of
+// varAlphabet byte by byte, so what reaches the shell is built from
+// constants, never from the bytes a server sent.
 func safeVarName(name string) string {
-	if shellVar.MatchString(name) {
-		return name
+	if !shellVar.MatchString(name) {
+		return "PASSMCP_SECRET"
 	}
-	return "PASSMCP_SECRET"
+	out := make([]byte, len(name))
+	for i := range len(name) {
+		out[i] = varAlphabet[strings.IndexByte(varAlphabet, name[i])]
+	}
+	return string(out)
 }
 
 var (
