@@ -14,6 +14,61 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Added
+
+- **Seven new checks, 138 in all.**
+  - `protocol.notification_ack`: the reply to `notifications/initialized`
+    is 202 with an empty body, judged from the handshake's own exchange.
+  - `protocol.content_type`: a POST reply is `application/json` or
+    `text/event-stream`.
+  - `protocol.missing_session`: a request without the issued
+    `Mcp-Session-Id` is refused.
+  - `catalog.tools.schema_valid`: each tool's input and output schema is
+    structurally valid JSON Schema, with local `$ref`s resolved and
+    self-reference bounded. Hand-rolled, no new dependency, and fuzzed.
+  - `catalog.tools.order`: `tools/list` answers in a stable order, which
+    prompt caching depends on.
+  - `execution.resources.uri`: a resource read returns the URI asked for.
+  - `execution.prompts.validation`: `prompts/get` without a required
+    argument is refused with -32602.
+- **Servers on MCP revision 2024-11-05 are graded, not refused.**
+  `handshake.protocol_version` warns and names what the revision lacks;
+  checks for features it predates are skipped with the revision named. A
+  server on the old HTTP+SSE transport is named as such instead of
+  failing with an opaque HTTP 405.
+- **`passmcp read` and `passmcp prompt`**, read-only counterparts to
+  `call` for `resources/read` and `prompts/get`.
+- **Availability and latency in `passmcp watch`**: each pulse records its
+  latency, a status and an error kind, and the run ends with a success
+  rate, p50/p95/p99 and the worst failure streak.
+- **`passmcp explain --curl <check-id>`** prints a curl command that
+  reproduces the requests a finding cites, with every credential replaced
+  by a placeholder such as `${PASSMCP_TOKEN}`.
+- **A README demo**, rendered from `.github/demo.tape` by `make demo`.
+
+### Changed
+
+- **A reply that is not JSON names its content type** ("got text/html;
+  likely a login, SSO or firewall page, or the wrong path") instead of a
+  JSON decode error.
+- **`watch --output json` prints one JSON document** (events and a
+  summary); it used to print the text form.
+- **Release pages are composed by the release workflow** in the family
+  layout (Highlights, What's Changed, Checksums, Full Changelog).
+- A server that negotiates 2025-03-26 no longer has `outputSchema` checked,
+  since that field arrived in 2025-06-18.
+
+### Fixed
+
+- **`watch --once` exits 1** when the server cannot be reached, as the
+  documentation says; it exited 0.
+- `protocol.missing_session` evidences no SOC 2 or ISO/IEC 27001 control
+  and is mapped to none.
+- The web shell no longer claims five checks need a stdio server; it names
+  what those checks watch.
+
 ## [0.0.3] — 2026-09-30
 
 ### Changed
