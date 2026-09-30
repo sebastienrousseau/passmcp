@@ -395,6 +395,9 @@
     "protocol.bogus_session": {
       "none": "no data protection obligation is evidenced by this check"
     },
+    "protocol.content_type": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
     "protocol.deprecated_features": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },

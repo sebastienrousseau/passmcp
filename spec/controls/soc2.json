@@ -588,6 +588,9 @@
         "CC6.1"
       ]
     },
+    "protocol.content_type": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
     "protocol.deprecated_features": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },

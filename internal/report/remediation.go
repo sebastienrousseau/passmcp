@@ -1578,6 +1578,26 @@ var remediations = map[string]Remediation{
 			"passmcp sends no extra notification to test this.",
 	},
 
+	"protocol.content_type": {
+		Means: "A reply to a request was labelled something other than " +
+			"`application/json` or `text/event-stream`, or carried no label at " +
+			"all. Those are the only two the Streamable HTTP transport allows, " +
+			"and a client that chooses how to read a reply by its header, as " +
+			"the reference SDKs do, refuses anything else even when the body is " +
+			"valid JSON-RPC. An HTML type usually means the request never " +
+			"reached the MCP server: a sign-in page, an SSO or firewall " +
+			"interstitial, or a path that is not the endpoint answered instead.",
+		Steps: []Step{
+			{"Set the header on every reply to a request",
+				"`Content-Type: application/json` for one JSON object, or " +
+					"`text/event-stream` when the reply is a stream."},
+			{"If the type is HTML, check what sits in front of the server",
+				"Exempt the MCP path from interactive sign-in and bot " +
+					"challenges, and confirm the URL is the MCP endpoint rather " +
+					"than a site root or documentation page."},
+		},
+	},
+
 	// --- catalog -----------------------------------------------------------
 
 	"catalog.tools.list": {

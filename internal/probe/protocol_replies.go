@@ -15,9 +15,49 @@ import (
 
 // checkReplies judges how the endpoint answers over the Streamable HTTP
 // binding, as distinct from what it answers: the status and body of an
-// acknowledgement.
-func checkReplies(s *Session, _ *transport.Streamable, _ func(string) context.Context, _ string, _ any) []Finding {
-	return []Finding{notificationAck(s)}
+// acknowledgement, and the label on a reply.
+func checkReplies(s *Session, tr *transport.Streamable, pctx func(string) context.Context, live string, liveParams any) []Finding {
+	return []Finding{
+		notificationAck(s),
+		probeContentType(pctx("content type"), s, tr, live, liveParams),
+	}
+}
+
+// probeContentType is the protocol.content_type verdict: a reply to a
+// request is labelled application/json or text/event-stream.
+//
+// It sends one liveness call, the same read-only request protocol.ping
+// makes, and reads the label on the reply. The transport reads a body
+// that decodes whatever its label, so a mislabelled server can pass every
+// other check; this is where the label itself is judged.
+func probeContentType(ctx context.Context, s *Session, tr *transport.Streamable, live string, liveParams any) Finding {
+	c := s.check("protocol.content_type", "Replies are JSON or an event stream")
+	id := tr.NextID()
+	hrep, err := tr.Do(ctx, transport.RawOptions{Request: &transport.Request{JSONRPC: "2.0", ID: &id, Method: live, Params: liveJSON(liveParams)}})
+	return contentTypeVerdict(c, live, hrep, err)
+}
+
+// contentTypeVerdict judges the label on one reply. Anything else is
+// major: the transport allows only the two, and a client that dispatches
+// on the header, as the reference SDKs do, refuses the reply outright.
+func contentTypeVerdict(c *check, live string, hrep *transport.RawResult, err error) Finding {
+	switch {
+	case err != nil:
+		return c.info("request failed: " + truncate(err.Error(), 100))
+	case hrep.Status != http.StatusOK:
+		return c.info(fmt.Sprintf("HTTP %d to %s; no reply to judge", hrep.Status, live))
+	case hrep.ContentType == "application/json", hrep.ContentType == "text/event-stream":
+		return c.pass(hrep.ContentType)
+	}
+	ct := hrep.ContentType
+	if ct == "" {
+		// A header that does not parse is still named, not called absent.
+		ct = hrep.Header.Get("Content-Type")
+	}
+	got := (&transport.ContentTypeError{ContentType: truncate(ct, 60)}).Got()
+	return c.fail(Major,
+		fmt.Sprintf("the reply to %s: expected application/json or text/event-stream, %s", live, got),
+		"label a reply to a request Content-Type: application/json for a single JSON object, or text/event-stream for a stream; the Streamable HTTP transport allows nothing else")
 }
 
 // initializedMethod is the notification a handshake ends with.

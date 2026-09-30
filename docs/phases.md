@@ -138,6 +138,7 @@ MCP specification require.
 | `protocol.tasks.lifecycle` | a task created by calling a read-only tool is retrievable at once, carries the required fields, reaches a terminal state within 30 seconds and keeps it; passmcp cancels any task it does not see finish |
 | `protocol.origin` | a request from a foreign `Origin` is refused, as the transport requires against DNS rebinding; failing on loopback or a private address, a warning on a public host |
 | `protocol.notification_ack` | the `notifications/initialized` the handshake sent was answered `202 Accepted` with no body, as the transport requires; judged from that recorded exchange, with no extra request. Skipped on `2026-07-28`, which has no handshake |
+| `protocol.content_type` | the reply to a liveness call is labelled `application/json` or `text/event-stream`, the only two the transport allows. The client still reads a mislabelled JSON body, so this is where the label is judged; a reply that is not JSON-RPC at all (an HTML sign-in page, say) is named by its type at the first request that reads it |
 
 ## catalog: Tool, resource and prompt catalog
 

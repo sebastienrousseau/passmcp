@@ -4,12 +4,14 @@
 package probe
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"satellion.com/passmcp/internal/creds"
 	"satellion.com/passmcp/internal/telemetry"
+	"satellion.com/passmcp/transport"
 )
 
 var replyBearer = &creds.Credentials{Mode: creds.ModeBearer, Token: "tok-1234"}
@@ -131,6 +133,60 @@ func TestAckVerdictRefusedOrFailed(t *testing.T) {
 		t.Errorf("refused: %+v", got)
 	}
 	got = ackVerdict(s.check("protocol.notification_ack", "t"), telemetry.Event{Error: "connection reset"})
+	if got.Status != Info || !strings.Contains(got.Detail, "connection reset") {
+		t.Errorf("failed: %+v", got)
+	}
+}
+
+// A reply to a request is a JSON object or an event stream, labelled as
+// one. The client reads a mislabelled JSON body anyway, so the run goes
+// on; the finding is what tells the author that a stricter client will
+// not.
+func TestContentType(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		quirk func(*quirks)
+		st    Status
+		want  string
+	}{
+		{"json", func(*quirks) {}, Pass, "application/json"},
+		{"event stream", func(q *quirks) { q.sseReplies = true }, Pass, "text/event-stream"},
+		{"text/plain", func(q *quirks) { q.replyContentType = "text/plain; charset=utf-8" }, Fail, "got text/plain"},
+		{"none", func(q *quirks) { q.replyContentType = "-" }, Fail, "got no Content-Type"},
+		{"html", func(q *quirks) { q.replyContentType = "text/html" }, Fail, "likely a login"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeServer(t)
+			f.acceptAnyToken = true
+			tc.quirk(&f.q)
+			s, fs := run(t, f, replyBearer, replyPhases)
+			expect(t, fs, "protocol.content_type", tc.st, tc.want)
+			got := fs["protocol.content_type"]
+			if m := evidenceMethod(t, s, got); m != "ping" {
+				t.Errorf("protocol.content_type cites a %s exchange", m)
+			}
+			if tc.st == Fail && (got.Severity != Major || !strings.Contains(got.Advice, "application/json")) {
+				t.Errorf("severity %q, advice %q", got.Severity, got.Advice)
+			}
+		})
+	}
+
+	// The revision without a handshake answers the same way.
+	s := runStateless(t, statelessFake(t, statelessOpts{}), nil)
+	if f, ok := findingByID(s, "protocol.content_type"); !ok || f.Status != Pass {
+		t.Errorf("stateless: %+v", f)
+	}
+}
+
+// With no reply to read, there is no label to judge: an observation, not
+// a pass.
+func TestContentTypeVerdictWithoutAReply(t *testing.T) {
+	s := &Session{Opts: Options{Recorder: telemetry.New()}}
+	got := contentTypeVerdict(s.check("protocol.content_type", "t"), "ping", &transport.RawResult{Status: 500}, nil)
+	if got.Status != Info || !strings.Contains(got.Detail, "HTTP 500") {
+		t.Errorf("500: %+v", got)
+	}
+	got = contentTypeVerdict(s.check("protocol.content_type", "t"), "ping", nil, errors.New("connection reset"))
 	if got.Status != Info || !strings.Contains(got.Detail, "connection reset") {
 		t.Errorf("failed: %+v", got)
 	}
