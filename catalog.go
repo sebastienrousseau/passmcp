@@ -6,6 +6,8 @@ package passmcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"satellion.com/passmcp/trace"
 )
@@ -85,6 +87,7 @@ func (c *Client) ListResources(ctx context.Context) ([]Resource, error) {
 	ctx = trace.Ensure(ctx)
 	var all []Resource
 	cursor := ""
+	pg := pager{method: "resources/list"}
 	for {
 		var page struct {
 			Resources  []Resource `json:"resources"`
@@ -97,6 +100,9 @@ func (c *Client) ListResources(ctx context.Context) ([]Resource, error) {
 		if page.NextCursor == "" || page.NextCursor == cursor {
 			return all, nil
 		}
+		if err := pg.next(page.NextCursor); err != nil {
+			return nil, err
+		}
 		cursor = page.NextCursor
 	}
 }
@@ -106,6 +112,7 @@ func (c *Client) ListResourceTemplates(ctx context.Context) ([]ResourceTemplate,
 	ctx = trace.Ensure(ctx)
 	var all []ResourceTemplate
 	cursor := ""
+	pg := pager{method: "resources/templates/list"}
 	for {
 		var page struct {
 			Templates  []ResourceTemplate `json:"resourceTemplates"`
@@ -117,6 +124,9 @@ func (c *Client) ListResourceTemplates(ctx context.Context) ([]ResourceTemplate,
 		all = append(all, page.Templates...)
 		if page.NextCursor == "" || page.NextCursor == cursor {
 			return all, nil
+		}
+		if err := pg.next(page.NextCursor); err != nil {
+			return nil, err
 		}
 		cursor = page.NextCursor
 	}
@@ -136,6 +146,7 @@ func (c *Client) ListPrompts(ctx context.Context) ([]Prompt, error) {
 	ctx = trace.Ensure(ctx)
 	var all []Prompt
 	cursor := ""
+	pg := pager{method: "prompts/list"}
 	for {
 		var page struct {
 			Prompts    []Prompt `json:"prompts"`
@@ -147,6 +158,9 @@ func (c *Client) ListPrompts(ctx context.Context) ([]Prompt, error) {
 		all = append(all, page.Prompts...)
 		if page.NextCursor == "" || page.NextCursor == cursor {
 			return all, nil
+		}
+		if err := pg.next(page.NextCursor); err != nil {
+			return nil, err
 		}
 		cursor = page.NextCursor
 	}
@@ -163,4 +177,46 @@ func (c *Client) GetPrompt(ctx context.Context, name string, args map[string]str
 		return nil, err
 	}
 	return &res, nil
+}
+
+// ErrPaginationCycle reports a list whose cursors revisit a page, or that
+// runs past maxListPages. A client that trusts nextCursor would otherwise
+// page until its deadline.
+var ErrPaginationCycle = errors.New("passmcp: list pagination does not terminate")
+
+// maxListPages bounds how many pages one list may take. A server that
+// mints a fresh cursor forever never repeats one, so the seen-set alone
+// would not stop it.
+const maxListPages = 1000
+
+// pager follows one list's cursors and refuses a cycle or a runaway list.
+type pager struct {
+	method string
+	seen   map[string]bool
+	pages  int
+}
+
+// next records that the page carrying cursor was fetched and reports
+// whether following it would revisit a page or run past maxListPages.
+func (p *pager) next(cursor string) error {
+	p.pages++
+	if p.pages >= maxListPages {
+		return fmt.Errorf("%w: %s ran past %d pages", ErrPaginationCycle, p.method, maxListPages)
+	}
+	if p.seen == nil {
+		p.seen = map[string]bool{}
+	}
+	if p.seen[cursor] {
+		return fmt.Errorf("%w: %s returned cursor %q a second time", ErrPaginationCycle, p.method, boundCursor(cursor))
+	}
+	p.seen[cursor] = true
+	return nil
+}
+
+// boundCursor keeps a server-chosen cursor short enough to quote.
+func boundCursor(c string) string {
+	if len(c) <= 64 {
+		return c
+	}
+	return c[:64] + "…"
 }

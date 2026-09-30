@@ -5,9 +5,12 @@ package passmcp
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"satellion.com/passmcp/auth"
 	"satellion.com/passmcp/transport"
@@ -221,5 +224,46 @@ func TestHTTPReportsTheTransport(t *testing.T) {
 	}
 	if c.Conn() != transport.Conn(tr) {
 		t.Error("Conn() and HTTP() disagree about the connection")
+	}
+}
+
+// TestListToolsStopsOnACursorCycle: a server whose cursors loop (page2 ->
+// page3 -> page2) must not keep the client paging until its deadline.
+func TestListToolsStopsOnACursorCycle(t *testing.T) {
+	f := newFakeStack(t)
+	f.cursorCycle = true
+	c, err := New(Config{Endpoint: f.srv.URL + "/mcp", HTTPClient: f.srv.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err = c.ListTools(ctx)
+	if ctx.Err() != nil {
+		t.Fatal("ListTools paged until the deadline instead of detecting the cycle")
+	}
+	if !errors.Is(err, ErrPaginationCycle) {
+		t.Fatalf("err = %v, want ErrPaginationCycle", err)
+	}
+}
+
+// TestPagerStopsARunawayList: a server that mints a fresh cursor on every
+// page never repeats one, so only the page bound stops it.
+func TestPagerStopsARunawayList(t *testing.T) {
+	pg := pager{method: "tools/list"}
+	var err error
+	for i := 0; i < maxListPages+1 && err == nil; i++ {
+		err = pg.next(fmt.Sprintf("c%d", i))
+	}
+	if !errors.Is(err, ErrPaginationCycle) || !strings.Contains(err.Error(), "ran past") {
+		t.Fatalf("err = %v, want the page bound", err)
+	}
+	long := pager{method: "prompts/list"}
+	_ = long.next(strings.Repeat("x", 200))
+	if err := long.next(strings.Repeat("x", 200)); err == nil || len(err.Error()) > 200 {
+		t.Fatalf("a repeated long cursor should be refused and quoted short: %v", err)
 	}
 }

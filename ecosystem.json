@@ -201,7 +201,7 @@
     {
       "name": "passmcp-lsp",
       "repository": "passmcp-lsp",
-      "status": "unreleased",
+      "status": "released",
       "role": "A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue.",
       "language": "go",
       "license": "Apache-2.0",
@@ -212,7 +212,7 @@
     {
       "name": "passmcp-census",
       "repository": "passmcp-census",
-      "status": "unreleased",
+      "status": "released",
       "role": "The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.",
       "language": "data",
       "license": "CC-BY-4.0",

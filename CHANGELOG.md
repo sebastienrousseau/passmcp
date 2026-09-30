@@ -14,6 +14,41 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [0.0.3] — 2026-09-30
+
+### Changed
+
+- **passmcp requires passmcp-reporting v0.0.3**, the family's release;
+  its API, schemas and predicate are unchanged.
+
+### Fixed
+
+- **Stateless tool calls mirror `x-mcp-header` arguments.** Under
+  2026-07-28, an argument whose schema carries `x-mcp-header` must also be
+  sent as an `Mcp-Param-{Name}` header. passmcp sent none, so a strict
+  server answered `tools/call` with -32020 and the execution phase
+  reported the server as failing for passmcp's own omission. Strings,
+  booleans and integers under a plain `properties` chain are now mirrored,
+  encoded like `Mcp-Name`; invalid header names and other types are left
+  out.
+- **Paging a list stops on a cursor cycle.** `tools/list`,
+  `resources/list`, `resources/templates/list` and `prompts/list` stopped
+  only when a server repeated the cursor it was just given, so cursors
+  that looped over two or more pages kept passmcp paging until the call
+  timed out. A revisited cursor, or a list longer than 1,000 pages, now
+  fails with `ErrPaginationCycle`, naming the method.
+- **`passmcp login` checks the RFC 9207 issuer on the redirect.** It read
+  only `code` and `state`, so a redirect naming another authorization
+  server, the mix-up attack, was accepted and its token stored, and a
+  server that advertises `authorization_response_iss_parameter_supported`
+  could never complete a login. It now passes `iss` to the check the
+  library already makes.
+- **The family manifest lists passmcp-lsp and passmcp-census as
+  released.** Both shipped 0.0.2 with the rest of the family, but the
+  manifest tagged with passmcp 0.0.2 still called them unreleased, so
+  every page generated from it, satellion.com's family table included,
+  said so too.
+
 ## [0.0.2] — 2026-09-29
 
 The family's second release, and the first in which every repository in

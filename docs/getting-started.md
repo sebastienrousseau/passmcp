@@ -10,7 +10,7 @@ description: >-
 ## Install
 
 ```bash
-go install satellion.com/passmcp/cmd/passmcp@v0.0.2
+go install satellion.com/passmcp/cmd/passmcp@v0.0.3
 ```
 
 A binary installed this way reports the version it was installed at.

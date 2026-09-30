@@ -24,7 +24,7 @@ is bumped.
 | `github.com/charmbracelet/lipgloss` | v1.1.0 | Terminal styling for the TUI, the logo and the text report | MIT |
 | `github.com/muesli/termenv` | v0.16.0 | Colour profile selection when the text report is written to a terminal | MIT |
 | `github.com/spf13/pflag` | v1.0.10 | CLI flag parsing; the shared flag groups and the flag-keyed config file | BSD-3-Clause |
-| `satellion.com/passmcp-reporting` | v0.0.2 | The attestation format's statement types and offline verifier, the A2A predicate and the graph model, first-party, split out so gateways can import it without this module's graph; standard library only | Apache-2.0 |
+| `satellion.com/passmcp-reporting` | v0.0.3 | The attestation format's statement types and offline verifier, the A2A predicate and the graph model, first-party, split out so gateways can import it without this module's graph; standard library only | Apache-2.0 |
 | `go.yaml.in/yaml/v3` | v3.0.4 | Parses fleet files (`passmcp fleet run fleet.yaml`); already in the build through cobra, now imported directly rather than adding a second YAML parser | MIT and Apache-2.0 |
 
 This table lists every **direct** requirement in `go.mod`, and `make sbom`

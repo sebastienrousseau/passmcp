@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 )
 
 // Protocol versions this transport can speak, newest first.
@@ -165,6 +166,26 @@ type Stateless struct {
 	Capabilities json.RawMessage
 	// LogLevel, when set, asks the server for a minimum log level.
 	LogLevel string
+
+	// schemas holds each listed tool's inputSchema, so a tools/call can
+	// mirror its x-mcp-header arguments. Set by RememberTools.
+	mu      sync.RWMutex
+	schemas map[string]json.RawMessage
+}
+
+// RememberTools records each tool's inputSchema, by name, replacing what
+// was remembered before. A tools/call for a tool not listed carries no
+// Mcp-Param headers: without its schema there is nothing to mirror.
+func (d *Stateless) RememberTools(schemas map[string]json.RawMessage) {
+	d.mu.Lock()
+	d.schemas = schemas
+	d.mu.Unlock()
+}
+
+func (d *Stateless) toolSchema(name string) json.RawMessage {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.schemas[name]
 }
 
 // Version implements Dialect.
@@ -245,7 +266,24 @@ func (d *Stateless) PrepareHeaders(h http.Header, rpc *Request) error {
 	if ok {
 		h.Set(HeaderName, EncodeHeaderValue(name))
 	}
+	if ok && rpc.Method == "tools/call" {
+		if schema := d.toolSchema(name); schema != nil {
+			setParamHeaders(h, schema, callArguments(rpc))
+		}
+	}
 	return nil
+}
+
+// callArguments returns a tools/call's arguments, or nil when the body has
+// none this dialect can read.
+func callArguments(rpc *Request) map[string]json.RawMessage {
+	var p struct {
+		Arguments map[string]json.RawMessage `json:"arguments"`
+	}
+	if json.Unmarshal(rpc.Params, &p) != nil {
+		return nil
+	}
+	return p.Arguments
 }
 
 // methodsWithName are the methods whose params carry a name or URI that the

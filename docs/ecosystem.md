@@ -29,30 +29,9 @@ build when they do.
 | [`passmcp-action`](https://github.com/sebastienrousseau/passmcp-action) | Apache-2.0 | yes | The GitHub Action wrapping the published image by digest, and a GitLab CI template. |
 | [`passmcp-graph`](https://github.com/sebastienrousseau/passmcp-graph) | GPL-3.0-only | yes | A local graph of which agents use which MCP servers, which tools those servers expose and which identities reach them, built from passmcp's attestations, reports and MCP client configurations, queried offline and gated by policy in CI. |
 | [`passmcp-registry`](https://github.com/sebastienrousseau/passmcp-registry) | AGPL-3.0-only AND CC-BY-4.0 | yes | A signed public scorecard of the remote servers in the MCP Registry: each checked read-only and without credentials by a pinned passmcp release, every result an offline-verifiable attestation, and anything that would expose a vulnerability withheld for its owner first. |
+| [`passmcp-lsp`](https://github.com/sebastienrousseau/passmcp-lsp) | Apache-2.0 | yes | A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue. |
+| [`passmcp-census`](https://github.com/sebastienrousseau/passmcp-census) | CC-BY-4.0 | yes | The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command. |
 | [`satellion.com`](https://github.com/sebastienrousseau/satellion.github.io) | GPL-3.0-only | yes | The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates. |
-
-### Not yet released
-
-**Nothing is installable from these yet.** Each starts at the family's
-version and joins the release with its first tag. Every row states the
-boundary that forces a separate repository and the criterion for
-archiving it.
-
-#### [`passmcp-lsp`](https://github.com/sebastienrousseau/passmcp-lsp)
-
-A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue.
-
-- **Licence** Apache-2.0 · **go** · **Lockstep** yes
-- **Why separate** Editor embedding. It ships inside editors and extension marketplaces whose licensing is not passmcp's; the extensions live in its own editors/ directory rather than a repository each.
-- **Archive when** The guidance hover goes unused. Scoped so that cutting it costs one repository and no capability.
-
-#### [`passmcp-census`](https://github.com/sebastienrousseau/passmcp-census)
-
-The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.
-
-- **Licence** CC-BY-4.0 · **data** · **Lockstep** yes
-- **Why separate** Licence. A GPL repository cannot cleanly carry a CC-BY dataset.
-- **Archive when** The census is not repeated on schedule. Delete it rather than leave a stale dataset presented as current.
 
 ### The ssg surfaces
 
