@@ -16,6 +16,11 @@ project announces that a change felt big.
 
 ## [Unreleased]
 
+### Changed
+
+- **passmcp requires passmcp-reporting v0.0.3**, the family's release;
+  its API, schemas and predicate are unchanged.
+
 ### Fixed
 
 - **The family manifest lists passmcp-lsp and passmcp-census as
