@@ -144,6 +144,31 @@ func TestCheckTextAgainstProtectedServer(t *testing.T) {
 	}
 }
 
+// TestConcurrencyZeroDisablesTheBurst: --concurrency is documented as
+// "0 disables", and an operator who passes it is asking passmcp not to
+// fire parallel calls at the server. The spec used to turn 0 back into
+// the default of four workers, so the burst ran anyway.
+func TestConcurrencyZeroDisablesTheBurst(t *testing.T) {
+	f := newFakeServer(t)
+	f.open = true
+	out, _ := run(t, "check", f.srv.URL+"/mcp", "--output", "json", "--rps", "0", "--samples", "1", "--concurrency", "0",
+		"--log-level", "error", "--phases", "net,discovery,auth,handshake,catalog,execution,performance")
+	var rep struct {
+		Performance *struct {
+			Concurrency any `json:"concurrency"`
+		} `json:"performance"`
+	}
+	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+		t.Fatalf("json output: %v\n%s", err, out)
+	}
+	if rep.Performance == nil {
+		t.Fatal("the performance phase did not run")
+	}
+	if rep.Performance.Concurrency != nil {
+		t.Errorf("--concurrency 0 still ran a parallel burst: %v", rep.Performance.Concurrency)
+	}
+}
+
 func TestCheckJSONMdNdjsonAndReportDir(t *testing.T) {
 	f := newFakeServer(t)
 	f.open = true

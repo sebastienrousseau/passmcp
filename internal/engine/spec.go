@@ -182,7 +182,10 @@ type PolicySpec struct {
 
 // PacingSpec bounds the load a run places on the server.
 type PacingSpec struct {
-	Samples      int           `json:"samples,omitempty"`
+	Samples int `json:"samples,omitempty"`
+	// Concurrency is the number of workers in the parallel burst. Zero is
+	// unset and takes DefaultConcurrency; NoBurst (any negative count)
+	// runs no burst at all, which is what the CLI's --concurrency 0 means.
 	Concurrency  int           `json:"concurrency,omitempty"`
 	RPS          float64       `json:"rps"`
 	CallTimeout  time.Duration `json:"call_timeout_ns,omitempty"`
@@ -338,6 +341,8 @@ const (
 	MaxRPS = 100
 	// MaxConcurrency is the most workers --concurrency may start.
 	MaxConcurrency = 64
+	// NoBurst is the PacingSpec.Concurrency that runs no parallel burst.
+	NoBurst = -1
 )
 
 // ValidatePace checks a request rate and a worker count against MaxRPS and

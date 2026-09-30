@@ -127,6 +127,11 @@ project announces that a change felt big.
 
 ### Fixed
 
+- **`--concurrency 0` switches the parallel burst off, as documented.**
+  The run specification read a zero as "unset" and replaced it with the
+  default of four workers, so the burst ran anyway. The CLI now passes
+  an explicit "no burst" (`engine.NoBurst`); a zero sent by a web client
+  still means the default.
 - **`net.tls.cert` fails a certificate that expired less than a day
   ago.** The days left were rounded toward zero, so one that expired
   within the last 24 hours was reported as a minor warning ("expires in
