@@ -21,7 +21,11 @@ func approvedBaseline(t *testing.T) (*fakeServer, string, string) {
 	path := filepath.Join(t.TempDir(), "baseline.json")
 	if _, code := run(t, append([]string{"check", endpoint, "--auth", "client-credentials",
 		"--client-id", "cid", "--client-secret", "sec", "--param", "profile_id=t1",
-		"--baseline", path, "--approve"}, fastFlags()...)...); code > 2 {
+		"--baseline", path, "--approve",
+		// The catalogue is all a baseline needs; the later phases would
+		// only add load to a suite that shares the machine with timing-
+		// sensitive tests.
+		"--phases", "net,discovery,auth,handshake,catalog"}, fastFlags()...)...); code > 2 {
 		t.Fatalf("the approving run failed outright (exit %d)", code)
 	}
 	return f, endpoint, path
