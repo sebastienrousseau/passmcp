@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -64,65 +65,80 @@ argument left is the tool to call:
 	// Not ExactArgs(2): with --stdio the endpoint is replaced by a command
 	// after --, so what is left before it is the tool name alone.
 	Args: cobra.ArbitraryArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		target, tool, err := callTarget(cmd, args)
-		if err != nil {
-			return err
+	RunE: runCall,
+}
+
+// runCall connects, invokes one tool and prints what it returned.
+func runCall(cmd *cobra.Command, args []string) error {
+	target, tool, err := callTarget(cmd, args)
+	if err != nil {
+		return err
+	}
+	cr, err := buildCreds()
+	if err != nil {
+		return err
+	}
+	argsMap, err := callArguments()
+	if err != nil {
+		return err
+	}
+	client, rec, err := connectWithCreds(cmd, target, cr)
+	if err != nil {
+		return err
+	}
+	// Over stdio this owns a process. It is closed on every path out,
+	// including the error paths below, which is why the defer is here
+	// rather than after the call.
+	defer func() { _ = client.Close() }()
+	t0 := time.Now()
+	res, err := client.CallTool(telemetry.WithPhase(cmdContext(cmd), "call", tool), tool, argsMap)
+	d := time.Since(t0)
+	if err != nil {
+		return err
+	}
+	if output == "json" {
+		return writeIndentedJSON(os.Stdout, map[string]any{"tool": tool, "arguments": argsMap, "duration_ms": float64(d) / 1e6, "result": res, "telemetry": rec.Summary()})
+	}
+	writeCallResult(os.Stdout, tool, d, res)
+	return nil
+}
+
+// callArguments builds a call's arguments from --json, then --arg on top.
+func callArguments() (map[string]any, error) {
+	argsMap := map[string]any{}
+	if callArgsJSON != "" {
+		if err := json.Unmarshal([]byte(callArgsJSON), &argsMap); err != nil {
+			return nil, fmt.Errorf("--json: %w", err)
 		}
-		cr, err := buildCreds()
-		if err != nil {
-			return err
+	}
+	for _, a := range callArgs {
+		k, v, ok := strings.Cut(a, "=")
+		if !ok {
+			return nil, fmt.Errorf("--arg %q must be field=value", a)
 		}
-		argsMap := map[string]any{}
-		if callArgsJSON != "" {
-			if err := json.Unmarshal([]byte(callArgsJSON), &argsMap); err != nil {
-				return fmt.Errorf("--json: %w", err)
-			}
+		argsMap[k] = jsonOrString(v)
+	}
+	return argsMap, nil
+}
+
+// writeCallResult prints a tool result for a person.
+func writeCallResult(w io.Writer, tool string, d time.Duration, res *passmcp.CallToolResult) {
+	status := "ok"
+	if res.IsError {
+		status = "isError"
+	}
+	_, _ = fmt.Fprintf(w, "%s %s in %s\n", tool, status, d.Round(time.Millisecond))
+	for _, c := range res.Content {
+		switch c.Type {
+		case "text":
+			_, _ = fmt.Fprintln(w, c.Text)
+		default:
+			_, _ = fmt.Fprintf(w, "[%s content, %d bytes, %s]\n", c.Type, len(c.Data), c.MimeType)
 		}
-		for _, a := range callArgs {
-			k, v, ok := strings.Cut(a, "=")
-			if !ok {
-				return fmt.Errorf("--arg %q must be field=value", a)
-			}
-			argsMap[k] = jsonOrString(v)
-		}
-		client, rec, err := connectWithCreds(cmd, target, cr)
-		if err != nil {
-			return err
-		}
-		// Over stdio this owns a process. It is closed on every path out,
-		// including the error paths below, which is why the defer is here
-		// rather than after the call.
-		defer func() { _ = client.Close() }()
-		t0 := time.Now()
-		res, err := client.CallTool(telemetry.WithPhase(cmdContext(cmd), "call", tool), tool, argsMap)
-		d := time.Since(t0)
-		if err != nil {
-			return err
-		}
-		if output == "json" {
-			enc := json.NewEncoder(os.Stdout)
-			enc.SetIndent("", "  ")
-			return enc.Encode(map[string]any{"tool": tool, "arguments": argsMap, "duration_ms": float64(d) / 1e6, "result": res, "telemetry": rec.Summary()})
-		}
-		status := "ok"
-		if res.IsError {
-			status = "isError"
-		}
-		fmt.Printf("%s %s in %s\n", tool, status, d.Round(time.Millisecond))
-		for _, c := range res.Content {
-			switch c.Type {
-			case "text":
-				fmt.Println(c.Text)
-			default:
-				fmt.Printf("[%s content, %d bytes, %s]\n", c.Type, len(c.Data), c.MimeType)
-			}
-		}
-		if len(res.StructuredContent) > 0 {
-			fmt.Printf("structuredContent: %s\n", res.StructuredContent)
-		}
-		return nil
-	},
+	}
+	if len(res.StructuredContent) > 0 {
+		_, _ = fmt.Fprintf(w, "structuredContent: %s\n", res.StructuredContent)
+	}
 }
 
 var loginCmd = &cobra.Command{
