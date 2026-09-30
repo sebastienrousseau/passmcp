@@ -109,14 +109,13 @@ jobs:
       - name: Run govulncheck
         env:
           GOTOOLCHAIN: auto
-          GOBIN: ${{ github.workspace }}/.gobin
         run: |
           set -euo pipefail
-          # GOTOOLCHAIN=auto so the install resolves whatever toolchain the
+          # GOTOOLCHAIN=auto so the build resolves whatever toolchain the
           # scanner itself needs; the analysis runs against this module as
-          # declared in go.mod either way.
-          GOTOOLCHAIN=auto go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-          "${GOBIN}/govulncheck" ./...
+          # declared in go.mod either way. The scanner's version is pinned
+          # in tools/go.mod.
+          make vulncheck
 
   dependency-review:
     name: Dependency Review

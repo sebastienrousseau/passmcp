@@ -110,6 +110,84 @@ imperative subject: `feat(probe): add resource read timing`, not
 - [ ] All commits are signed (`git log --show-signature`)
 - [ ] All commits carry a DCO sign-off (`git commit -s`)
 
+## Code review
+
+Every change reaches `main` through a pull request, including the
+maintainer's own. Branch protection on `main` refuses a direct push, a
+force push and an unsigned commit, for administrators too.
+
+### Who reviews
+
+The maintainer listed in [MAINTAINERS.md](MAINTAINERS.md) reviews every
+pull request; `.github/CODEOWNERS` routes each one to them. The first
+review comes within seven days, as MAINTAINERS.md states, and only the
+maintainer merges.
+
+passmcp has one maintainer, so the maintainer's own pull requests have
+no second human reviewer. They get the same required checks and are
+held to the same list below; GOVERNANCE.md records that bus factor and
+how a co-maintainer is added.
+
+### How a pull request is reviewed
+
+1. **The required checks pass.** Branch protection will not merge until
+   every one is green: the test matrix on Linux, macOS and Windows, the
+   race detector, the 85% coverage gate, lint, fuzz smoke, the install
+   contract, the release configuration, the repository checks (commit
+   messages among them), the vulnerability and dependency scans, secret
+   scanning, licence headers, the Markdown, spelling and link checks,
+   the DCO check, and the check that the pull request targets `main`.
+   [DEVELOPMENT.md](DEVELOPMENT.md#reproducing-every-ci-gate) has the
+   local command for each.
+2. **The branch is current with `main`.** Protection requires it, so a
+   change is tested against what it will merge into.
+3. **The reviewer reads the change** against the list below and leaves
+   comments. Every conversation must be resolved before the merge.
+4. **The maintainer merges.** Merge commits are allowed; history on
+   `main` is never rewritten.
+
+### What the reviewer checks
+
+- **Tests against a fake server.** New or changed behaviour has a test
+  that fails without the change, run against an `httptest` fake
+  (`internal/probe/fake_test.go`, `testserver_test.go`). A hard-to-reach
+  branch gets a new knob on the fake, never a live server.
+- **Findings pass only on evidence.** A check returns `pass` only after
+  a request that showed the property, and cites it; a failed or absent
+  request is never a pass
+  ([ADR 0002](docs/adr/0002-findings-cite-requests.md)). `check.done`
+  records an unevidenced pass as info, and the probe suite fails on one;
+  a check that judges an earlier response is declared in
+  `internal/probe/evidence.go` with where its evidence is. A blocked phase
+  makes later phases skipped, not passed.
+- **Secrets stay redacted.** A new credential kind registers its secret
+  with the recorder before the first request, and a new report or
+  telemetry field that carries server or credential text is bounded and
+  passes through the `Redactor`
+  ([ADR 0003](docs/adr/0003-structural-redaction-at-the-recorder.md)).
+- **Read-only stays the default.** Nothing makes passmcp invoke a tool
+  without `readOnlyHint: true` unless the operator opted in, and the
+  unauthenticated probes keep using the credential-free transport
+  ([ADR 0004](docs/adr/0004-read-only-by-default.md),
+  [ADR 0001](docs/adr/0001-bare-transport-for-unauthenticated-probes.md)).
+- **Stdout and stderr stay separate.** Stdout carries only the selected
+  `--output` format; diagnostics go to stderr through `internal/diag`.
+- **Every file has its SPDX header** (`make spdx-check`).
+- **`CHANGELOG.md` has an entry** under `## [Unreleased]` for anything a
+  user would notice.
+- **A new dependency is justified** in the commit message and recorded
+  in `SBOM.md` (`make sbom-check`).
+- **Commits are signed, signed off, and Conventional.**
+
+### What makes a change acceptable
+
+A change is merged when the required checks are green, the list above
+holds, every review conversation is resolved, and it does one thing: a
+structural or documentation cleanup lands separately from a behaviour
+change. A change that weakens a safety default, makes a finding pass
+without evidence, or breaks what the README's stability guarantees
+promise is declined, and the reason is given in the pull request.
+
 ## Code Style
 
 - Use standard Go formatting (`gofmt -w .`).

@@ -36,7 +36,8 @@ It is:
 
 - A **client** of the server under test. It never listens on the network
   except for the loopback redirect that `passmcp login` opens for the
-  duration of one authorization.
+  duration of one authorization, at most five minutes, answering only the
+  redirect path.
 - A **holder of credentials** for the duration of a run, and of a user
   token between runs when `passmcp login` was used.
 - A **writer of reports** that describe a server in detail and can, with
@@ -89,7 +90,9 @@ credential (flag, environment variable, profile, store), never its value.
   access token appears.
 - `internal/creds/creds_test.go` asserts `Describe()` leaks no secret.
 - The token store is written `0600` in a `0700` directory, atomically
-  (`internal/creds/store.go`).
+  (`internal/creds/store.go`); on Windows it is written with an
+  access-control list that grants only the current user
+  (`internal/creds/perm_windows.go`).
 
 ### C2. Unauthenticated probes are actually unauthenticated
 
@@ -114,7 +117,9 @@ skipped. `--allow-mutations` unlocks tools that declare
 documented as dangerous. Resources are read and prompts rendered, both
 of which the specification defines as non-mutating. Requests are throttled
 to `--rps` (default 2) including the parallel burst, unless `--allow-load`
-is passed.
+is passed, and neither the rate nor the burst can be raised without
+bound: `--rps` above 100 or `--concurrency` above 64 is refused before a
+run starts (`engine.ValidatePace`).
 
 **Evidence.** `TestPolicyDefaults` in `diagnostics`; the fake server in
 `internal/probe/fake_test.go` panics if its unannotated `delete_all` tool
@@ -133,11 +138,24 @@ with an invalid token.
 error text, content — is bounded before it enters a finding, and response
 bodies are capped at 1 MiB on the raw transport and at `BodyCap` (64 KiB)
 in captured telemetry. Findings never embed server text unescaped into
-the Markdown renderer's table cells.
+the Markdown renderer's table cells. Every rendering meant for a person
+(the text and Markdown reports, the live TUI and tool selector, the
+human diagnostic format, and the text output of `call`, `read`,
+`prompt` and `watch`) removes ANSI escape sequences and C0 and C1
+control characters from server text before it reaches a terminal, so a
+tool name or an error string cannot move the cursor, retitle the window
+or write to the clipboard. The machine renderings (JSON, NDJSON, SARIF,
+HAR, structured diagnostics) keep the server's text exactly: their
+encoders escape control characters, and a consumer of them is owed what
+the server sent.
 
 **Evidence.** `truncate` in `internal/probe`; `io.LimitReader` in
 `transport.Streamable.Do`; `Recorder.BodyCap`; `esc` in
-`internal/report/render_md.go`.
+`internal/report/render_md.go`; `internal/termsafe`, with
+`TestTextAndMarkdownNeutraliseTerminalSequences`,
+`TestRunViewNeutralisesServerText`, `TestSelectorNeutralisesToolNames`,
+`TestHumanFormatNeutralisesTerminalSequences` and
+`TestTextOutputsNeutraliseServerText`.
 
 ### C5. The release artefacts you download are the artefacts we built
 
@@ -152,12 +170,18 @@ every action is SHA-pinned per OpenSSF Scorecard `Pinned-Dependencies`.
 ### C6. The parsing boundaries are fuzzed
 
 **Argument.** Every byte of a `WWW-Authenticate` header, an SSE stream or a
-tool's JSON Schema comes from the server under test. The parsers for
-each are fuzz targets run on every push.
+tool's JSON Schema comes from the server under test, and so do the tool
+names and arguments passmcp encodes into MCP parameter headers. The
+parsers for each, and that encoder, are fuzz targets run on every push.
 
-**Evidence.** `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE`
-(`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`),
-driven by `scripts/fuzz.sh` and `.github/workflows/fuzz.yml`.
+**Evidence.** `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` and
+`FuzzHeaderValue` (`transport`), `FuzzValidate` and `FuzzArguments`
+(`diagnostics`),
+`FuzzSchemaValid` (`internal/probe`), `FuzzParse`
+(`internal/clientconf`) and `FuzzString` (`internal/termsafe`, the
+terminal-sequence filter every person-facing rendering of server text
+passes through), driven by `scripts/fuzz.sh` and
+`.github/workflows/fuzz.yml`.
 
 ## 4. Threats considered and out of scope
 
@@ -175,8 +199,9 @@ driven by `scripts/fuzz.sh` and `.github/workflows/fuzz.yml`.
 - **Supply chain against release**: mitigated by SHA-pinned actions,
   cosign and SLSA (C5).
 - **Dependency compromise**: mitigated by Dependabot on `go.mod`,
-  `govulncheck` in CI, and a two-dependency module; `go.sum` locks
-  transitive hashes.
+  `govulncheck` in CI, library packages that import only the standard
+  library, and every direct dependency listed in `SBOM.md` and checked
+  against `go.mod` in CI; `go.sum` locks transitive hashes.
 
 ### Out of scope
 
@@ -226,13 +251,184 @@ response. Mitigations:
   release-signing key is published; a successor can publish a new key
   and users can reason about the transition.
 - **Documented external services**: `MAINTAINERS.md` catalogues every
-  external account (organisation, ghcr.io, Homebrew tap, AUR) so
+  external account (GitHub repository, ghcr.io, Homebrew tap, AUR) so
   continuity is auditable rather than tribal.
 - **Fork-and-continue is explicit**: GPL-3.0 licensing + the six-month
   unresponsive-maintainer clause in `GOVERNANCE.md` normalise the
   community-fork path.
 
-## 7. Review and update
+## 7. Secure design principles
+
+The claims in section 3 hold because the design follows the principles
+Saltzer and Schroeder set out in *The Protection of Information in
+Computer Systems* (1975). This section is the argument that each one was
+applied, with the code that applies it and the test that would fail if
+it stopped being true.
+
+### Economy of mechanism
+
+Each security decision is made in one small place, so there is one place
+to review.
+
+- **One recorder.** Every HTTP exchange passes through
+  `telemetry.Recorder.Wrap`, and redaction happens there and nowhere else
+  ([ADR-0003](adr/0003-structural-redaction-at-the-recorder.md)).
+- **One invocation policy.** `diagnostics.Policy.Decide` is a single
+  function of about twenty lines that answers "may this tool run".
+- **One engine for three surfaces.** The CLI, the TUI and the web shell
+  build a `RunSpec` for the same `internal/engine`;
+  `TestEveryRunFlagHasASpecField` (`cmd/parity_test.go`) fails when a
+  flag configures a run outside it.
+- **Few moving parts on the wire.** The library packages (`passmcp`,
+  `auth`, `transport`, `diagnostics`) import only the standard library.
+  The JSON Schema validator is hand-rolled rather than a dependency, and
+  fuzzed (`FuzzValidate`, `FuzzSchemaValid`).
+
+### Fail-safe defaults
+
+Access is decided by permission, not exclusion: the zero value of every
+guard is the strict one, and an unknown case is refused.
+
+- **Tools.** A zero `diagnostics.Policy` invokes only tools that declare
+  `readOnlyHint: true`; a tool without annotations is destructive, as the
+  MCP specification's default says (`TestPolicyDefaults`,
+  [ADR-0004](adr/0004-read-only-by-default.md)).
+- **Discovered URLs.** A zero `auth.URLPolicy` requires HTTPS and a
+  public address; the overrides are opt-in flags
+  (`TestURLPolicyRejectsPlaintextAndInternalHosts`,
+  `TestURLPolicyEscapeHatches`).
+- **Credentials.** A nil `auth.OriginSet` allows no origin at all.
+- **TLS.** A failed handshake is a critical finding that stops the run;
+  passmcp does not retry without verification (`tlsFindings` in
+  `internal/probe/phase_net.go`).
+- **Blocked runs.** When a phase sets `Session.blocked`, every later
+  phase is recorded as skipped with the reason, never passed.
+- **Unevidenced passes.** A check that returns `pass` without a request
+  in its window or evidence it cites is recorded as `info`, unless it is
+  a declared derived check (`internal/probe/evidence.go`,
+  [ADR-0002](adr/0002-findings-cite-requests.md)); the probe suite fails
+  on any such pass (`TestAPassWithoutEvidenceIsRecordedAsInfo` and the
+  guard in its `TestMain`).
+- **The hosted diagnostic.** `passmcp serve --public` scans only an
+  allowlist it was started with, and a missing allowlist admits nothing
+  (`TestAllowlistNilIsClosed`,
+  [ADR-0005](adr/0005-public-mode-is-the-same-binary.md)).
+- **The token store.** On Unix a store readable by group or others is
+  refused rather than read (`TestStoreRefusesWorldReadableFile`). On
+  Windows a store whose access-control list lets another account read or
+  change it, that has no list, or whose list cannot be read is refused
+  (`TestACLProblemRefusesAStoreAnotherAccountCanRead`,
+  `TestStoreRefusesAnACLThatGrantsEveryone`).
+
+### Complete mediation
+
+Every access is checked, every time, not once per run.
+
+- Every request goes through `Recorder.Wrap`, so no request escapes
+  redaction.
+- Every credentialed request is checked against the allowed origins
+  (`auth.Transport.mayCredential`), and every redirect hop again by
+  `auth.CheckRedirect`, capped at `auth.MaxRedirects` (5)
+  (`TestBearerDoesNotFollowRedirectOffOrigin`,
+  `TestRedirectLeakIsRefused`).
+- Every URL a server advertises is checked by `URLPolicy.Validate`
+  before use, and every connection is checked again at dial time by
+  `URLPolicy.DialContext`, which dials only the addresses it checked, so
+  a DNS answer that changes between the two is still caught
+  (`TestDialContextRefusesAnyNonPublicAnswer`,
+  `TestAnAuthorizationServerThatRebindsIsNeverReached`). Each layer fails
+  closed on its own: `Validate` refuses a name that does not resolve
+  rather than leaving it to the dial
+  (`TestURLPolicyFailsClosedWhenANameDoesNotResolve`). The exception is a
+  run behind a proxy from the environment, where the proxy resolves names
+  and the connection goes only to it
+  (`TestURLPolicyDefersToAProxyThatResolves`); passmcp cannot see which
+  address the proxy then reaches.
+- Every web shell request is checked for the per-run token and for its
+  origin (`TestGuards`).
+
+### Open design
+
+Nothing in passmcp's security depends on its design being secret. The
+source is GPL-3.0, the reasoning is in the
+[decision records](adr/README.md) and this document, and a release can be
+rebuilt bit for bit from its tag ([packaging.md](packaging.md)). The only
+secrets are the operator's credentials and the web shell's per-run
+token.
+
+### Separation of privilege
+
+Where one condition could be forged or mistaken, two are required.
+
+- **A mutating tool** runs only when the tool declares
+  `destructiveHint: false` **and** the operator passes
+  `--allow-mutations`. Either alone is not enough
+  (`diagnostics.Policy.Decide`).
+- **A web shell request** needs the per-run token **and** a same-origin
+  `Origin` (`TestGuards`).
+- **A program started from the browser** needs `--allow-stdio` on the
+  command line, and public mode refuses it whatever is passed
+  (`TestBrowserCannotStartAProgram`, `TestAllowStdioIsWhatPermitsIt`,
+  `TestPublicModeNeverRunsAProgram`).
+
+### Least privilege
+
+Each part gets what its task needs and nothing more.
+
+- **On the server under test**, passmcp reads by default and throttles
+  to `--rps` (claim C3).
+- **At the authorization server**, it requests the scope the challenge
+  names, or what `--scope` says (section 5).
+- **A stdio server** does not inherit passmcp's environment; a variable
+  it needs is passed by name with `--stdio-env`
+  (`TestStdioEnvIsNotInherited`, `TestStdioPassEnvForwardsByName`).
+- **In CI**, every workflow sets its default token permissions to none
+  or read-only and grants write scopes per job, only where a job
+  publishes, signs or attests (`.github/workflows/`).
+
+### Least common mechanism
+
+The mechanism that carries credentials is not shared with the checks
+that must run without them. The first-contact and invalid-token probes
+use `Session.Bare`, a second transport that carries only the trace
+header, so the bearer round-tripper cannot add the operator's token to
+them (`TestServerAcceptingGarbageTokenIsCritical`,
+[ADR-0001](adr/0001-bare-transport-for-unauthenticated-probes.md)).
+
+### Psychological acceptability
+
+The safe path is the one with no flags, and a refusal says how to
+proceed deliberately. A discovered endpoint on a private address is
+refused with the flag that allows it (`--insecure-allow-private-hosts`);
+an insecure token store is refused with the `chmod 600` that fixes it
+(`creds.ErrInsecurePermissions`). The flags that weaken a default say so
+in their names: `--insecure-allow-http-auth`,
+`--insecure-allow-private-hosts`, `--allow-destructive`.
+
+## 8. Common weaknesses countered
+
+The weaknesses below are the ones from MITRE's
+[CWE](https://cwe.mitre.org/) list that apply to a network client
+holding credentials and reading hostile input. Each row names the
+countermeasure and the evidence for it.
+
+| Weakness | How passmcp counters it | Evidence |
+|---|---|---|
+| **CWE-918** Server-side request forgery: a server steering passmcp's requests | URLs a server advertises (resource metadata, authorization servers, token, authorization and registration endpoints, an A2A `jku`) must be HTTPS and resolve to public addresses; the check is repeated at dial time against DNS rebinding; credentials never follow a redirect off the allowed origins | `auth.URLPolicy`, `auth.OriginSet`, `auth.CheckRedirect`; `TestValidateMetadataChecksEveryEndpoint`, `TestDialContextConnectsToTheAddressesItChecked`, `TestAnAuthorizationServerThatRebindsIsNeverReached`, `TestCheckRedirect` |
+| **CWE-200**, **CWE-532** Exposure of credentials, including in logs | Structural redaction at the one recorder, of every registered secret and every token seen mid-run; credential sources, never values, in banners; `explain --curl` emits placeholders; keyring secrets never reach a command line; the token store is `0600` in a `0700` directory, and on Windows carries an access-control list for the current user only | Claim C1; `TestFullRunClientCredentials`, `TestSecretsNeverSerialise`, `FuzzCredentialRedaction`, `TestCurlNeverCarriesASecret`, `TestKeychainSetKeepsSecretOutOfArgv`, `TestReportMasksReflectedSecrets` |
+| **CWE-522** Insufficiently protected credentials in transit | OAuth endpoints must be HTTPS unless `--insecure-allow-http-auth`; plain HTTP to a non-loopback MCP endpoint is a critical finding | `auth.URLPolicy`; `phaseNet` in `internal/probe/phase_net.go` |
+| **CWE-295** Improper certificate validation | TLS uses Go's standard verification everywhere; nothing outside tests sets `InsecureSkipVerify`; a failed handshake stops the run, and an expired certificate is critical | `tlsFindings`, `certWindowFinding`; `TestCertificateFailureIsReportedAgainstA824WithItsRequest`, `TestCertWindowFinding` |
+| **CWE-400**, **CWE-770** Uncontrolled resource consumption | Response bodies capped (32 MiB, and 1 MiB for OAuth documents), SSE streams capped in bytes and events, schema recursion bounded at depth 64, pagination stops on a cursor cycle, telemetry bounded in events and body size, requests throttled to `--rps`, which is itself capped at 100 with `--concurrency` capped at 64, `watch` pulses no faster than every 30 s, a library client without a timeout of its own abandons a request after 60 s without progress | `transport.MaxResponseBytes`, `MaxStreamEvents`, `diagnostics.MaxSchemaDepth`, `Recorder.BodyCap`, `engine.ValidatePace`, `transport.IdleTimeout`; `TestValidateBoundsThePace`, `TestDefaultClientDoesNotWaitForeverOnASilentServer`, `TestIdleTimeoutKeepsAStreamThatMakesProgress`, `TestResponseBodyIsBounded`, `TestStreamEventsAreBounded`, `TestValidateDepthIsBounded`, `TestRecursiveRefTerminates`, `TestListToolsStopsOnACursorCycle`, `TestRecorderIsBounded`, `TestProbeSurvivesHostileServers`, `TestRunRefusesAnImpoliteInterval` |
+| **CWE-20** Improper input validation | Every server-sent structure is parsed defensively, and the parsers of server bytes are fuzzed: `WWW-Authenticate`, SSE, JSON Schema, client configuration; run specifications are validated before a run; fleet names are restricted to a safe pattern | `engine.RunSpec.Validate`; `FuzzParseWWWAuthenticate`, `FuzzReadSSE`, `FuzzHeaderValue`, `FuzzValidate`, `FuzzSchemaValid`, `FuzzParse`, `FuzzRunSpecJSON`; `TestValidate`, `TestParseRefusesInlineSecretsAndMistakes` |
+| **CWE-117** Improper output neutralization for logs | A finding's detail is collapsed to one line before it is recorded, so server text cannot forge a line in the text report or a log; structured logs are JSON-encoded; Markdown table cells are escaped; the HTML report is rendered through `html/template` and fuzzed; hidden bidi and zero-width characters are shown as code points in poisoning excerpts | `oneLine` and `truncate` in `internal/probe`, `esc` in `internal/report/render_md.go`, `diagnostics.visible`; `FuzzHTMLEscaping`, `TestHTMLEscapesHostileCatalog`, `TestScanTextFindsHiddenCharacters` |
+| **CWE-150** Improper neutralization of escape, meta or control sequences | Server text written for a person (text and Markdown reports, TUI, human diagnostics, `call`/`read`/`prompt`/`watch` text) has ANSI escape sequences and C0/C1 control characters removed at the renderer; machine formats stay faithful and are escaped by their encoders | `internal/termsafe`; `TestStringRemovesControlSequences`, `TestTextAndMarkdownNeutraliseTerminalSequences`, `TestTextOutputsNeutraliseServerText` |
+| **CWE-78**, **CWE-88** OS command and argument injection | No shell is ever invoked; a stdio server is executed as named with its arguments as given; keyring keys are encoded before they reach a helper; the web shell cannot start a program unless `--allow-stdio` is passed | `transport/stdio.go`, `internal/creds/keyring.go`; `TestKeyNeverEscapesTheCommand`, `TestAHostileKeyCannotReachTheShell`, `TestBrowserCannotStartAProgram` |
+| **CWE-352**, **CWE-346** Cross-site request forgery and origin validation | `passmcp login` binds its redirect listener to `127.0.0.1`, serves only the redirect URI's path there and closes it after five minutes without a redirect, checks `state` in constant time, always uses PKCE S256 and refuses a server that advertises PKCE methods without it, and checks the RFC 9207 `iss`; authorization server metadata must name, exactly, the issuer it was fetched for (RFC 8414 §3.3); the web shell requires its per-run token and a same-origin request | `auth.NewPKCE`, `auth.NewState`, `checkIssuer` in `client.go`, `auth.IssuerMismatchError`; `TestLoginWrongState`, `TestLoginServesOnlyTheCallbackPath`, `TestLoginGivesUpWhenNoRedirectArrives`, `TestLoginRejectsMixUpIssuer`, `TestAuthorizationCodeFlow`, `TestDiscoverServerRequiresTheIssuerItAskedFor`, `TestAuthorizationServerNamingAnotherIssuerBlocks`, `TestGuards`, `TestRemoteBindRefused` |
+| **CWE-22** Path traversal | Report files have fixed names inside the operator's directory; names derived from data are hashes (discovery) or must match a safe pattern (fleet) | `engine.Result.WriteDir`, `safeName` in `internal/fleet/file.go`; `TestParseRefusesInlineSecretsAndMistakes` |
+| **CWE-798** Hard-coded credentials | No credential is compiled in; every one comes from the operator. Gitleaks scans every push to `main`, every pull request and, weekly, the whole history | `.github/workflows/secret-scan.yml` |
+| **CWE-494** Download of code without integrity check | Release artefacts carry SHA-256 checksums, keyless cosign signatures and SLSA provenance, and rebuild bit for bit | Claim C5; [pkg/VERIFY.md](https://github.com/sebastienrousseau/passmcp/blob/main/pkg/VERIFY.md), [packaging.md](packaging.md) |
+
+## 9. Review and update
 
 This document is re-reviewed on every release that touches:
 

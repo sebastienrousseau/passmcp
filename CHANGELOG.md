@@ -14,6 +14,138 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Added
+
+- **`ROADMAP.md`**: the maintainer's current intent for the next twelve
+  months and the recorded non-goals, each linked to its decision record.
+- **The security model argues its design.** `docs/security-model.md`
+  shows how each of Saltzer and Schroeder's design principles is applied
+  and how the CWEs that apply to passmcp are countered, with the code and
+  the test behind each.
+- **Reproducible builds are verified.** A rebuild of v0.0.4 for
+  linux/amd64 matches the released binary bit for bit;
+  `docs/packaging.md` gives the commands to repeat the check.
+- **`make branchcover`** measures condition coverage with gobco and fails
+  below 80%; the module is at 81.9%. `MODE=branch` measures branch
+  coverage instead.
+- **`make sbom-check`**, also run in CI, fails when `SBOM.md` disagrees
+  with the direct requirements in `go.mod`.
+- The README shows the OpenSSF Best Practices badge, and
+  `CONTRIBUTING.md` describes how pull requests are reviewed.
+- **Complexity ceilings at the portfolio's values.** Functions are held
+  to cyclomatic complexity 10, cognitive complexity 15 and 60 lines, and
+  files to 500 lines. The 100 older functions and files over a ceiling
+  are listed in `.complexity-baseline`, which `make lint` and CI enforce
+  and which may only shrink: a new offender, a worse one, or an
+  improvement the file does not record fails the build.
+- **`FuzzHeaderValue`** fuzzes the MCP parameter header encoder: every
+  encoded value is a legal header value and decodes to its input. It
+  runs with the other targets in `make fuzz` (#25).
+- **The README's Troubleshooting messages are checked.** `make
+  readme-check` fails when a message the table quotes no longer appears
+  in the source. Two rows now quote the text passmcp prints: `the server
+  rejected the resource indicator` and `unknown setting` (#26).
+
+### Changed
+
+- The Markdown report's headings, table headers and labels come from a
+  message catalogue in `internal/report`, the groundwork for a report in
+  another language. The output is byte for byte what it was (#24).
+- **Every tool CI runs is pinned.** `gorelease` and `govulncheck` are
+  pinned in `tools/go.mod`, which Dependabot watches; `make tools`
+  builds them and `make vulncheck` runs the scan. `gorelease` was
+  `@latest`. goreleaser is pinned at v2.18.2 instead of `~> v2`.
+  `DEVELOPMENT.md` lists every pin and how it is bumped.
+- One codespell configuration, `.codespellrc`, is read by CI and
+  pre-commit alike, and it no longer allows a variant spelling of
+  "unparsable" that two comments used.
+- **`watch` events carry `latency_ms` on every pulse.** The field was
+  omitted when it was zero, which a coarse clock (Windows' 15.6 ms tick)
+  measures for a fast pulse, so an answered pulse could arrive with no
+  latency at all. It is now present on every pulse, answered or failed,
+  `0` included, and still absent from `settled` and `summary` events. A
+  consumer that treated a missing `latency_ms` as zero sees the same
+  values; one that treated it as "not timed" now gets the measurement.
+
+- **A pass needs evidence, in code.** ADR-0002's rule was a convention:
+  a check could return `pass` without making a request or citing
+  anything. `check.done` now records such a finding as `info`, with a
+  note in its detail, unless the check is a declared derived check (one
+  that judges an earlier response in the same run, listed with where its
+  evidence is in `internal/probe/evidence.go`). No check the test suite
+  exercises changes status; the probe suite fails if one would.
+
+- **`--rps` and `--concurrency` have maximums.** `check`, its sibling
+  commands and `discover` refuse `--rps` above 100 (or not a number) and
+  `--concurrency` above 64, with an error that names the limit. Zero and
+  negative rates still switch the throttle off.
+
+### Security
+
+- **Server text can no longer drive the operator's terminal.** Tool
+  names, descriptions, error text and content are cleaned of ANSI escape
+  sequences and C0/C1 control characters before the text and Markdown
+  reports, the TUI, human-format diagnostics and the text output of
+  `call`, `read`, `prompt` and `watch` write them. JSON and NDJSON output
+  still carry the server's text exactly.
+- **Authorization server metadata must name its own issuer.** A document
+  whose `issuer` is not exactly the issuer it was fetched for is refused
+  (RFC 8414 §3.3): `discovery.as` fails as critical, the run stops before
+  a credential is sent, and the library returns
+  `auth.IssuerMismatchError`.
+- **The library no longer waits for ever on a silent server.** A
+  `passmcp.Client` built without an `HTTPClient`, or with one that sets
+  no `Timeout`, abandons a request that has no context deadline after
+  `Config.Timeout` (default 60 s, negative for none) without progress;
+  an event stream that keeps delivering is not cut.
+  `transport.New(endpoint, nil)` does the same (`transport.IdleTimeout`),
+  and `auth` uses a client with a 30 s timeout in place of a nil one.
+  The CLI already set timeouts and is unchanged.
+- **The token store is checked on Windows too.** Windows has no mode
+  bits, so the Unix `0600` check never applied there. The store is now
+  written with a protected access-control list granting only the current
+  user, and one that lets another account (other than SYSTEM and the
+  local Administrators) read or change it, has no list, or whose list
+  cannot be read is refused, with the `icacls` command that fixes it.
+  This makes `golang.org/x/sys` a direct requirement; it was already in
+  the Windows binary.
+- **`passmcp login`'s loopback listener is bounded.** It answers only
+  the redirect URI's path (`/callback`), so a favicon request or a local
+  process reaching the port first no longer ends the login, takes only
+  the first callback, and gives up after five minutes without a
+  redirect instead of listening until interrupted.
+- **A discovered endpoint that does not resolve is refused.**
+  `auth.URLPolicy.Validate` used to pass a URL whose host name failed to
+  resolve and leave it to the dial-time check; it now refuses it, and an
+  empty answer too. Behind a proxy from the environment, where the proxy
+  resolves names, a failed local lookup is still not a refusal.
+
+### Fixed
+
+- **`--concurrency 0` switches the parallel burst off, as documented.**
+  The run specification read a zero as "unset" and replaced it with the
+  default of four workers, so the burst ran anyway. The CLI now passes
+  an explicit "no burst" (`engine.NoBurst`); a zero sent by a web client
+  still means the default.
+- **`net.tls.cert` fails a certificate that expired less than a day
+  ago.** The days left were rounded toward zero, so one that expired
+  within the last 24 hours was reported as a minor warning ("expires in
+  0 days") rather than a critical failure. Found by the check's first
+  direct test.
+- **The coverage badge is checked after it is published.** The edge
+  cache in front of the badge's host kept serving a 404, so the badge
+  showed no figure. The Coverage Badge workflow now purges that URL when
+  a purge token is configured, and reads the badge back.
+- `SBOM.md` lists `github.com/charmbracelet/x/term` and the current
+  `go.yaml.in/yaml/v3` version.
+- The README's FAQ no longer says passmcp cannot test stdio servers, and
+  its deprecation window is one release, matching the patch-only
+  versioning.
+- `MAINTAINERS.md` and `GOVERNANCE.md` describe the repository as owned
+  by a personal GitHub account, which it is, not an organisation.
+
 ## [0.0.4] — 2026-09-30
 
 ### Added

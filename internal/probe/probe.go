@@ -754,7 +754,7 @@ func (c *check) done(st Status, sev Severity, detail, advice string) Finding {
 			c.f.Evidence = append(c.f.Evidence, fmt.Sprintf("req#%d-%d", c.from+1, to))
 		}
 	}
-	return c.f
+	return enforceEvidence(c.f)
 }
 
 func (c *check) pass(detail string) Finding                  { return c.done(Pass, "", detail, "") }

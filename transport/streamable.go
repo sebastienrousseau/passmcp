@@ -108,11 +108,14 @@ type Streamable struct {
 
 type dialectBox struct{ d Dialect }
 
-// New returns a transport for endpoint using client (or http.DefaultClient).
-// It speaks the session-based binding until SetDialect says otherwise.
+// New returns a transport for endpoint using client. A nil client is one
+// with no overall timeout whose requests are abandoned after
+// DefaultIdleTimeout without progress (IdleTimeout), unless their context
+// sets a deadline. It speaks the session-based binding until SetDialect
+// says otherwise.
 func New(endpoint string, client *http.Client) *Streamable {
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Transport: IdleTimeout(http.DefaultTransport, DefaultIdleTimeout)}
 	}
 	s := &Streamable{Endpoint: endpoint, Client: client}
 	s.protocolVersion.Store("")

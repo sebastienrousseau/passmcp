@@ -111,10 +111,14 @@ func tlsFindings(ctx context.Context, s *Session, conn net.Conn, host string) []
 // certificate has left.
 func certWindowFinding(s *Session, leaf *x509.Certificate) Finding {
 	c := s.check("net.tls.cert", "Certificate validity window")
-	days := int(time.Until(leaf.NotAfter).Hours() / 24)
+	left := time.Until(leaf.NotAfter)
+	days := int(left.Hours() / 24)
 	ev := fmt.Sprintf("subject=%s issuer=%s notAfter=%s", leaf.Subject.CommonName, leaf.Issuer.CommonName, leaf.NotAfter.Format("2006-01-02"))
 	switch {
-	case days < 0:
+	// Expiry is decided on the duration, not on the whole days: the
+	// integer division rounds toward zero, so a certificate that expired
+	// less than a day ago would otherwise count as expiring in 0 days.
+	case left < 0:
 		return c.ev(ev).fail(Critical, "certificate has expired", "renew the certificate")
 	case days < 14:
 		return c.ev(ev).warn(fmt.Sprintf("certificate expires in %d days", days), "renew before it lapses")

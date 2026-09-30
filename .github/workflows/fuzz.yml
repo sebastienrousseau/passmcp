@@ -27,7 +27,8 @@ jobs:
   fuzz:
     name: Run Fuzz Targets
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 12 targets at 10 minutes each, plus builds and corpus replay.
+    timeout-minutes: 150
     env:
       GOTOOLCHAIN: auto
       FUZZTIME: ${{ inputs.fuzztime || '10m' }}

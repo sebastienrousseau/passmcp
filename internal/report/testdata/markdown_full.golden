@@ -1,0 +1,99 @@
+# MCP diagnostic: https://x/mcp
+
+| | |
+|---|---|
+| Passmcp | t |
+| Started | 2026-09-30T12:00:00Z |
+| Duration | 1.50s |
+| Trace | `abc` |
+| Server | s 1 |
+| Protocol | 2025-11-25 |
+| Capabilities | tools |
+| Auth | client-credentials, required=true |
+| Issuer | https://as |
+| **Score** | **33.3 / 100 (grade F)**, 2 of 6 categories assessed |
+
+## Failures
+
+- **Crit** (critical, protocol): c — *fix c*
+- **Minor** (minor, protocol): m — *fix m*
+
+## Warnings
+
+- **Warn**: w | with pipe — *fix w*
+
+## What to do next
+
+### 1. Crit
+
+C — fix c
+
+### 2. Minor
+
+M — fix m
+
+### 3. Warn
+
+W \| with pipe — fix w
+
+## Score breakdown
+
+| Category | Weight | Score | Deductions |
+|---|---|---|---|
+| connectivity | 10 | 100.0 |  |
+| authorization | 20 | not assessed | |
+| protocol | 20 | 0.0 | -15 p.minor: m<br>-100 p.crit: c<br>-5 p.warn: w \| with pipe |
+| catalog | 15 | not assessed | |
+| execution | 20 | not assessed | |
+| performance | 15 | not assessed | |
+
+## Step by step
+
+### Network — PASS (-)
+
+| Status | Check | Observed | Evidence |
+|---|---|---|---|
+| pass | A | fine | req#1 |
+| info | I | note |  |
+
+### Protocol — FAIL (-)
+
+| Status | Check | Observed | Evidence |
+|---|---|---|---|
+| fail | Minor | m → fix m |  |
+| fail | Crit | c → fix c |  |
+| warn | Warn | w \| with pipe → fix w |  |
+| skip | Skip | s |  |
+
+Not run (no creds): auth
+
+## Tools
+
+| Name | Read-only | Annotated | outputSchema | Required args | Description |
+|---|---|---|---|---|---|
+| `longtoolnamelongtoolnamelongtoolnamelongtoolname` | yes | - | - | q | ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd… |
+
+## Execution
+
+| Tool | Result | Latency | Content | Missing-arg test |
+|---|---|---|---|---|
+| `skipped` | skipped: policy | - |  |  |
+| `proto` | protocol error: timeout | 1.00s |  |  |
+| `toolerr` | isError: bad | 1.0ms |  | rejected (isError) |
+| `good` | schema: $.x: bad | 2.00s | text +structured | ACCEPTED without required q |
+| `plain` | ok | - | text |  |
+
+## Performance
+
+| Call | Samples | Cold | p50 | p95 | Max |
+|---|---|---|---|---|---|
+| ping | 3 | - | 1.0ms | - | - |
+| `good` | 2 | - | 1.0ms | - | - |
+
+Burst of 2 workers × 2 calls on `good`: 3 ok, 1 errors, 0 rate-limited, 12.5 calls/s, p50 -, p95 -.
+
+## Telemetry
+
+3 requests, 1 errors, 2 KB sent, 3.0 MB received, 1 new connections, wall -.
+
+Files: /tmp/report.json

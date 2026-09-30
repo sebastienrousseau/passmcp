@@ -31,7 +31,7 @@ account and update the linked configuration file.
 
 | # | Service                            | Account / Location                                       | Purpose                                     | Configuration reference                     |
 |---|------------------------------------|----------------------------------------------------------|---------------------------------------------|---------------------------------------------|
-| 1 | GitHub organisation and repository | `satellion.com/passmcp`                        | Source of truth for code, issues, releases  | this repository                             |
+| 1 | GitHub repository                  | `github.com/sebastienrousseau/passmcp`, owned by the maintainer's personal account (not an organisation) | Source of truth for code, issues, releases  | this repository                             |
 | 2 | GitHub Actions                     | Same repo                                                | CI, release pipeline, SLSA provenance       | `.github/workflows/`                        |
 | 3 | GitHub Container Registry (ghcr)   | `ghcr.io/sebastienrousseau/passmcp`                           | Multi-arch OCI images                       | `.goreleaser.yaml`                          |
 | 4 | Homebrew tap                       | `github.com/sebastienrousseau/homebrew-tap`                 | macOS Homebrew installs                     | `.goreleaser.yaml` (`brews:` block)         |
@@ -39,6 +39,7 @@ account and update the linked configuration file.
 | 6 | Signing key (SSH)                  | The maintainer's key, as published on their GitHub profile (`https://github.com/sebastienrousseau.keys`) | Signs release tags and commits | `.github/workflows/release.yml` |
 | 7 | Sigstore keyless signing           | Fulcio + Rekor (via GitHub OIDC)                         | Cosigns every release artefact              | `.goreleaser.yaml` (`sboms`/`signs` blocks) |
 | 8 | Dependabot / Scorecard             | GitHub-native, tied to the repo                          | Vulnerability alerts, OSSF score            | `.github/dependabot.yml`                    |
+| 9 | Go module path                     | `satellion.com/passmcp`, a `go-import` tag served by satellion.com that points at row 1 | `go install` and pkg.go.dev resolve the module through it | the `satellion.github.io` repository |
 
 ## Succession procedure
 
@@ -50,9 +51,13 @@ or, after prolonged unavailability, to a community fork.
 
 1. **Announce**: open a public issue on the repository at least
    **two weeks** before the change. Link this document.
-2. **Add the new maintainer as an owner of the `sebastienrousseau`
-   organisation** so the repository, its Actions secrets and its
-   package namespace move together.
+2. **Move the repository to an owner the new maintainer controls.**
+   It belongs to the maintainer's personal GitHub account, which
+   cannot have a second owner. Transfer it to the new maintainer's
+   account, or to a GitHub organisation created for the project, then
+   check that its Actions secrets, variables and branch protection
+   came across, and point the `go-import` tag (row 9) at the new
+   location.
 3. **Update `MAINTAINERS.md`** with the new maintainer's contact,
    response-window commitments, and time zone.
 4. **Rotate signing key** in a coordinated release:
@@ -64,8 +69,9 @@ or, after prolonged unavailability, to a community fork.
    - Homebrew tap: transfer repository ownership or fork + retire old.
    - AUR: add the new maintainer as co-maintainer for one release
      cycle, then transfer primary.
-   - ghcr.io: stays with the organisation; only the `.goreleaser.yaml`
-     image path changes if the organisation is renamed.
+   - ghcr.io: the image lives under the maintainer's account
+     namespace, so the `.goreleaser.yaml` image path changes to the
+     new owner's namespace.
 6. **Publish a "governance change" release note** listing every
    updated identifier so downstream users can reason about the
    transition.

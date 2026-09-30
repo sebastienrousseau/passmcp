@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -42,7 +43,26 @@ func TestMain(m *testing.M) {
 		fakeStdioServer(mode)
 		return
 	}
-	os.Exit(m.Run())
+	// Every finding every test in this package produces goes through
+	// check.done, so this is ADR-0002 checked over all checks: a pass
+	// with no evidence that is not a declared derived check fails the
+	// suite, naming the check.
+	var mu sync.Mutex
+	var unevidencedIDs []string
+	onUnevidenced = func(f Finding) {
+		if strings.HasPrefix(f.ID, testOnlyPrefix) {
+			return
+		}
+		mu.Lock()
+		unevidencedIDs = append(unevidencedIDs, f.ID)
+		mu.Unlock()
+	}
+	code := m.Run()
+	if len(unevidencedIDs) > 0 && code == 0 {
+		fmt.Fprintf(os.Stderr, "ADR-0002: these checks passed with no evidence and are not declared derived: %v\n", unevidencedIDs)
+		code = 1
+	}
+	os.Exit(code)
 }
 
 // fakeStdioServer speaks just enough MCP to get a run through every phase.

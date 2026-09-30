@@ -11,9 +11,10 @@ VERSION_PKG = satellion.com/passmcp
 LDFLAGS = -s -w -X $(VERSION_PKG)/cmd.Version=$(VERSION)
 export CGO_ENABLED = 0
 COVER_MIN ?= 85
+BRANCH_MIN ?= 80
 
-.PHONY: spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
-        fuzz sbom coverage bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
+.PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
+        fuzz sbom sbom-check coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
         ecosystem ecosystem-verify commitlint ssg-check readme-check demo verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
 all: format vet lint spdx-check example-check ecosystem-verify ssg-check test test-race build
@@ -206,10 +207,10 @@ docs-lock:
 # "Can only suggest a release version when compared against the most recent
 # version of this major" — and failing the branch for it teaches people that
 # a red API gate means nothing. Only an incompatible change fails here.
-api-check:
+api-check: tools
 	@tag=$$(git describe --tags --abbrev=0 2>/dev/null || true); \
 	if [ -z "$$tag" ]; then echo "api-check: no release tag yet, nothing to compare"; exit 0; fi; \
-	out=$$(go run golang.org/x/exp/cmd/gorelease@latest -base="$$tag" 2>&1); rc=$$?; \
+	out=$$($(TOOLS_BIN)/gorelease -base="$$tag" 2>&1); rc=$$?; \
 	printf '%s\n' "$$out"; \
 	accepted=$$(sed -n 's/^\([^#[:space:]][^[:space:]]*\).*/\1/p' .api-check-accepted 2>/dev/null); \
 	for pkg in $$(printf '%s\n' "$$out" | awk '/^# /{pkg=$$2} /^## incompatible changes/{print pkg}'); do \
@@ -224,11 +225,29 @@ api-check:
 	fi; \
 	echo "api-check: no incompatible change against $$tag"
 
+# Tools CI runs are pinned in tools/go.mod, a separate module, so they are
+# never @latest and never enter passmcp's own dependency graph or SBOM.
+# Dependabot watches that file; to bump a tool by hand, run
+#   go -C tools get -tool <module>@<version> && go -C tools mod tidy
+TOOLS_BIN = $(abspath $(DIST))/tools
+tools:
+	go build -C tools -o $(TOOLS_BIN)/ golang.org/x/vuln/cmd/govulncheck golang.org/x/exp/cmd/gorelease
+
+vulncheck: tools
+	$(TOOLS_BIN)/govulncheck -version
+	$(TOOLS_BIN)/govulncheck ./...
+
 vet:
 	go vet ./...
 
+# The complexity linters run through scripts/complexity, which holds them to
+# the committed baseline of older offenders (.golangci.yml explains why).
 lint:
-	golangci-lint run ./...
+	golangci-lint run --disable gocyclo,gocognit,funlen ./...
+	go run ./scripts/complexity
+
+complexity:
+	go run ./scripts/complexity
 
 format:
 	gofmt -l -w .
@@ -237,7 +256,8 @@ spdx-check:
 	go run ./scripts/spdx_sweep.go
 
 # The README follows the portfolio template: headings in order, no
-# unresolved {{VARIABLES}} (AGENTS.md §7.3).
+# unresolved {{VARIABLES}} (AGENTS.md §7.3), and every error message the
+# Troubleshooting table quotes still present in the Go source.
 readme-check:
 	scripts/readme-check.sh
 
@@ -260,14 +280,22 @@ example-check:
 fuzz:
 	scripts/fuzz.sh
 
-sbom: build
+sbom-check:
+	scripts/sbom-check.sh
+
+# Condition coverage with gobco (several minutes); MODE=branch for branch
+# coverage. Fails under BRANCH_MIN percent.
+branchcover:
+	BRANCH_MIN=$(BRANCH_MIN) DIST=$(DIST) scripts/branchcover.sh
+
+sbom: sbom-check build
 	syft scan dir:. -o cyclonedx-json > $(DIST)/sbom.cdx.json
 
 clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage bench api-check vet lint format spdx-check example-check readme-check demo verify-versions fuzz sbom trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).

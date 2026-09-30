@@ -1,0 +1,52 @@
+# MCP diagnostic: https://x/mcp
+
+| | |
+|---|---|
+| Passmcp | t |
+| Started | 2026-09-30T12:00:00Z |
+| Duration | - |
+| Trace | `` |
+| Auth | , required=false |
+| **Score** | **85.0 / 100 (grade B)**, 1 of 6 categories assessed |
+
+## Failures
+
+- **Malformed JSON is rejected** (minor, protocol): HTTP 200 for a truncated body — *return 400 or -32700*
+
+## What to do next
+
+### 1. Malformed JSON is rejected
+
+HTTP 200 for a truncated body — return 400 or -32700
+
+A truncated or malformed request body was answered with a success status. A client cannot distinguish that from a real answer, and a proxy or a retry that corrupts a body will look like it worked.
+
+**How to fix it**
+
+1. **Reject a body that does not parse** — Return HTTP 400, or the JSON-RPC `Parse error` code -32700. Either tells the caller what happened; 200 does not.
+1. **Check the framing before the handler** — This usually belongs in the transport layer rather than in any single tool, which is why it is easy to miss.
+
+[What this check asserts](https://satellion.com/passmcp/docs/checks/#check-protocol-malformed_json)
+
+## Score breakdown
+
+| Category | Weight | Score | Deductions |
+|---|---|---|---|
+| connectivity | 10 | not assessed | |
+| authorization | 20 | not assessed | |
+| protocol | 20 | 85.0 | -15 protocol.malformed_json: HTTP 200 for a truncated body |
+| catalog | 15 | not assessed | |
+| execution | 20 | not assessed | |
+| performance | 15 | not assessed | |
+
+## Step by step
+
+### Protocol — FAIL (-)
+
+| Status | Check | Observed | Evidence |
+|---|---|---|---|
+| fail | Malformed JSON is rejected | HTTP 200 for a truncated body → return 400 or -32700 |  |
+
+## Telemetry
+
+0 requests, 0 errors, 0 B sent, 0 B received, 0 new connections, wall -.

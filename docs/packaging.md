@@ -87,9 +87,38 @@ either fails instead. Builds are reproducible:
 - `mod_timestamp` pinned to the commit
 - `CGO_ENABLED=0`: static, no libc coupling
 
-Two builds of the same commit should be byte-identical. This has not yet
-been verified by building twice and comparing, so it is stated as the
-intent rather than a guarantee; please report it if it does not hold.
+A rebuild of a release tag reproduces the published binary bit for bit.
+This was checked for v0.0.4, `linux/amd64`, on 2026-09-30: a clean clone
+checked out at the tag and cross-compiled on a macOS arm64 machine with
+Go 1.26.8 produced a binary identical to the one in the published
+`passmcp_Linux_x86_64.tar.gz` (SHA-256 `fa0ef416…`). Other targets and
+releases have not been compared; please report one that does not match.
+
+To reproduce it:
+
+```sh
+git clone https://github.com/sebastienrousseau/passmcp.git
+cd passmcp
+git checkout v0.0.4
+GOTOOLCHAIN=go1.26.8 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -trimpath \
+  -ldflags "-s -w -X satellion.com/passmcp/cmd.Version=0.0.4" \
+  -o passmcp ./cmd/passmcp
+gh release download v0.0.4 -R sebastienrousseau/passmcp \
+  -p passmcp_Linux_x86_64.tar.gz -O - | tar -xzO passmcp > released
+cmp passmcp released && sha256sum passmcp released
+```
+
+Three inputs have to match the release, and the release workflow sets
+all three:
+
+- **The Go toolchain**, which is the `go` directive in `go.mod` at the
+  tag (`go version -m released` names it).
+- **The flags**: `-trimpath` and the ldflags in `.goreleaser.yaml`, with
+  the version without its `v`.
+- **The git checkout.** The binary embeds the commit, its time and the
+  tag as the module version. A build from a source tarball, or with
+  `-buildvcs=false`, embeds none of that and differs.
 
 ## Offline builds
 

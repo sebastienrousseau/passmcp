@@ -184,3 +184,35 @@ func TestHumanFormatUnchanged(t *testing.T) {
 		t.Errorf("human output = %q", got)
 	}
 }
+
+// TestHumanFormatNeutralisesTerminalSequences: a diagnostic often quotes
+// something the server said (an error, a tool name), and the human format
+// goes straight to a terminal.
+func TestHumanFormatNeutralisesTerminalSequences(t *testing.T) {
+	var buf bytes.Buffer
+	t.Cleanup(func() { SetOutput(nil); SetLevel(LevelInfo) })
+	SetOutput(&buf)
+	SetFormat(FormatHuman)
+	Warnf("server said %s", "no\x1b]0;owned\x07 thanks\r\x1b[2K")
+	if got := buf.String(); got != "WARN: server said no thanks\n" {
+		t.Errorf("human output = %q", got)
+	}
+}
+
+// TestJSONFormatKeepsServerTextFaithful: the structured format is for a
+// log pipeline, its encoder escapes control characters itself, and the
+// pipeline is owed what was actually said.
+func TestJSONFormatKeepsServerTextFaithful(t *testing.T) {
+	var buf bytes.Buffer
+	t.Cleanup(func() { SetOutput(nil); SetFormat(FormatHuman); SetLevel(LevelInfo) })
+	SetOutput(&buf)
+	SetFormat(FormatJSON)
+	Warnf("server said %s", "no\x1b[2K")
+	var rec map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &rec); err != nil {
+		t.Fatal(err)
+	}
+	if rec["msg"] != "server said no\x1b[2K" || bytes.ContainsRune(buf.Bytes(), 0x1b) {
+		t.Errorf("json output = %q", buf.String())
+	}
+}

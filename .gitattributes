@@ -7,6 +7,7 @@
 # JSON fixtures and generated schemas are compared byte for byte; a CRLF
 # checkout on Windows would make every one of them read as stale.
 *.json text eol=lf
+*.golden text eol=lf
 .gitignore text eol=lf
 .gitattributes text eol=lf
 .editorconfig text eol=lf

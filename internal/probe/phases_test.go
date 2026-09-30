@@ -201,6 +201,23 @@ func TestDiscoveryBranches(t *testing.T) {
 	expect(t, fs, "auth.rejects_garbage", Fail, "made-up")
 }
 
+// TestAuthorizationServerNamingAnotherIssuerBlocks is RFC 8414 §3.3: the
+// metadata fetched for an issuer must name that issuer, or it is not used.
+// Before the check, a document claiming to be another authorization server
+// was accepted and its token endpoint was sent the client secret.
+func TestAuthorizationServerNamingAnotherIssuerBlocks(t *testing.T) {
+	f := newFakeServer(t)
+	f.q.asIssuer = "https://idp.example/as"
+	s, fs := run(t, f, ccCreds(), nil)
+	expect(t, fs, "discovery.as", Fail, "issuer")
+	if fs["discovery.as"].Severity != Critical || s.blocked == "" {
+		t.Errorf("an issuer mismatch must be critical and block: %+v, blocked %q", fs["discovery.as"], s.blocked)
+	}
+	if _, ok := fs["auth.token"]; ok && fs["auth.token"].Status == Pass {
+		t.Error("a token was obtained through metadata that named another issuer")
+	}
+}
+
 func TestAuthBranches(t *testing.T) {
 	// Garbage token answered with 403, then 401 without header.
 	f := newFakeServer(t)

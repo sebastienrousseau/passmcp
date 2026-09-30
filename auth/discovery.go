@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // ProtectedResourceMetadata is the RFC 9728 document served by the MCP
@@ -66,9 +67,20 @@ type Discoverer struct {
 	Policy URLPolicy
 }
 
+// DefaultTimeout bounds each metadata, registration and token request this
+// package makes when the caller supplied no *http.Client. Each is a small
+// JSON document, so a bound on the whole exchange is the right one.
+const DefaultTimeout = 30 * time.Second
+
+// defaultClient is used in place of a nil *http.Client. It is not
+// http.DefaultClient, which has no timeout: an authorization server that
+// accepts the connection and never answers would hold the caller for
+// ever.
+var defaultClient = &http.Client{Timeout: DefaultTimeout}
+
 func (d *Discoverer) httpClient() *http.Client {
 	if d.Client == nil {
-		return http.DefaultClient
+		return defaultClient
 	}
 	return d.Client
 }
@@ -153,10 +165,33 @@ func ASMetadataCandidates(issuer string) ([]string, error) {
 	return out, nil
 }
 
+// IssuerMismatchError reports authorization server metadata that names an
+// issuer other than the one it was fetched for.
+//
+// RFC 8414 §3.3 requires the two to be identical and the metadata not to
+// be used otherwise, and OpenID Connect Discovery §4.3 says the same. The
+// comparison is exact, as both specifications make it: a document served
+// at one issuer's well-known location that claims to be another issuer is
+// either misconfigured or impersonating it, and in neither case is its
+// token endpoint a place to send a client secret.
+type IssuerMismatchError struct {
+	Issuer string // the issuer the metadata was fetched for
+	Got    string // the issuer the metadata names
+	URL    string // where the metadata was fetched from
+}
+
+func (e *IssuerMismatchError) Error() string {
+	return fmt.Sprintf("auth: authorization server metadata at %s names issuer %q, not %q; RFC 8414 §3.3 requires them to be identical, so the metadata was not used",
+		e.URL, e.Got, e.Issuer)
+}
+
 // DiscoverServer fetches the authorization server metadata for issuer. The
 // issuer and every endpoint in the document it returns are checked against
 // the policy, so a resource cannot steer the client at a plaintext or
-// internal host.
+// internal host, and the document must name issuer as its own
+// (IssuerMismatchError). A mismatch ends the search rather than moving on
+// to the next candidate location: the server answered, and what it said
+// is a reason not to trust it.
 func (d *Discoverer) DiscoverServer(ctx context.Context, issuer string) (*ServerMetadata, error) {
 	if err := d.Policy.Validate(ctx, "authorization server", issuer); err != nil {
 		return nil, err
@@ -175,6 +210,9 @@ func (d *Discoverer) DiscoverServer(ctx context.Context, issuer string) (*Server
 		if md.TokenEndpoint == "" {
 			errs = append(errs, fmt.Errorf("%s: missing token_endpoint", c))
 			continue
+		}
+		if md.Issuer != issuer {
+			return nil, &IssuerMismatchError{Issuer: issuer, Got: md.Issuer, URL: c}
 		}
 		if err := d.ValidateMetadata(ctx, &md); err != nil {
 			return nil, err

@@ -172,8 +172,8 @@ func TestSendBranches(t *testing.T) {
 	if err := s.Notify(ctx, "x", func() {}); err == nil {
 		t.Error("notify encode params should fail")
 	}
-	if New("x", nil).Client != http.DefaultClient {
-		t.Error("nil client defaults")
+	if c := New("x", nil).Client; c == http.DefaultClient || c.Transport == nil {
+		t.Error("nil client defaults to one with an idle bound, not http.DefaultClient")
 	}
 }
 

@@ -71,7 +71,7 @@ type Registrar struct {
 
 func (r *Registrar) httpClient() *http.Client {
 	if r.Client == nil {
-		return http.DefaultClient
+		return defaultClient
 	}
 	return r.Client
 }

@@ -179,7 +179,18 @@ jobs:
           GOTOOLCHAIN: auto
         with:
           version: v2.13.2
-          args: ./...
+          # The complexity linters run in the next step, against the
+          # baseline of older offenders; .golangci.yml explains why.
+          args: --disable gocyclo,gocognit,funlen ./...
+
+      # The action put golangci-lint on PATH; this runs it again with only
+      # the complexity linters and fails on anything new or worse than
+      # .complexity-baseline, or on an improvement the baseline has not
+      # recorded.
+      - name: Complexity against the baseline
+        env:
+          GOTOOLCHAIN: auto
+        run: make complexity
 
   vulncheck:
     name: Vulnerability Scan
@@ -200,18 +211,16 @@ jobs:
       - name: Run govulncheck
         env:
           GOTOOLCHAIN: auto
-          GOBIN: ${{ github.workspace }}/.gobin
         run: |
           set -euo pipefail
-          # GOTOOLCHAIN=auto so the install resolves whatever toolchain
+          # GOTOOLCHAIN=auto so the build resolves whatever toolchain
           # the scanner itself needs; the analysis runs against this
           # module as declared in go.mod either way.
           #
-          # Pinned, not @latest: whatever @latest resolved to at run time
-          # would execute in CI, and everything else here is pinned.
-          GOTOOLCHAIN=auto go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-          "${GOBIN}/govulncheck" -version
-          "${GOBIN}/govulncheck" ./...
+          # Pinned, not @latest: the version comes from tools/go.mod,
+          # which Dependabot watches, so what runs here is what a
+          # reviewed commit chose.
+          make vulncheck
 
   # passmcp exports importable packages, and the README tells people to use
   # them. A signature that moves without the version saying so breaks a
@@ -304,7 +313,7 @@ jobs:
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: '~> v2'
+          version: v2.18.2
           args: check
 
       # The container base is pinned by digest, which Scorecard checks and
@@ -340,6 +349,11 @@ jobs:
         run: make spdx-check
       - name: The retired name appears only in the provenance line
         run: ./scripts/name-guard.sh
+      # SBOM.md is hand-written; its components and versions are not.
+      - name: SBOM.md lists every direct requirement in go.mod
+        env:
+          GOTOOLCHAIN: auto
+        run: make sbom-check
 
       # The header sweep only sees files that can carry a header. REUSE
       # covers the rest — images, generated output, vendored layouts — from

@@ -232,33 +232,17 @@ func plaintextServersFinding(s *Session, prm *auth.ProtectedResourceMetadata) (F
 // metadata that can be had, and returns it with the discovery.as verdict.
 // When none can, the metadata is nil and the run is blocked.
 func discoverServerMetadata(ctx context.Context, s *Session, c *check, disc *auth.Discoverer, prm *auth.ProtectedResourceMetadata) (*auth.ServerMetadata, Finding) {
-	var md *auth.ServerMetadata
-	var errs []string
-	var policyErrs []error
+	var errs []error
 	for _, issuer := range prm.AuthorizationServers {
-		m, err := disc.DiscoverServer(telemetry.WithPhase(ctx, "discovery", "AS metadata"), issuer)
-		if err != nil {
-			errs = append(errs, err.Error())
-			policyErrs = append(policyErrs, err)
-			continue
+		md, err := disc.DiscoverServer(telemetry.WithPhase(ctx, "discovery", "AS metadata"), issuer)
+		if err == nil {
+			return md, c.ev("issuer="+md.Issuer, "token="+md.TokenEndpoint).pass("issuer " + md.Issuer)
 		}
-		md = m
-		break
+		errs = append(errs, err)
 	}
-	if md != nil {
-		return md, c.ev("issuer="+md.Issuer, "token="+md.TokenEndpoint).pass("issuer " + md.Issuer)
-	}
-	// A refusal is not the same as a document that is missing, and the
-	// operator needs to be told which one happened.
-	if pe := firstPolicyError(policyErrs); pe != nil {
-		f := c.fail(Critical, pe.Error(),
-			"the server named an authorization server passmcp will not talk to; fix the metadata, or re-run with --insecure-allow-http-auth / --insecure-allow-private-hosts if you trust this endpoint")
-		s.blocked = "the authorization server this resource names was refused as unsafe"
-		return nil, f
-	}
-	f := c.fail(Critical, "no authorization server published metadata: "+strings.Join(errs, "; "), "serve /.well-known/oauth-authorization-server or /.well-known/openid-configuration")
-	s.blocked = "authorization server metadata is not discoverable"
-	return nil, f
+	detail, advice, blocked := metadataFailure(errs)
+	s.blocked = blocked
+	return nil, c.fail(Critical, detail, advice)
 }
 
 // serverMetadataFindings checks what the authorization server metadata

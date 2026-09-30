@@ -15,6 +15,7 @@ bug in this file — please report it.
 - [Everyday tasks](#everyday-tasks)
 - [Reproducing every CI gate](#reproducing-every-ci-gate)
 - [Coverage](#coverage)
+- [Complexity](#complexity)
 - [Test layout](#test-layout)
 - [Trying it against a real server](#trying-it-against-a-real-server)
 - [Generated artefacts](#generated-artefacts)
@@ -37,6 +38,24 @@ Optional, only needed for the gate that uses them:
 | `groff` | manpage rendering check |
 | `markdownlint-cli2`, `codespell`, `lychee` | the Docs Lint workflow and `pre-commit` |
 | `nix` | optional; `nix develop` provides every row above, pinned |
+
+### Pinned tools
+
+No tool CI installs floats. Where each pin lives, and how it moves:
+
+| Tool | Pinned in | Bumped by |
+|---|---|---|
+| `govulncheck`, `gorelease` | `tools/go.mod`, a separate module built by `make tools` into `build/tools/` | Dependabot (`/tools`), or `go -C tools get -tool <module>@<version> && go -C tools mod tidy` |
+| `golangci-lint` | `version:` in `ci.yml`'s lint job and `GOLANGCI_LINT_VERSION` in `.devcontainer/post-create.sh` | by hand, both together |
+| `goreleaser` | `version:` in `ci.yml`'s release-config job and `release.yml` | by hand, both together |
+| `gobco` | `GOBCO_VERSION` in `scripts/branchcover.sh` | by hand |
+| GitHub Actions | commit SHA in each workflow | Dependabot (`github-actions`) |
+
+Dependabot reads Go modules and action references, not the `version:`
+input of an action, which is why the hand-bumped rows name every place
+that has to move in the same commit. `tools/go.mod` is its own module so
+the tools never enter passmcp's dependency graph, `SBOM.md` or
+`./...`.
 
 Nothing else is required. There is no code generation step in the build,
 no vendored dependency tree, and no CGO — `CGO_ENABLED=0` everywhere, which
@@ -77,10 +96,10 @@ is the cross-platform matrix.
 |---|---|
 | Build and test | `go build ./... && make test` |
 | Race and shuffled tests | `make test-race` |
-| Lint | `make lint` |
-| Vulnerability scan | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` |
+| Lint (and complexity against the baseline) | `make lint` (complexity alone: `make complexity`) |
+| Vulnerability scan | `make vulncheck` |
 | Licence headers (SPDX) | `make spdx-check` |
-| SBOM drift | `make sbom` |
+| SBOM drift | `make sbom-check` |
 | Example compilation | `make example-check` |
 | API compatibility | `make api-check` |
 | Check inventory | `make checks-verify` (regenerate with `make checks`) |
@@ -90,7 +109,7 @@ is the cross-platform matrix.
 | Manpage rendering | `make docs && groff -man -Tutf8 -ww build/man/passmcp.1 >/dev/null` |
 | Docs lint (markdown, spelling, links) | `pre-commit run --all-files` |
 
-Coverage has its own section below.
+Coverage and complexity have their own sections below.
 
 To check a release without publishing anything:
 
@@ -112,9 +131,67 @@ The threshold is 85% of statements, per package, and the rationale is in
 | CI, Coverage Gate | Fails when any package is below 85% (`cmd/passmcp`, a two-line `main`, is exempt) | `make coverage` |
 | Coverage Badge (`coverage.yml`) | On every push to `main`, measures the whole module and publishes the result as a shields.io endpoint document at <https://sebastienrousseau.com/passmcp/coverage.json>, which the README's badge renders | `go test -coverprofile=coverage.out ./... && go run ./scripts/coveragebadge -profile coverage.out -exclude /cmd/passmcp/main.go` |
 
+`sebastienrousseau.com` sits behind a Cloudflare edge cache that keeps
+what it fetched, a 404 included, whatever the Pages origin's
+`max-age=0` says. That is why the badge read "resource not found": the edge
+cached a 404 for `coverage.json` before the first deploy and went on
+serving it after every deploy since. The workflow's last job therefore
+purges that one URL, then reads the document back and compares it with
+what was measured. The purge needs two settings on the repository:
+
+| Setting | Kind | Value |
+|---|---|---|
+| `CLOUDFLARE_PURGE_TOKEN` | Actions secret | A Cloudflare API token with only the *Zone, Cache Purge* permission, for the `sebastienrousseau.com` zone |
+| `CLOUDFLARE_ZONE_ID` | Actions variable | That zone's ID |
+
+With both set, a badge that still differs after the purge fails the job.
+Without them the job warns instead, because the fix is a setting rather
+than a rerun.
+
 The badge's colour is brightgreen from 90%, green from 85%, yellow from 70%
 and red below. The figure is truncated to one decimal rather than rounded, so
 it never shows the gate as met when it is not.
+
+### Branch coverage
+
+`make branchcover` measures condition coverage with
+[gobco](https://github.com/rillig/gobco) (BSD-2-Clause, pinned in the
+script) and fails below `BRANCH_MIN`, 80% by default; `MODE=branch`
+measures branch coverage instead. Condition coverage is the stricter of
+the two: each operand of `&&` and `||` has to be seen both true and false.
+A package is credited only for its own tests, so the figure errs low.
+
+gobco type-checks every `.go` file in a directory and ignores build
+constraints, so the script runs on a temporary copy of the tracked tree
+with the files the host build ignores removed. Only the host platform's
+files are measured, and a run takes several minutes, so it is not a
+pull-request gate. Results land in `build/branchcover-<mode>/`.
+
+## Complexity
+
+Every function outside the tests is held to cyclomatic complexity 10,
+cognitive complexity 15 and 60 lines, and every non-test Go file to 500
+lines. The function ceilings are the `gocyclo`, `gocognit` and `funlen`
+settings in `.golangci.yml`; the file ceiling is set in
+`scripts/complexity`, because golangci-lint has no file-length linter.
+
+Code written before the ceilings were lowered exceeds them in places.
+Those functions and files are listed, with the value each had, in
+`.complexity-baseline`, and `scripts/complexity` holds the tree to it.
+`make lint` and CI's Lint job run golangci-lint with the three complexity
+linters disabled and then the script, which fails when:
+
+- something over a ceiling is not in the baseline;
+- a value in the baseline got worse;
+- a value in the baseline improved, or its function or file came under the
+  ceiling, and the baseline was not updated to match.
+
+The last rule is what makes the baseline shrink. After making an offender
+smaller, run `go run ./scripts/complexity -update` and commit the result;
+`-update` refuses while anything is new or worse, so it can only record an
+improvement. There is no way to add an entry other than editing the file,
+and no `//nolint` directive stands in for one. Offenders are reduced
+worst-first, one reviewed change at a time.
 
 ## Test layout
 
@@ -126,7 +203,7 @@ to it.
 |---|---|
 | `<pkg>/<pkg>_test.go` | The package's main suite |
 | `testserver_test.go`, `internal/probe/fake_test.go` | Fake MCP and authorization servers under `httptest`, with knobs for the failure modes each phase must observe |
-| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`), `FuzzSchemaValid` (`internal/probe`); run for a fixed duration per push by `scripts/fuzz.sh` |
+| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` and `FuzzHeaderValue` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`), `FuzzParse` (`internal/clientconf`), `FuzzRunSpecJSON` and `FuzzCredentialRedaction` (`internal/engine`), `FuzzSchemaValid` (`internal/probe`), `FuzzHTMLEscaping` and `FuzzFixFirst` (`internal/report`), `FuzzString` (`internal/termsafe`); run for a fixed duration per push by `scripts/fuzz.sh` |
 | `cmd/*_test.go` | Flag validation, credential resolution and config precedence |
 
 Three properties the suite deliberately enforces:
@@ -278,5 +355,8 @@ This is what keeps `--output json` and `--output ndjson` pipeable. A
 
 **A finding passes only on evidence.** Each check records the range of
 recorder sequence numbers it made (`req#12-14`), and `pass` is reserved for
-a property a request actually showed. See
+a property a request actually showed. `check.done` enforces it: a pass with
+no evidence is recorded as info unless the check is declared derived in
+`internal/probe/evidence.go`, and the probe suite fails if any test
+produces one. See
 [docs/adr/0002-findings-cite-requests.md](docs/adr/0002-findings-cite-requests.md).

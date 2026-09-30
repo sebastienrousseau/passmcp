@@ -128,9 +128,9 @@ endpoint on a host you left out this time is kept, not reported.
 
 ## Pacing
 
-`--rps` (default 2) caps requests per second across the whole run, and
-`--concurrency` (default 4) caps targets probed at once. `--rps 0`
-turns the cap off. `--timeout` bounds each request.
+`--rps` (default 2, at most 100) caps requests per second across the
+whole run, and `--concurrency` (default 4, at most 64) caps targets
+probed at once. `--rps 0` turns the cap off. `--timeout` bounds each request.
 
 ## Output
 

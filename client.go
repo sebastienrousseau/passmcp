@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"satellion.com/passmcp/auth"
 	"satellion.com/passmcp/trace"
@@ -76,6 +77,10 @@ type Config struct {
 	// HTTPClient supplies the base transport and timeouts. Its Transport
 	// is wrapped with tracing, fixed headers and token handling.
 	HTTPClient *http.Client
+	// Timeout is the idle bound on requests when HTTPClient sets no
+	// Timeout and the context no deadline (see DefaultTimeout). Zero
+	// means DefaultTimeout; negative means no bound.
+	Timeout time.Duration
 	// Headers are sent verbatim on every request to the MCP server and, once
 	// discovery has validated it, the authorization server (API keys, tenant
 	// selectors, basic auth). They are never sent to an origin neither the
@@ -228,14 +233,7 @@ func build(ctx context.Context, cfg Config) (*Client, error) {
 	if err := prepareHTTPConfig(&cfg); err != nil {
 		return nil, err
 	}
-	base := http.DefaultClient
-	if cfg.HTTPClient != nil {
-		base = cfg.HTTPClient
-	}
-	baseRT := base.Transport
-	if baseRT == nil {
-		baseRT = http.DefaultTransport
-	}
+	base, baseRT := baseHTTP(cfg)
 	// Every credential this client holds is bound to this set. It starts as
 	// the endpoint the operator named and grows only when discovery
 	// produces an authorization server that passed URLPolicy.

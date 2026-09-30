@@ -9,7 +9,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestPRMCandidates(t *testing.T) {
@@ -80,19 +83,94 @@ func TestDiscoverPRMHintFirstAndEmptyServers(t *testing.T) {
 func TestDiscoverServerPathAware(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/oauth-authorization-server/tenant1" {
-			json.NewEncoder(w).Encode(ServerMetadata{Issuer: "x", TokenEndpoint: "https://x/token"})
+			json.NewEncoder(w).Encode(ServerMetadata{Issuer: "http://" + r.Host + "/tenant1", TokenEndpoint: "https://x/token"})
 			return
 		}
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
-	d := &Discoverer{Client: srv.Client()}
+	d := &Discoverer{Client: srv.Client(), Policy: URLPolicy{Resolver: fixedResolver("93.184.216.34")}}
 	md, err := d.DiscoverServer(context.Background(), srv.URL+"/tenant1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if md.TokenEndpoint != "https://x/token" {
 		t.Errorf("md = %+v", md)
+	}
+}
+
+// TestDiscoverServerRequiresTheIssuerItAskedFor is RFC 8414 §3.3: the
+// issuer in the metadata must be identical to the issuer the document was
+// fetched for, or the document must not be used. A document that names
+// another issuer is refused, not skipped over: it is a server claiming to
+// speak for someone else.
+func TestDiscoverServerRequiresTheIssuerItAskedFor(t *testing.T) {
+	var issuer string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/oauth-authorization-server/tenant1":
+			json.NewEncoder(w).Encode(ServerMetadata{Issuer: issuer, TokenEndpoint: "https://x/token"})
+		case "/.well-known/openid-configuration/tenant1":
+			// A second candidate that would match must not rescue the
+			// first one's mismatch.
+			json.NewEncoder(w).Encode(ServerMetadata{Issuer: "http://" + r.Host + "/tenant1", TokenEndpoint: "https://x/token"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	d := &Discoverer{Client: srv.Client(), Policy: URLPolicy{Resolver: fixedResolver("93.184.216.34")}}
+	want := srv.URL + "/tenant1"
+	for name, got := range map[string]string{
+		"another issuer": "https://evil.example/tenant1",
+		"missing issuer": "",
+		"trailing slash": want + "/",
+		"different case": strings.ToUpper(want[:4]) + want[4:],
+		"another tenant": srv.URL + "/tenant2",
+	} {
+		issuer = got
+		md, err := d.DiscoverServer(context.Background(), want)
+		var mm *IssuerMismatchError
+		if md != nil || !errors.As(err, &mm) {
+			t.Errorf("%s: metadata naming issuer %q was accepted for %q (err %v)", name, got, want, err)
+			continue
+		}
+		if mm.Issuer != want || mm.Got != got || !strings.Contains(err.Error(), "RFC 8414") {
+			t.Errorf("%s: error = %+v / %v", name, mm, err)
+		}
+	}
+	issuer = want
+	if md, err := d.DiscoverServer(context.Background(), want); err != nil || md.Issuer != want {
+		t.Errorf("matching issuer refused: %v", err)
+	}
+}
+
+// TestNilClientsAreBounded: a Discoverer or Registrar built without a
+// client, and a token request made with none, used http.DefaultClient,
+// which waits for ever on an authorization server that never answers.
+func TestNilClientsAreBounded(t *testing.T) {
+	for name, c := range map[string]*http.Client{
+		"discoverer": (&Discoverer{}).httpClient(),
+		"registrar":  (&Registrar{}).httpClient(),
+	} {
+		if c == http.DefaultClient || c.Timeout != DefaultTimeout {
+			t.Errorf("%s default client has timeout %s", name, c.Timeout)
+		}
+	}
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-done:
+		}
+	}))
+	defer srv.Close()
+	defer close(done)
+	saved := defaultClient.Timeout
+	defaultClient.Timeout = 50 * time.Millisecond
+	defer func() { defaultClient.Timeout = saved }()
+	if _, err := tokenRequest(context.Background(), nil, Endpoint{TokenURL: srv.URL}, Credentials{ClientID: "c"}, url.Values{}); err == nil {
+		t.Error("a token request to a silent server returned without error")
 	}
 }
 

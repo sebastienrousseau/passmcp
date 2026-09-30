@@ -19,7 +19,6 @@ import (
 	"satellion.com/passmcp/internal/clientconf"
 	"satellion.com/passmcp/internal/creds"
 	"satellion.com/passmcp/internal/engine"
-	"satellion.com/passmcp/internal/policy"
 )
 
 // Flag groups are shared FlagSets so each lands on exactly the commands
@@ -187,8 +186,8 @@ func paceFlags() *pflag.FlagSet {
 	paceOnce.Do(func() {
 		fs := pflag.NewFlagSet("pacing", pflag.ContinueOnError)
 		fs.IntVar(&samples, "samples", 5, "repeat calls per tool in the performance phase")
-		fs.IntVar(&concurrency, "concurrency", 4, "workers in the parallel burst (0 disables)")
-		fs.Float64Var(&rps, "rps", 2, "max requests per second; 0 or negative disables throttling")
+		fs.IntVar(&concurrency, "concurrency", 4, fmt.Sprintf("workers in the parallel burst, at most %d (0 disables)", engine.MaxConcurrency))
+		fs.Float64Var(&rps, "rps", 2, fmt.Sprintf("max requests per second, at most %d; 0 or negative disables throttling", engine.MaxRPS))
 		fs.DurationVar(&callTimeout, "timeout", 30*time.Second, "per-call timeout")
 		fs.StringVar(&userAgent, "user-agent", "", "User-Agent sent on every HTTP request, the unauthenticated first contact included (default: Go's)")
 		fs.Uint64Var(&seed, "seed", 1, "seed for generated arguments")
@@ -276,13 +275,9 @@ func buildSpec(target engine.TargetSpec, onlyPhases []string) (engine.RunSpec, e
 		return engine.RunSpec{}, err
 	}
 
-	var gate *policy.Policy
-	if strings.TrimSpace(policyFile) != "" {
-		p, err := policy.Load(policyFile)
-		if err != nil {
-			return engine.RunSpec{}, err
-		}
-		gate = p
+	gate, err := loadGate()
+	if err != nil {
+		return engine.RunSpec{}, err
 	}
 
 	target.UserAgent = userAgent
@@ -293,27 +288,11 @@ func buildSpec(target engine.TargetSpec, onlyPhases []string) (engine.RunSpec, e
 		ClientConfig: clients,
 		Egress:       engine.EgressSpec{Watch: watchEgress || faultUpstream, Expect: expectEgress, Canaries: plantCanaries, FaultUpstream: faultUpstream},
 		Creds:        cs,
-		Policy: engine.PolicySpec{
-			AllowMutations: allowMutations, AllowDestructive: allowDestructive,
-			Only: onlyTools, Deny: denyTools, ToolArgs: overrides,
-			AllowPlaintextAuth: allowPlaintextAuth, AllowPrivateHosts: allowPrivateHosts,
-			AllowResourceMismatch: allowResourceMismatch, SkipEraCheck: skipEraCheck,
-		},
-		Gate: gate,
-		Pacing: engine.PacingSpec{
-			Samples: samples, Concurrency: concurrency, RPS: rps,
-			CallTimeout: callTimeout, Seed: seed, FillOptional: fillOpt,
-			AllowLoad: allowLoad, MaxResources: maxRes, MaxPrompts: maxPrompts,
-			Soak: soak,
-		},
-		Phases: engine.PhaseSpec{Only: phases, Skip: phasesSkip},
-		Output: engine.OutputSpec{
-			Format: engine.Format(output), ReportDir: reportDir, Retain: retainFor,
-			CaptureBodies: captureBodies, WithEvents: withEvents, WithGuidance: withGuidance,
-			Verbose: verbose, NoColor: noColor, Interactive: interactive,
-			OTLPEndpoint: otlpEndpoint, OTLPHeaders: otlpHeaders,
-			OCSFEndpoint: ocsfEndpoint, OCSFHeaders: ocsfHeaders,
-		},
+		Policy:       policySpec(overrides),
+		Gate:         gate,
+		Pacing:       pacingSpec(),
+		Phases:       engine.PhaseSpec{Only: phases, Skip: phasesSkip},
+		Output:       outputSpec(retainFor),
 	}
 	return spec.WithDefaults(), nil
 }

@@ -181,7 +181,10 @@ type PolicySpec struct {
 
 // PacingSpec bounds the load a run places on the server.
 type PacingSpec struct {
-	Samples      int           `json:"samples,omitempty"`
+	Samples int `json:"samples,omitempty"`
+	// Concurrency is the number of workers in the parallel burst. Zero is
+	// unset and takes DefaultConcurrency; NoBurst (any negative count)
+	// runs no burst at all, which is what the CLI's --concurrency 0 means.
 	Concurrency  int           `json:"concurrency,omitempty"`
 	RPS          float64       `json:"rps"`
 	CallTimeout  time.Duration `json:"call_timeout_ns,omitempty"`
@@ -362,35 +365,17 @@ func (s RunSpec) WithDefaults() RunSpec {
 // every surface, so a web client gets the CLI's error rather than a
 // different one.
 func (s RunSpec) Validate() error {
-	if err := s.validateTarget(); err != nil {
-		return err
-	}
-	if err := s.validateStdioOnly(); err != nil {
-		return err
-	}
-	if err := s.validateHTTPOnly(); err != nil {
-		return err
-	}
-	if !s.Output.Format.Valid() {
-		return fmt.Errorf("output format %q is not one of %v", s.Output.Format, Formats)
-	}
-	if s.Gate != nil {
-		if err := s.Gate.Validate(); err != nil {
+	for _, check := range []func() error{
+		s.validateTarget,
+		s.validateStdioOnly,
+		s.validateHTTPOnly,
+		func() error { return ValidatePace(s.Pacing.RPS, s.Pacing.Concurrency) },
+		s.validateOutputAndPhases,
+		s.validateCredentials,
+	} {
+		if err := check(); err != nil {
 			return err
 		}
-	}
-	for _, name := range append(append([]string{}, s.Phases.Only...), s.Phases.Skip...) {
-		if !knownPhase(name) {
-			return fmt.Errorf("unknown phase %q; known phases are %s", name, strings.Join(probe.PhaseNames(), ", "))
-		}
-	}
-	c, err := s.Credentials()
-	if err != nil {
-		return err
-	}
-	if s.Target.Stdio() && c.Effective() != creds.ModeNone {
-		return fmt.Errorf("credentials have no meaning over stdio: a child process has no origin to authorize against, "+
-			"and %s would be sent nowhere. Pass what the server needs in its arguments, or forward a variable with --stdio-env", c.Effective())
 	}
 	return nil
 }

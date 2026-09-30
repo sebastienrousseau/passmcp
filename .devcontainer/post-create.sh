@@ -20,10 +20,10 @@ go mod download
 # and its base image by digest; a devcontainer that shells out to @latest
 # would be the one unpinned link in that chain.
 #
-# govulncheck matches the version ci.yml pins, so a local run and a CI run
-# read the same database with the same scanner.
+# govulncheck is read from tools/go.mod, the pin CI builds it from, so a
+# local run and a CI run read the same database with the same scanner.
 GOLANGCI_LINT_VERSION=v2.13.2
-GOVULNCHECK_VERSION=v1.7.0
+GOVULNCHECK_VERSION=$(go -C tools list -m -f '{{.Version}}' golang.org/x/vuln)
 
 echo "==> Tools for the local gates"
 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}"

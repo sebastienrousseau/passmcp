@@ -1,0 +1,34 @@
+# MCP diagnostic: https://x/mcp
+
+| | |
+|---|---|
+| Passmcp | t |
+| Started | 2026-09-30T12:00:00Z |
+| Duration | - |
+| Trace | `` |
+| Auth | none, required=false |
+| **Score** | withheld: run stopped (credentials \| rejected) |
+
+## Score breakdown
+
+| Category | Weight | Score | Deductions |
+|---|---|---|---|
+| connectivity | 10 | 100.0 |  |
+| authorization | 20 | not assessed | |
+| protocol | 20 | not assessed | |
+| catalog | 15 | not assessed | |
+| execution | 20 | not assessed | |
+| performance | 15 | not assessed | |
+
+## Step by step
+
+### Network — PASS (-)
+
+| Status | Check | Observed | Evidence |
+|---|---|---|---|
+
+Not run (credentials \| rejected): auth
+
+## Telemetry
+
+0 requests, 0 errors, 0 B sent, 0 B received, 0 new connections, wall -.

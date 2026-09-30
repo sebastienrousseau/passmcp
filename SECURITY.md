@@ -81,9 +81,15 @@ is worse than one that omits them.
   atomically via a temporary file and rename, for both `Put` and `Delete`.
   A store whose mode has widened to group- or world-readable is refused
   rather than read: it holds refresh tokens and client secrets, which are
-  password-equivalent. Concurrent writes are serialised so two logins
-  cannot drop one another's token. Verified by
-  `internal/creds/store_hardening_test.go`.
+  password-equivalent. On Windows, which has no mode bits, the file is
+  written with a protected access-control list that grants only the
+  current user, and a store whose list lets any other account (other than
+  SYSTEM and the local Administrators) read or change it, that has no
+  list, or whose list cannot be read, is refused. Concurrent writes are
+  serialised so two logins cannot drop one another's token. Verified by
+  `internal/creds/store_hardening_test.go`,
+  `internal/creds/perm_acl_test.go` on every platform, and
+  `internal/creds/perm_windows_test.go` on Windows.
 - **Credentials are bound to the origin the operator named.** An
   `http.RoundTripper` runs below `http.Client`'s redirect handling, so one
   that attaches a credential unconditionally re-attaches it on every hop of
@@ -104,13 +110,23 @@ is worse than one that omits them.
   address inside the network passmcp is running in (cloud metadata included).
   Loopback is exempt so local development needs no flags; the strict check
   is relaxed only by `--insecure-allow-http-auth` or
-  `--insecure-allow-private-hosts`. Every entry in `authorization_servers`
-  is checked, not only the first. Verified by `auth/policy_test.go`.
+  `--insecure-allow-private-hosts`. A name that does not resolve, or
+  resolves to nothing, is refused rather than passed on; behind a proxy
+  named in the environment the proxy does the resolving, so there a failed
+  local lookup is not a refusal, and the connection goes only to the
+  proxy. Every entry in `authorization_servers` is checked, not only the
+  first. Verified by `auth/policy_test.go`.
 - **Protected-resource metadata must identify the endpoint it describes**
   (RFC 9728), and the authorization response must carry the expected `iss`
   (RFC 9207). Both are refusals, not warnings; `--allow-resource-mismatch`
   is the deliberate override. Verified by `TestConnectErrorPaths` in
   `client_more_test.go`.
+- **Authorization server metadata must name the issuer it was fetched
+  for** (RFC 8414 §3.3), compared exactly. A document that names another
+  issuer is not used, and there is no override: `discovery.as` fails as
+  critical and the run stops before any credential is sent. Verified by
+  `TestDiscoverServerRequiresTheIssuerItAskedFor` in `auth` and
+  `TestAuthorizationServerNamingAnotherIssuerBlocks` in `internal/probe`.
 - **Requests that must arrive unauthenticated do.** A second, bare
   transport carries no token, header or basic credential, so the first
   contact and the invalid-token probe cannot be silently upgraded by the
@@ -130,6 +146,24 @@ is worse than one that omits them.
   `transport.MaxResponseBytes`, `MaxStreamBytes` and `MaxStreamEvents`;
   generated arguments are bounded by clamped schema limits; and the
   telemetry recording is bounded by `telemetry.Recorder.MaxEvents`.
+- **A server that stops answering cannot hold a caller for ever.** The
+  CLI sets a timeout on every client it builds. A library caller who
+  supplies no `HTTPClient`, or one without a `Timeout`, and no context
+  deadline gets `passmcp.Config.Timeout` (default 60 s) as an idle bound:
+  a request is abandoned after that long without progress, waiting for
+  the response or between reads of it, so an event stream that keeps
+  delivering is never cut. `auth` uses a 30 s client in place of a nil
+  one. Verified by `TestDefaultClientDoesNotWaitForeverOnASilentServer`
+  and `transport/idle_test.go`.
+- **Server text cannot drive the operator's terminal.** Tool names,
+  descriptions, error text and content are cleaned of ANSI escape
+  sequences and C0/C1 control characters by `internal/termsafe` before
+  any rendering meant for a person writes them: the text and Markdown
+  reports, the TUI, human-format diagnostics and the text output of
+  `call`, `read`, `prompt` and `watch`. JSON and NDJSON output keep the
+  server's text exactly, escaped by the encoder. Verified by
+  `internal/termsafe/termsafe_test.go` and the renderer tests that feed
+  each output a hostile string.
 
 ### What passmcp sends to a server
 
@@ -140,7 +174,10 @@ is worse than one that omits them.
   `TestPolicyDefaults`; the probe suite's fake server panics if its
   destructive tool is ever called under the default policy.
 - **Requests are throttled** to `--rps` (default 2) including the
-  parallel burst, unless `--allow-load` is passed.
+  parallel burst, unless `--allow-load` is passed. `--rps` is capped at
+  100 and `--concurrency` at 64 workers, for `check` and `discover`
+  alike; a larger value is refused before anything is sent
+  (`engine.ValidatePace`, `TestValidateBoundsThePace`).
 - **One deliberately invalid bearer token** is sent to check the server
   rejects it. Nothing else adversarial is sent: no fuzzing of server
   inputs beyond a single malformed JSON body and an unknown method name,
@@ -182,10 +219,12 @@ is worse than one that omits them.
 - **`govulncheck`, `gosec` and `staticcheck` run on every pull request**
   (`.github/workflows/security.yml`, `.github/workflows/ci.yml`).
 - **The parsing boundaries are fuzzed** (`.github/workflows/fuzz.yml`):
-  `FuzzParseWWWAuthenticate` in `auth`, `FuzzReadSSE` in `transport`,
-  `FuzzValidate` and `FuzzArguments` in `diagnostics`. Every byte of a
-  `WWW-Authenticate` header, an SSE stream or a tool schema comes from
-  the server under test.
+  `FuzzParseWWWAuthenticate` in `auth`, `FuzzReadSSE` and
+  `FuzzHeaderValue` in `transport`, `FuzzValidate` and `FuzzArguments`
+  in `diagnostics`, and `FuzzString` in `internal/termsafe`. Every byte
+  of a `WWW-Authenticate` header, an SSE stream, a tool schema or a
+  string printed to the operator's terminal comes from the server under
+  test, and so do the names passmcp encodes into parameter headers.
 - **Tests run with the race detector and randomised ordering**
   (`make test-race`).
 - **Commits are cryptographically signed and carry a DCO trailer.**

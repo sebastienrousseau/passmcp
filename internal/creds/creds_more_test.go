@@ -102,8 +102,10 @@ func TestParseParamBadShapes(t *testing.T) {
 }
 
 func TestHTTPWrapper(t *testing.T) {
-	if (HTTP{}).client() != http.DefaultClient {
-		t.Error("nil client falls back to default")
+	// A nil client stays nil so the auth package's default, which has a
+	// timeout, is used; http.DefaultClient has none.
+	if (HTTP{}).client() != nil {
+		t.Error("nil client must be passed on as nil, not as http.DefaultClient")
 	}
 	c := &http.Client{}
 	if (HTTP{C: c}).client() != c {

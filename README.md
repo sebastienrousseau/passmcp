@@ -17,6 +17,7 @@
   <a href="https://github.com/sebastienrousseau/passmcp/releases"><img src="https://img.shields.io/github/v/release/sebastienrousseau/passmcp?style=for-the-badge&color=fc8d62&logo=github&label=Release" alt="Release" /></a>
   <a href="https://pkg.go.dev/satellion.com/passmcp"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?style=for-the-badge&labelColor=555555&logo=go&logoColor=white" alt="Docs" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/passmcp"><img src="https://img.shields.io/ossf-scorecard/github.com/sebastienrousseau/passmcp?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" /></a>
+  <a href="https://www.bestpractices.dev/projects/15080"><img src="https://www.bestpractices.dev/projects/15080/badge" alt="OpenSSF Best Practices" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue.svg?style=for-the-badge" alt="License: GPL-3.0-only" /></a>
   <a href="https://github.com/sebastienrousseau/passmcp/blob/main/DEVELOPMENT.md#requirements"><img src="https://img.shields.io/badge/go-1.26.8%2B-93450a.svg?style=for-the-badge&logo=go" alt="Go 1.26.8+" /></a>
 </p>
@@ -872,8 +873,8 @@ them off unless you know why you are turning one on; see
 | Option | Default | Description |
 | :--- | :--- | :--- |
 | `--samples` | `5` | Repeat calls per tool in the performance phase |
-| `--concurrency` | `4` | Workers in the parallel burst (`0` disables) |
-| `--rps` | `2` | Max requests per second; `0` or negative disables throttling |
+| `--concurrency` | `4` | Workers in the parallel burst, at most `64` (`0` disables) |
+| `--rps` | `2` | Max requests per second, at most `100`; `0` or negative disables throttling |
 | `--timeout` | `30s` | Per-call timeout |
 | `--seed` | `1` | Seed for generated arguments |
 | `--fill-optional` | off | Also populate optional schema properties |
@@ -1160,6 +1161,7 @@ The four entry points, identical across every repo in the family:
 | [`SECURITY.md`](SECURITY.md) | Disclosure policy, supported versions, response SLA |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Signed-commit and DCO policy, PR guidelines, the local test recipe |
 | [`CHANGELOG.md`](CHANGELOG.md) | Per-release notes following Keep a Changelog 1.1.0 |
+| [`ROADMAP.md`](ROADMAP.md) | The next twelve months: what passmcp intends to do, and what it will not |
 | [`SUPPORT.md`](SUPPORT.md) | Where to ask, and what to expect |
 
 Once installed, `man passmcp` works offline, and every subcommand has its own
@@ -1171,16 +1173,18 @@ page (`man passmcp-check`).
 | :--- | :--- | :--- |
 | `server requires authorization and no credentials were supplied` | The server answered 401 and `--auth` resolved to `none`. | Pass `--token-env`, `--client-id`/`--client-secret-env`, or run `passmcp login`. |
 | `--auth client-credentials needs --client-id` | Client-credentials mode with nothing to identify the client. | Supply `--client-id`, `--client-metadata-url`, or `PASSMCP_CLIENT_ID`. |
-| `token endpoint invalid_target` | The authorization server rejected the RFC 8707 resource indicator. | Pass `--resource` with the value the server expects. |
+| `the server rejected the resource indicator` | The token endpoint answered `invalid_target`: it rejected the RFC 8707 resource indicator. | Pass `--resource` with the value the server expects. |
 | `no stored token for this endpoint` | `--auth authorization-code` without a prior login. | Run `passmcp login <endpoint>` first. |
 | `credentials rejected at initialize` | The token was issued but the MCP server did not accept it. | Check audience/resource, scope and expiry; `--log-level debug` shows the challenge. |
-| `unknown setting "rsp"` | A config key does not match any flag name. | Settings are named after flags; see `passmcp check --help`. |
+| `unknown setting` | A config key, such as `rsp` for `rps`, does not match any flag name. | Settings are named after flags; see `passmcp check --help`. |
 
 ### Frequently Asked Questions
 
 - **Does it test stdio servers?**  
-  No. passmcp speaks Streamable HTTP. Put a stdio-to-HTTP bridge in front of
-  a stdio server, or run it in HTTP mode if it has one.
+  Yes. `passmcp check --stdio -- <command>` starts the server, runs the
+  same phases over its stdin and stdout, and stops it. A pipe has no origin
+  to authorize against, so discovery and auth are skipped; test the
+  server's HTTP deployment for those ([docs/stdio.md](docs/stdio.md)).
 - **Why were my tools skipped?**  
   They declare no annotations, or `destructiveHint` is true. The MCP
   specification's default for an unannotated tool is destructive, and passmcp
@@ -1196,8 +1200,8 @@ page (`man passmcp-check`).
 - **Where do the secrets go?**  
   Nowhere. They are registered with the redactor before the first request
   and masked in every event, body and report. The token store is written
-  with mode 0600, and a store that is readable by anyone else is refused
-  rather than read.
+  with mode 0600 (on Windows, an access-control list for you alone), and
+  a store that is readable by anyone else is refused rather than read.
 - **Can a server under test steal my token?**  
   Not by asking for it. Credentials are bound to the origin you named, so a
   redirect pointing somewhere else is refused rather than followed, and the
@@ -1239,8 +1243,9 @@ Added fields, new flags with inert defaults, new findings, and new refusals
 are **not** breaking.
 
 **Deprecation window.** A deprecated flag keeps working for at least one
-minor release after the release that announces it, and warns on stderr —
-never on stdout, which carries the selected output format.
+release after the release that announces it (pre-1.0 every release moves
+the patch digit, so that is the next patch release), and warns on
+stderr — never on stdout, which carries the selected output format.
 
 ---
 

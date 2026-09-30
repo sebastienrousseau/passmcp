@@ -144,6 +144,31 @@ func TestCheckTextAgainstProtectedServer(t *testing.T) {
 	}
 }
 
+// TestConcurrencyZeroDisablesTheBurst: --concurrency is documented as
+// "0 disables", and an operator who passes it is asking passmcp not to
+// fire parallel calls at the server. The spec used to turn 0 back into
+// the default of four workers, so the burst ran anyway.
+func TestConcurrencyZeroDisablesTheBurst(t *testing.T) {
+	f := newFakeServer(t)
+	f.open = true
+	out, _ := run(t, "check", f.srv.URL+"/mcp", "--output", "json", "--rps", "0", "--samples", "1", "--concurrency", "0",
+		"--log-level", "error", "--phases", "net,discovery,auth,handshake,catalog,execution,performance")
+	var rep struct {
+		Performance *struct {
+			Concurrency any `json:"concurrency"`
+		} `json:"performance"`
+	}
+	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+		t.Fatalf("json output: %v\n%s", err, out)
+	}
+	if rep.Performance == nil {
+		t.Fatal("the performance phase did not run")
+	}
+	if rep.Performance.Concurrency != nil {
+		t.Errorf("--concurrency 0 still ran a parallel burst: %v", rep.Performance.Concurrency)
+	}
+}
+
 func TestCheckJSONMdNdjsonAndReportDir(t *testing.T) {
 	f := newFakeServer(t)
 	f.open = true
@@ -378,6 +403,14 @@ func waitListener(t *testing.T, addr string) {
 // exit code and everything the CLI wrote to stderr.
 func loginWithRedirect(t *testing.T, endpoint, port string, query func(stderr string) string) (int, string) {
 	t.Helper()
+	return loginWithRedirectAfter(t, endpoint, port, nil, query)
+}
+
+// loginWithRedirectAfter is loginWithRedirect, first requesting each of
+// strays (a path and query) on the loopback listener, as a browser asking
+// for a favicon or a local process probing the port would.
+func loginWithRedirectAfter(t *testing.T, endpoint, port string, strays []string, query func(stderr string) string) (int, string) {
+	t.Helper()
 	stderrR, stderrW, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -416,6 +449,11 @@ func loginWithRedirect(t *testing.T, endpoint, port string, query func(stderr st
 	if q == "" {
 		os.Stderr = origStderr
 		t.Fatalf("no authorize URL seen on stderr: %q", errBuf.String())
+	}
+	for _, stray := range strays {
+		if resp, err := http.Get("http://127.0.0.1:" + port + stray); err == nil {
+			_ = resp.Body.Close()
+		}
 	}
 	resp, err := http.Get("http://127.0.0.1:" + port + "/callback?" + q)
 	if err != nil {
@@ -770,6 +808,70 @@ func TestLoginRejectsMixUpIssuer(t *testing.T) {
 	})
 	if code != 1 || !strings.Contains(stderr, "mix-up.invalid") {
 		t.Errorf("a redirect from another issuer should be refused, got %d\n%s", code, stderr)
+	}
+}
+
+// TestLoginServesOnlyTheCallbackPath: the loopback listener used to treat
+// any request as the redirect, so a browser's favicon request, or any local
+// process that reached the port first, ended the login with an empty code.
+// Only the redirect URI's own path is the callback now.
+func TestLoginServesOnlyTheCallbackPath(t *testing.T) {
+	f := newFakeServer(t)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	strays := []string{"/favicon.ico", "/?code=stray&state=stray", "/callback/extra?code=x"}
+	code, stderr := loginWithRedirectAfter(t, f.srv.URL+"/mcp", "18981", strays, func(s string) string {
+		if st := stateFrom(s); st != "" {
+			return "code=the-code&state=" + st
+		}
+		return ""
+	})
+	if code != 0 || !strings.Contains(stderr, "token stored in") {
+		t.Errorf("a stray request consumed the login, got %d\n%s", code, stderr)
+	}
+}
+
+// TestLoginGivesUpWhenNoRedirectArrives: the listener has an overall
+// deadline, rather than holding a port on the operator's machine for as
+// long as nobody comes back from the browser.
+func TestLoginGivesUpWhenNoRedirectArrives(t *testing.T) {
+	f := newFakeServer(t)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	saved := loginTimeout
+	loginTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { loginTimeout = saved })
+
+	// The command's final error goes to os.Stderr, which run does not
+	// capture, so it is piped here and read to the end before asserting.
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	origStderr := os.Stderr
+	os.Stderr = stderrW
+	var errBuf bytes.Buffer
+	var copied sync.WaitGroup
+	copied.Add(1)
+	go func() { defer copied.Done(); _, _ = io.Copy(&errBuf, stderrR) }()
+	done := make(chan int, 1)
+	go func() {
+		_, code := run(t, "login", f.srv.URL+"/mcp", "--redirect-port", "18982", "--log-level", "error")
+		done <- code
+	}()
+	select {
+	case code := <-done:
+		_ = stderrW.Close()
+		copied.Wait()
+		os.Stderr = origStderr
+		if code != 1 || !strings.Contains(errBuf.String(), "no authorization redirect") {
+			t.Errorf("login without a redirect should time out with exit 1, got %d\n%s", code, errBuf.String())
+		}
+	case <-time.After(5 * time.Second):
+		os.Stderr = origStderr
+		t.Fatal("login was still waiting for a redirect after 5s with a 300ms deadline")
+	}
+	if c, err := net.DialTimeout("tcp", "127.0.0.1:18982", 200*time.Millisecond); err == nil {
+		_ = c.Close()
+		t.Error("the redirect listener is still open after login gave up")
 	}
 }
 

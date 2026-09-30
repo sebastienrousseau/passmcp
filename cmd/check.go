@@ -269,7 +269,7 @@ func finishCheck(runCtx context.Context, spec engine.RunSpec, res *engine.Result
 	// The policy's answer, after the report it judged. On stdout when the
 	// report was prose a person is reading; on stderr otherwise, because a
 	// gate verdict appended to JSON or SARIF would make the document
-	// unparseable, and the one reader who needs it there is a CI log.
+	// unparsable, and the one reader who needs it there is a CI log.
 	if res.Gate != nil {
 		dst := os.Stdout
 		if spec.Output.Format != engine.FormatText && spec.Output.Format != engine.FormatMD {

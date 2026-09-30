@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // Item is one tool offered in the selector.
@@ -128,7 +129,9 @@ func (m *selectorModel) renderCustomTable() string {
 		if m.selected[it.Name] {
 			checkChar = "✔"
 		}
-		name := it.Name
+		// The name is the server's; the selection stays keyed by it, and
+		// only what is drawn is cleaned.
+		name := termsafe.String(it.Name)
 		if len(name) > 35 {
 			name = name[:32] + "..."
 		}
@@ -151,9 +154,6 @@ func (m *selectorModel) renderCustomTable() string {
 	}
 	return sb.String()
 }
-
-// slashCommands are the in-session commands the filter line accepts.
-var slashCommands = []string{"/exit", "/quit", "/help", "/all", "/none", "/sort"}
 
 // Update handles one Bubble Tea message; keys the selector does not
 // consume go to the embedded table, which owns cursor movement.
@@ -180,7 +180,7 @@ func (m *selectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *selectorModel) handleFetched(msg fetchedItemsMsg) (tea.Model, tea.Cmd) {
 	m.loading = false
 	if msg.err != nil {
-		m.loadingErr = msg.err
+		m.loadingErr = shownError{msg.err}
 		return m, tea.Quit
 	}
 	m.items = msg.items
@@ -315,18 +315,6 @@ func (m *selectorModel) setFilteredSelection(selected bool) (tea.Model, tea.Cmd,
 	}
 	m.updateTableRows()
 	return m, nil, true
-}
-
-func completeSlashCommand(filter string) (string, bool) {
-	if !strings.HasPrefix(filter, "/") {
-		return "", false
-	}
-	for _, cmd := range slashCommands {
-		if len(cmd) > len(filter) && strings.HasPrefix(cmd, filter) {
-			return cmd, true
-		}
-	}
-	return "", false
 }
 
 // View renders the logo, the search or command prompt, the tool table or

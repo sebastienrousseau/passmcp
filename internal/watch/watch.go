@@ -61,8 +61,11 @@ type Event struct {
 	// Err is why a pulse failed, when one did.
 	Err string `json:"error,omitempty"`
 	// LatencyMS is how long the pulse took, connect to listing, in
-	// milliseconds. Set on every pulse, answered or not.
-	LatencyMS float64 `json:"latency_ms,omitempty"`
+	// milliseconds. Set on every pulse, answered or not, and absent from
+	// events that are not pulses (settled, summary). A pointer so that a
+	// measured zero, which a coarse clock produces for a fast pulse, is
+	// written as 0 rather than dropped with the absent case.
+	LatencyMS *float64 `json:"latency_ms,omitempty"`
 	// Status is the class of the pulse's outcome (ok, protocol_error,
 	// transport_error, auth_error or timeout). Set on every pulse.
 	Status string `json:"status,omitempty"`
@@ -74,6 +77,14 @@ type Event struct {
 	Summary *Summary `json:"summary,omitempty"`
 	// Detail is a sentence for a person.
 	Detail string `json:"detail"`
+}
+
+// Latency is LatencyMS, or 0 for an event that is not a pulse.
+func (e Event) Latency() float64 {
+	if e.LatencyMS == nil {
+		return 0
+	}
+	return *e.LatencyMS
 }
 
 // Sink receives events as they happen.
@@ -96,6 +107,13 @@ type Options struct {
 	Sink Sink
 	// Now is the clock, for tests.
 	Now func() time.Time
+
+	// clock times a pulse; nil means time.Now, whose monotonic reading
+	// is what makes the latency immune to wall-clock steps. Tests
+	// substitute a clock whose ticks they control: a pulse to a loopback
+	// server can finish inside one tick of a coarse clock, such as
+	// Windows' 15.6 ms, and would then measure zero.
+	clock func() time.Time
 }
 
 // Result is what a watch run concluded.
@@ -155,6 +173,9 @@ func (o *Options) normalise() error {
 	if o.Now == nil {
 		o.Now = func() time.Time { return time.Now().UTC() }
 	}
+	if o.clock == nil {
+		o.clock = time.Now
+	}
 	return nil
 }
 
@@ -174,9 +195,9 @@ type watcher struct {
 // request, so it cannot turn the watcher into the load generator
 // MinInterval exists to prevent.
 func (w *watcher) step(ctx context.Context) bool {
-	t0 := time.Now()
+	t0 := w.opts.clock()
 	snap, changes, err := pulse(ctx, w.opts)
-	latency := time.Since(t0)
+	latency := w.opts.clock().Sub(t0)
 	if err != nil && ctx.Err() != nil {
 		w.settle()
 		return false
@@ -185,7 +206,8 @@ func (w *watcher) step(ctx context.Context) bool {
 	w.stats.Observe(st, kind, latency)
 	w.res.Pulses++
 	ev := w.event(snap, changes, err)
-	ev.LatencyMS = float64(latency) / float64(time.Millisecond)
+	ms := float64(latency) / float64(time.Millisecond)
+	ev.LatencyMS = &ms
 	ev.Status, ev.ErrorKind = string(st), kind
 	w.opts.Sink(ev)
 	return true

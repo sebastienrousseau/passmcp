@@ -7,12 +7,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"satellion.com/passmcp/internal/config"
 	"satellion.com/passmcp/internal/diag"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // Version is injected at release time via
@@ -89,10 +91,17 @@ func Execute() { ExecuteContext(context.Background()) }
 func ExecuteContext(ctx context.Context) {
 	rootCmd.SetContext(ctx)
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "passmcp: %v\n", err)
-		fmt.Fprintf(os.Stderr, "\nRun 'passmcp --help' for usage.\n")
+		writeCommandError(os.Stderr, err)
 		osExit(1)
 	}
+}
+
+// writeCommandError prints the error a command ended with. Its text often
+// quotes a server (an authorization error, a refused tool call), and it is
+// read on a terminal, so control sequences are removed first.
+func writeCommandError(w io.Writer, err error) {
+	_, _ = fmt.Fprintf(w, "passmcp: %s\n", termsafe.String(err.Error()))
+	_, _ = fmt.Fprintf(w, "\nRun 'passmcp --help' for usage.\n")
 }
 
 func init() {

@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // Version is the build version. Injected at build time alongside
@@ -86,7 +87,7 @@ func NewRunModel(endpoint, subtitle string, phases []Phase) *RunModel {
 	for i, p := range phases {
 		steps[i] = step{Phase: p, status: "pending"}
 	}
-	return &RunModel{endpoint: endpoint, subtitle: subtitle, steps: steps, spinner: sp, width: 80, started: time.Now()}
+	return &RunModel{endpoint: termsafe.String(endpoint), subtitle: termsafe.String(subtitle), steps: steps, spinner: sp, width: 80, started: time.Now()}
 }
 
 // Aborted reports whether the user quit before the run finished.
@@ -112,8 +113,10 @@ func (m *RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setStep(msg.Name, func(st *step) { st.status = "running" })
 		return m, nil
 	case PhaseDoneMsg:
+		// A status line can quote the server, and this is drawn on the
+		// operator's terminal.
 		m.setStep(msg.Name, func(st *step) {
-			st.status, st.duration, st.message = msg.Action, msg.Duration, msg.Message
+			st.status, st.duration, st.message = msg.Action, msg.Duration, termsafe.String(msg.Message)
 		})
 		return m, nil
 	case DoneMsg:

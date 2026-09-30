@@ -58,7 +58,7 @@ SPDX-License-Identifier = "GPL-3.0-only"
 # Go module metadata. go.sum is a list of hashes and go.mod is consumed by
 # the toolchain, which does not tolerate arbitrary leading comments.
 [[annotations]]
-path = ["go.mod", "go.sum", "test/e2e/kind/fixture/go.mod"]
+path = ["go.mod", "go.sum", "test/e2e/kind/fixture/go.mod", "tools/go.mod", "tools/go.sum"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-only"
@@ -115,12 +115,14 @@ SPDX-FileCopyrightText = "2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
 SPDX-License-Identifier = "GPL-3.0-only"
 
 # Repository configuration whose formats either take no comments or are
-# rewritten by their tools: docs/requirements.txt is pip-compile output.
+# rewritten by their tools: docs/requirements.txt is pip-compile output,
+# and .complexity-baseline is written by scripts/complexity.
 [[annotations]]
 path = [
   ".gitignore",
   ".gitattributes",
   ".gitleaksignore",
+  ".complexity-baseline",
   ".github/CODEOWNERS",
   ".devcontainer/devcontainer.json",
   "docs/requirements.txt",
