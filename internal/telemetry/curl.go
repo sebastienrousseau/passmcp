@@ -132,12 +132,28 @@ func shellWord(s string, vars map[string]bool) string {
 		if i == len(parts)-1 {
 			break
 		}
-		name := placeholderFor(prefix)
+		name := safeVarName(placeholderFor(prefix))
 		vars[name] = true
 		b.WriteString(`"${` + name + `}"`)
 		prefix += Mask
 	}
 	return b.String()
+}
+
+// shellVar is the only shape a placeholder may take inside "${...}": a
+// POSIX environment variable name, which the shell cannot expand into
+// anything but that variable's value.
+var shellVar = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+
+// safeVarName is name when it is a plain variable name, and
+// PASSMCP_SECRET otherwise. varName already produces only that shape; the
+// check keeps it true at the point the name meets the shell, whatever a
+// later change to the naming does.
+func safeVarName(name string) string {
+	if shellVar.MatchString(name) {
+		return name
+	}
+	return "PASSMCP_SECRET"
 }
 
 var (

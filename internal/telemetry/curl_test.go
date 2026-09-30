@@ -6,6 +6,7 @@ package telemetry
 import (
 	"errors"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -187,6 +188,27 @@ func TestShellWordQuotesEverythingElse(t *testing.T) {
 	} {
 		if got := shellWord(in, vars); got != want {
 			t.Errorf("shellWord(%q) = %s, want %s", in, got, want)
+		}
+	}
+}
+
+// TestAHostileKeyCannotReachTheShell: a server chooses its JSON keys, so a
+// key shaped to break out of "${...}" must come out as a plain name, and
+// anything that is not one falls back to PASSMCP_SECRET.
+func TestAHostileKeyCannotReachTheShell(t *testing.T) {
+	got := shellWord(`{"a}$(id)"`+"`x`"+`":"`+Mask+`"}`, map[string]bool{})
+	refs := regexp.MustCompile(`"\$\{([^}]*)\}"`).FindAllStringSubmatch(got, -1)
+	if len(refs) != 1 || !shellVar.MatchString(refs[0][1]) {
+		t.Fatalf("hostile key reached the shell: %s", got)
+	}
+	for _, name := range []string{"PASSMCP_TOKEN", "_X1"} {
+		if safeVarName(name) != name {
+			t.Errorf("safeVarName(%q) changed a plain name", name)
+		}
+	}
+	for _, name := range []string{"", "1ABC", "A}B", "A$(id)", "a", "A B", "A-B"} {
+		if got := safeVarName(name); got != "PASSMCP_SECRET" {
+			t.Errorf("safeVarName(%q) = %s, want PASSMCP_SECRET", name, got)
 		}
 	}
 }
