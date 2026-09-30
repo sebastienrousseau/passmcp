@@ -74,6 +74,9 @@ type quirks struct {
 	resourcesFail     bool
 	readFail          bool
 	resourcesEmpty    bool
+	// readURI is the uri resources/read files its contents under: "" echoes
+	// the URI requested, as a correct server does; "-" omits the field.
+	readURI           string
 	templatesFail     bool
 	promptsFail       bool
 	promptsEmpty      bool
@@ -581,11 +584,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			rpcErr(-32002, "read failed")
 			return
 		}
-		if f.q.resourcesEmpty {
-			reply(map[string]any{"contents": []map[string]any{}})
-			return
-		}
-		reply(map[string]any{"contents": []map[string]any{{"uri": "fake://doc/1", "mimeType": "text/plain", "text": "hello"}}})
+		reply(f.readContents(req.Params))
 	case "prompts/list":
 		if f.q.catalog == "nocap" {
 			rpcErr(-32601, "no prompts")
@@ -668,4 +667,24 @@ func (f *fakeServer) toolCatalog() []map[string]any {
 		tools = []map[string]any{{"name": "bare", "description": "A tool that declares no schema at all", "annotations": map[string]any{"readOnlyHint": yes}}}
 	}
 	return tools
+}
+
+// readContents is what resources/read answers, shaped by the knobs.
+func (f *fakeServer) readContents(params json.RawMessage) map[string]any {
+	if f.q.resourcesEmpty {
+		return map[string]any{"contents": []map[string]any{}}
+	}
+	var p struct {
+		URI string `json:"uri"`
+	}
+	_ = json.Unmarshal(params, &p)
+	item := map[string]any{"uri": p.URI, "mimeType": "text/plain", "text": "hello"}
+	switch f.q.readURI {
+	case "":
+	case "-":
+		delete(item, "uri")
+	default:
+		item["uri"] = f.q.readURI
+	}
+	return map[string]any{"contents": []map[string]any{item}}
 }

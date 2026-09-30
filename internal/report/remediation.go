@@ -1781,6 +1781,27 @@ var remediations = map[string]Remediation{
 		},
 	},
 
+	"execution.resources.uri": {
+		Means: "A `resources/read` answered with contents filed under a different " +
+			"`uri` from the one requested, or with no `uri` at all. Every item in " +
+			"`contents` carries the URI of what it is, and a client holding " +
+			"several resources at once matches contents to requests by that " +
+			"field. Contents under another URI are attached to the wrong " +
+			"resource, or dropped.",
+		Steps: []Step{
+			{"Echo the requested URI",
+				"Set `contents[].uri` to exactly the string the client sent in " +
+					"`params.uri`. Do not canonicalise it on the way back: a " +
+					"trailing slash or a changed case is a different key to the " +
+					"client."},
+			{"Keep sub-resources distinguishable",
+				"A read that returns several items, such as a directory's " +
+					"children, may give each its own URI, but the resource asked " +
+					"for should be among them. The finding cites the read that " +
+					"showed the mismatch."},
+		},
+	},
+
 	"execution.prompts": {
 		Means: "A prompt rendered with no messages. There is nothing for the model " +
 			"to receive, so the prompt is unusable however well it is described.",

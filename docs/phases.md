@@ -199,6 +199,7 @@ is not something a maintainer can act on and `…<U+202E>nothing…` is.
 | `execution.content` | `structuredContent` validates against `outputSchema`; a declared schema with no structured content is a violation |
 | `execution.validation` | each tool with required arguments is called once more with one omitted, and must reject the call |
 | `execution.resources` | up to `--max-resources` resources read; failures and empty reads reported |
+| `execution.resources.uri` | each of those reads that returned contents filed at least one item under the URI requested, and every item has a `uri`; a mismatch warns, citing the read. No extra request: it judges the reads above |
 | `execution.prompts` | up to `--max-prompts` prompts rendered with placeholder arguments |
 
 ## performance: Latency and concurrency

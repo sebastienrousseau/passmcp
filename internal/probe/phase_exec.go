@@ -125,6 +125,9 @@ type execRun struct {
 	s       *Session
 	limiter *diagnostics.Limiter
 	gen     *diagnostics.Generator
+	// uriReads are the resource reads that returned contents, with the
+	// URIs those contents were filed under.
+	uriReads []uriRead
 }
 
 // pctx labels a request as part of the execution phase.
@@ -366,13 +369,18 @@ func (e *execRun) readResources() (out []Finding, aborted bool) {
 	}
 	c := s.check("execution.resources", "Resource reads")
 	detail := fmt.Sprintf("%d of %d read: %d ok, %d failed, %d empty", limit, n, t.ok, t.failed, t.empty)
+	return []Finding{resourceReadVerdict(c, t, detail), e.resourceURIFinding()}, false
+}
+
+// resourceReadVerdict is the execution.resources verdict on the reads.
+func resourceReadVerdict(c *check, t readTally, detail string) Finding {
 	switch {
 	case t.failed > 0:
-		return []Finding{c.fail(Major, detail, "every listed resource should be readable")}, false
+		return c.fail(Major, detail, "every listed resource should be readable")
 	case t.empty > 0:
-		return []Finding{c.warn(detail, "a read that returns no contents is indistinguishable from a broken one")}, false
+		return c.warn(detail, "a read that returns no contents is indistinguishable from a broken one")
 	default:
-		return []Finding{c.pass(detail)}, false
+		return c.pass(detail)
 	}
 }
 
@@ -382,6 +390,7 @@ func (e *execRun) readResource(r passmcp.Resource, t *readTally) ResourceResult 
 	rr := ResourceResult{URI: r.URI}
 	cctx, cancel := context.WithTimeout(e.pctx("resources/read"), s.Opts.CallTimeout)
 	start := time.Now()
+	from := s.Opts.Recorder.Count()
 	res, err := s.Client.ReadResource(cctx, r.URI)
 	rr.Duration = Millis(time.Since(start))
 	cancel()
@@ -390,6 +399,7 @@ func (e *execRun) readResource(r passmcp.Resource, t *readTally) ResourceResult 
 		rr.Error = truncate(err.Error(), 120)
 		return rr
 	}
+	e.noteURIs(r.URI, res.Contents, from, s.Opts.Recorder.Count())
 	t.ok++
 	rr.OK = true
 	rr.Items = len(res.Contents)
