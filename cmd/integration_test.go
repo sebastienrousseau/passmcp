@@ -815,14 +815,18 @@ func TestLoginGivesUpWhenNoRedirectArrives(t *testing.T) {
 	loginTimeout = 300 * time.Millisecond
 	t.Cleanup(func() { loginTimeout = saved })
 
+	// The command's final error goes to os.Stderr, which run does not
+	// capture, so it is piped here and read to the end before asserting.
 	stderrR, stderrW, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	origStderr := os.Stderr
 	os.Stderr = stderrW
-	errBuf := &lockedBuffer{}
-	go func() { _, _ = io.Copy(errBuf, stderrR) }()
+	var errBuf bytes.Buffer
+	var copied sync.WaitGroup
+	copied.Add(1)
+	go func() { defer copied.Done(); _, _ = io.Copy(&errBuf, stderrR) }()
 	done := make(chan int, 1)
 	go func() {
 		_, code := run(t, "login", f.srv.URL+"/mcp", "--redirect-port", "18982", "--log-level", "error")
@@ -831,6 +835,7 @@ func TestLoginGivesUpWhenNoRedirectArrives(t *testing.T) {
 	select {
 	case code := <-done:
 		_ = stderrW.Close()
+		copied.Wait()
 		os.Stderr = origStderr
 		if code != 1 || !strings.Contains(errBuf.String(), "no authorization redirect") {
 			t.Errorf("login without a redirect should time out with exit 1, got %d\n%s", code, errBuf.String())
