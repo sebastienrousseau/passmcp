@@ -64,6 +64,14 @@ project announces that a change felt big.
 
 ### Changed
 
+- **`watch` events carry `latency_ms` on every pulse.** The field was
+  omitted when it was zero, which a coarse clock (Windows' 15.6 ms tick)
+  measures for a fast pulse, so an answered pulse could arrive with no
+  latency at all. It is now present on every pulse, answered or failed,
+  `0` included, and still absent from `settled` and `summary` events. A
+  consumer that treated a missing `latency_ms` as zero sees the same
+  values; one that treated it as "not timed" now gets the measurement.
+
 - **A pass needs evidence, in code.** ADR-0002's rule was a convention:
   a check could return `pass` without making a request or citing
   anything. `check.done` now records such a finding as `info`, with a

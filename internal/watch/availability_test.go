@@ -5,6 +5,7 @@ package watch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -95,8 +96,8 @@ func TestAPulseRecordsLatencyAndStatus(t *testing.T) {
 	// Connect to listing: the handshake and the listing are both inside
 	// the timed window.
 	ev := events[0]
-	if got := [2]string{ev.Status, ev.ErrorKind}; got != [2]string{"ok", ""} || ev.LatencyMS != 25 {
-		t.Errorf("status/kind = %v latency_ms = %v, want [ok ] 25", got, ev.LatencyMS)
+	if got := [2]string{ev.Status, ev.ErrorKind}; got != [2]string{"ok", ""} || ev.LatencyMS == nil || *ev.LatencyMS != 25 {
+		t.Errorf("status/kind = %v latency_ms = %v, want [ok ] 25", got, ev.Latency())
 	}
 	sum := res.Summary
 	if got := [3]int{sum.Pulses, sum.OK, sum.Latency.Samples}; got != [3]int{1, 1, 1} || sum.SuccessRate != 1 || sum.Latency.P50 != 25 {
@@ -122,11 +123,48 @@ func TestAPulseInsideOneTickMeasuresZero(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev := events[0]; ev.Status != "ok" || ev.LatencyMS != 0 {
+	if ev := events[0]; ev.Status != "ok" || ev.LatencyMS == nil || *ev.LatencyMS != 0 {
 		t.Errorf("status = %q latency_ms = %v, want ok 0", ev.Status, ev.LatencyMS)
 	}
 	if sum := res.Summary; sum.OK != 1 || sum.Latency.Samples != 1 || sum.Latency.P50 != 0 {
 		t.Errorf("summary = %+v", sum)
+	}
+}
+
+// TestEveryPulseCarriesItsLatency is the field's documented contract:
+// latency_ms is set on every pulse, answered or not. It used to be
+// omitempty on a float, so the zero a coarse clock measures, which the
+// test above shows is a real measurement, vanished from the JSON, and a
+// consumer could not tell it from a pulse that was never timed. Events
+// that are not pulses carry no latency.
+func TestEveryPulseCarriesItsLatency(t *testing.T) {
+	ks := newKnobbedServer(t)
+	var events []Event
+	if _, err := Run(context.Background(), Options{
+		Spec: specFor(ks.URL), Approved: approve(t, ks.catalogueServer),
+		Once: true, Version: "test", Sink: collect(&events),
+		clock: ks.clock.now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	failed, _ := runFailedPulse(t, failedPulse{set: func(ks *knobbedServer) { ks.status.Store(503) }})
+	settled := Event{Kind: "settled", Target: ks.URL, Detail: "stopped after 1 pulse(s)"}
+	for name, tc := range map[string]struct {
+		ev   Event
+		want string
+	}{
+		"a pulse the clock measured as zero": {events[0], `"latency_ms":0`},
+		"a failed pulse":                     {failed, `"latency_ms":`},
+		"an event that is not a pulse":       {settled, ""},
+	} {
+		b, err := json.Marshal(tc.ev)
+		if err != nil {
+			t.Fatal(err)
+		}
+		has := strings.Contains(string(b), `"latency_ms"`)
+		if tc.want == "" && has || tc.want != "" && !strings.Contains(string(b), tc.want) {
+			t.Errorf("%s: %s", name, b)
+		}
 	}
 }
 

@@ -61,8 +61,11 @@ type Event struct {
 	// Err is why a pulse failed, when one did.
 	Err string `json:"error,omitempty"`
 	// LatencyMS is how long the pulse took, connect to listing, in
-	// milliseconds. Set on every pulse, answered or not.
-	LatencyMS float64 `json:"latency_ms,omitempty"`
+	// milliseconds. Set on every pulse, answered or not, and absent from
+	// events that are not pulses (settled, summary). A pointer so that a
+	// measured zero, which a coarse clock produces for a fast pulse, is
+	// written as 0 rather than dropped with the absent case.
+	LatencyMS *float64 `json:"latency_ms,omitempty"`
 	// Status is the class of the pulse's outcome (ok, protocol_error,
 	// transport_error, auth_error or timeout). Set on every pulse.
 	Status string `json:"status,omitempty"`
@@ -74,6 +77,14 @@ type Event struct {
 	Summary *Summary `json:"summary,omitempty"`
 	// Detail is a sentence for a person.
 	Detail string `json:"detail"`
+}
+
+// Latency is LatencyMS, or 0 for an event that is not a pulse.
+func (e Event) Latency() float64 {
+	if e.LatencyMS == nil {
+		return 0
+	}
+	return *e.LatencyMS
 }
 
 // Sink receives events as they happen.
@@ -195,7 +206,8 @@ func (w *watcher) step(ctx context.Context) bool {
 	w.stats.Observe(st, kind, latency)
 	w.res.Pulses++
 	ev := w.event(snap, changes, err)
-	ev.LatencyMS = float64(latency) / float64(time.Millisecond)
+	ms := float64(latency) / float64(time.Millisecond)
+	ev.LatencyMS = &ms
 	ev.Status, ev.ErrorKind = string(st), kind
 	w.opts.Sink(ev)
 	return true

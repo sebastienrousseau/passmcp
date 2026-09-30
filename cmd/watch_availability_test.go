@@ -76,7 +76,7 @@ func TestWatchNDJSONEndsWithASummary(t *testing.T) {
 		t.Fatalf("want a pulse and a summary, got %d line(s):\n%s", len(lines), out)
 	}
 	pulse := decodeWatchLine(t, lines[0])
-	if pulse.Kind != "pulse" || pulse.Status != "ok" || pulse.LatencyMS <= 0 {
+	if pulse.Kind != "pulse" || pulse.Status != "ok" || pulse.LatencyMS == nil || *pulse.LatencyMS <= 0 {
 		t.Errorf("pulse line = %s", lines[0])
 	}
 	assertCleanSummaryLine(t, lines[1])

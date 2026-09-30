@@ -220,14 +220,14 @@ func writeWatchEvent(w io.Writer, ev watch.Event) {
 	stamp := ev.At.Format("15:04:05")
 	switch ev.Kind {
 	case "drift":
-		_, _ = fmt.Fprintf(w, "%s  drift  %s — %s in %s\n", stamp, ev.Target, ev.Detail, formatMS(ev.LatencyMS))
+		_, _ = fmt.Fprintf(w, "%s  drift  %s — %s in %s\n", stamp, ev.Target, ev.Detail, formatMS(ev.Latency()))
 		writeWatchChanges(w, ev.Changes)
 	case "error":
-		_, _ = fmt.Fprintf(w, "%s  error  %s — [%s/%s] %s (after %s)\n", stamp, ev.Target, ev.Status, ev.ErrorKind, ev.Detail, formatMS(ev.LatencyMS))
+		_, _ = fmt.Fprintf(w, "%s  error  %s — [%s/%s] %s (after %s)\n", stamp, ev.Target, ev.Status, ev.ErrorKind, ev.Detail, formatMS(ev.Latency()))
 	case "settled":
 		_, _ = fmt.Fprintf(w, "%s  stop   %s\n", stamp, ev.Detail)
 	default:
-		_, _ = fmt.Fprintf(w, "%s  ok     %s — %s in %s\n", stamp, ev.Target, ev.Detail, formatMS(ev.LatencyMS))
+		_, _ = fmt.Fprintf(w, "%s  ok     %s — %s in %s\n", stamp, ev.Target, ev.Detail, formatMS(ev.Latency()))
 	}
 }
 

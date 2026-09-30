@@ -708,7 +708,7 @@ server never turns into load on it.
 
 | Field | On | Meaning |
 |---|---|---|
-| `latency_ms` | every pulse | connect to catalogue listed, in milliseconds |
+| `latency_ms` | every pulse, answered or not | connect to catalogue listed (or to the failure), in milliseconds; `0` when the pulse finished inside one tick of the clock; absent from `settled` and `summary` events |
 | `status` | every pulse | `ok`, `protocol_error`, `transport_error`, `auth_error` or `timeout` |
 | `error_kind` | failed pulses | narrower: `connection_refused`, `dns`, `tls`, `http_503`, `http_401`, `jsonrpc_-32601`, `login_required`, `deadline`, … |
 
