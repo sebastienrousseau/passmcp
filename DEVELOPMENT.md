@@ -112,6 +112,23 @@ The threshold is 85% of statements, per package, and the rationale is in
 | CI, Coverage Gate | Fails when any package is below 85% (`cmd/passmcp`, a two-line `main`, is exempt) | `make coverage` |
 | Coverage Badge (`coverage.yml`) | On every push to `main`, measures the whole module and publishes the result as a shields.io endpoint document at <https://sebastienrousseau.com/passmcp/coverage.json>, which the README's badge renders | `go test -coverprofile=coverage.out ./... && go run ./scripts/coveragebadge -profile coverage.out -exclude /cmd/passmcp/main.go` |
 
+`sebastienrousseau.com` sits behind a Cloudflare edge cache that keeps
+what it fetched, a 404 included, whatever the Pages origin's
+`max-age=0` says. That is why the badge read "resource not found": the edge
+cached a 404 for `coverage.json` before the first deploy and went on
+serving it after every deploy since. The workflow's last job therefore
+purges that one URL, then reads the document back and compares it with
+what was measured. The purge needs two settings on the repository:
+
+| Setting | Kind | Value |
+|---|---|---|
+| `CLOUDFLARE_PURGE_TOKEN` | Actions secret | A Cloudflare API token with only the *Zone, Cache Purge* permission, for the `sebastienrousseau.com` zone |
+| `CLOUDFLARE_ZONE_ID` | Actions variable | That zone's ID |
+
+With both set, a badge that still differs after the purge fails the job.
+Without them the job warns instead, because the fix is a setting rather
+than a rerun.
+
 The badge's colour is brightgreen from 90%, green from 85%, yellow from 70%
 and red below. The figure is truncated to one decimal rather than rounded, so
 it never shows the gate as met when it is not.
