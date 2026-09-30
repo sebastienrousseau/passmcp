@@ -191,3 +191,65 @@ func TestContentTypeVerdictWithoutAReply(t *testing.T) {
 		t.Errorf("failed: %+v", got)
 	}
 }
+
+// A server that issued a session id is asked one read-only question
+// without it, with the operator's credentials, so a refusal can only be
+// about the missing session.
+func TestMissingSession(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		quirk func(*quirks)
+		st    Status
+		want  string
+	}{
+		{"400", func(*quirks) {}, Pass, "400 for a request without Mcp-Session-Id"},
+		{"other refusal", func(q *quirks) { q.missingSessionStatus = 404 }, Pass, "the specification asks for 400"},
+		{"served", func(q *quirks) { q.sessionOptional = true }, Warn, "served a request without Mcp-Session-Id"},
+		{"server error", func(q *quirks) { q.missingSessionStatus = 500 }, Info, "HTTP 500"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeServer(t)
+			f.acceptAnyToken = true
+			tc.quirk(&f.q)
+			s, fs := run(t, f, replyBearer, replyPhases)
+			expect(t, fs, "protocol.missing_session", tc.st, tc.want)
+			if m := evidenceMethod(t, s, fs["protocol.missing_session"]); m != "ping" {
+				t.Errorf("protocol.missing_session cites a %s exchange", m)
+			}
+			// The probe must not adopt a session id the server hands out
+			// to the session-less request.
+			sid := s.Client.Transport().SessionID()
+			f.mu.Lock()
+			known := f.sessions[sid]
+			f.mu.Unlock()
+			if !known {
+				t.Errorf("the client left the probe holding session %q, which the server never registered", sid)
+			}
+		})
+	}
+}
+
+func TestMissingSessionSkips(t *testing.T) {
+	// The handshake revisions, with no session id issued.
+	f := newFakeServer(t)
+	f.acceptAnyToken = true
+	f.q.stateless = true
+	_, fs := run(t, f, replyBearer, replyPhases)
+	expect(t, fs, "protocol.missing_session", Skip, "issued no session id")
+	if ev := fs["protocol.missing_session"].Evidence; len(ev) != 0 {
+		t.Errorf("a skip made requests: %v", ev)
+	}
+
+	s := runStateless(t, statelessFake(t, statelessOpts{}), nil)
+	if got, ok := findingByID(s, "protocol.missing_session"); !ok || got.Status != Skip || !strings.Contains(got.Detail, "no sessions") {
+		t.Errorf("stateless: %+v", got)
+	}
+}
+
+func TestMissingSessionVerdictFailed(t *testing.T) {
+	s := &Session{Opts: Options{Recorder: telemetry.New()}}
+	got := missingSessionVerdict(s.check("protocol.missing_session", "t"), nil, errors.New("connection reset"))
+	if got.Status != Info || !strings.Contains(got.Detail, "connection reset") {
+		t.Errorf("failed: %+v", got)
+	}
+}

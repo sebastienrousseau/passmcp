@@ -906,6 +906,11 @@
         "A.8.29"
       ]
     },
+    "protocol.missing_session": {
+      "controls": [
+        "A.8.26"
+      ]
+    },
     "protocol.mrtr": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },

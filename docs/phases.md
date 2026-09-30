@@ -132,6 +132,7 @@ MCP specification require.
 | `protocol.unknown_tool` | calling a tool that does not exist is reported, not answered with success |
 | `protocol.accept_header`, `protocol.get_stream` | informational: strictness about `Accept`, and whether GET opens a server event stream |
 | `protocol.bogus_session` | a session id the server never issued is rejected |
+| `protocol.missing_session` | once a session id was issued, a `ping` sent with credentials but without `Mcp-Session-Id` is refused, with 400 as the transport asks; serving it is a warning. Skipped when no session id was issued and on `2026-07-28`, which has no sessions |
 | `protocol.version_header` | a bad `MCP-Protocol-Version` is rejected |
 | `protocol.tasks.unknown_id`, `protocol.tasks.capability` | for a server advertising the Tasks extension: an unknown task id gets -32602, and a client that did not declare the extension gets -32021 |
 | `protocol.tasks.undeclared` | no task is returned to a call that did not declare the extension |

@@ -1598,6 +1598,25 @@ var remediations = map[string]Remediation{
 		},
 	},
 
+	"protocol.missing_session": {
+		Means: "The server issued an `Mcp-Session-Id` at initialize, then served " +
+			"a request that carried none. Either the session is not needed, in " +
+			"which case issuing one only makes every client track state for " +
+			"nothing, or it is needed and is not being enforced, so whatever the " +
+			"session scopes is reachable without it.",
+		Steps: []Step{
+			{"Answer a request without the session id with 400",
+				"The Streamable HTTP transport asks a server that requires a " +
+					"session to refuse such a request with `400 Bad Request`; " +
+					"`initialize` is the only request exempt."},
+			{"Or stop issuing a session id",
+				"A server that keeps no per-session state does not need one, " +
+					"and a client then has nothing to lose or replay."},
+		},
+		Note: "passmcp sends one ping with its credentials and without the " +
+			"session id, so a refusal can only be about the missing session.",
+	},
+
 	// --- catalog -----------------------------------------------------------
 
 	"catalog.tools.list": {

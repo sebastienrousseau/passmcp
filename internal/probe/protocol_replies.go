@@ -15,11 +15,13 @@ import (
 
 // checkReplies judges how the endpoint answers over the Streamable HTTP
 // binding, as distinct from what it answers: the status and body of an
-// acknowledgement, and the label on a reply.
+// acknowledgement, the label on a reply, and whether a session the server
+// issued is one it requires.
 func checkReplies(s *Session, tr *transport.Streamable, pctx func(string) context.Context, live string, liveParams any) []Finding {
 	return []Finding{
 		notificationAck(s),
 		probeContentType(pctx("content type"), s, tr, live, liveParams),
+		probeMissingSession(pctx("missing session"), s, tr, live, liveParams),
 	}
 }
 
@@ -58,6 +60,54 @@ func contentTypeVerdict(c *check, live string, hrep *transport.RawResult, err er
 	return c.fail(Major,
 		fmt.Sprintf("the reply to %s: expected application/json or text/event-stream, %s", live, got),
 		"label a reply to a request Content-Type: application/json for a single JSON object, or text/event-stream for a stream; the Streamable HTTP transport allows nothing else")
+}
+
+// probeMissingSession is the protocol.missing_session verdict: once the
+// server has issued a session id, a request without one is refused.
+//
+// The request is the liveness call, carrying the operator's credentials
+// and the protocol version but no Mcp-Session-Id. It goes over the
+// client's transport rather than Bare (ADR 0001) on purpose: without
+// credentials a protected server answers 401 whatever the session, and
+// the refusal could not be attributed to the missing id.
+func probeMissingSession(ctx context.Context, s *Session, tr *transport.Streamable, live string, liveParams any) Finding {
+	c := s.check("protocol.missing_session", "A request without Mcp-Session-Id is rejected")
+	switch {
+	case s.Stateless():
+		return c.skip("the " + passmcp.StatelessVersions[0] + " revision has no sessions, so there is no session id to leave out")
+	case !s.SessionID:
+		return c.skip("the server issued no session id at initialize, so every request it serves already carries none")
+	}
+	// Do adopts any session id a reply hands out. One handed to a request
+	// that had none is not the session this run is using.
+	defer tr.SetSessionID(tr.SessionID())
+	id := tr.NextID()
+	hrep, err := tr.Do(ctx, transport.RawOptions{
+		Request:     &transport.Request{JSONRPC: "2.0", ID: &id, Method: live, Params: liveJSON(liveParams)},
+		OmitSession: true,
+	})
+	return missingSessionVerdict(c, hrep, err)
+}
+
+// missingSessionVerdict judges the answer to a request without the
+// session id. The transport says a server that requires a session SHOULD
+// answer such a request with 400, so serving it is a warning rather than
+// a failure; any other refusal still shows the property, and says which
+// status it used.
+func missingSessionVerdict(c *check, hrep *transport.RawResult, err error) Finding {
+	switch {
+	case err != nil:
+		return c.info("request failed: " + truncate(err.Error(), 100))
+	case hrep.Status == http.StatusBadRequest:
+		return c.pass("400 for a request without Mcp-Session-Id")
+	case hrep.Status/100 == 4:
+		return c.pass(fmt.Sprintf("HTTP %d for a request without Mcp-Session-Id (the specification asks for 400)", hrep.Status))
+	case hrep.Status/100 == 2:
+		return c.warn("served a request without Mcp-Session-Id, although the server issued one at initialize",
+			"answer a request that lacks the session id with 400 Bad Request, or stop issuing one if the server does not need sessions")
+	default:
+		return c.info(fmt.Sprintf("HTTP %d; neither served nor refused", hrep.Status))
+	}
 }
 
 // initializedMethod is the notification a handshake ends with.

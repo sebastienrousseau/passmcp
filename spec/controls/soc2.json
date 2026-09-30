@@ -613,6 +613,11 @@
         "CC7.1"
       ]
     },
+    "protocol.missing_session": {
+      "controls": [
+        "CC6.1"
+      ]
+    },
     "protocol.mrtr": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },

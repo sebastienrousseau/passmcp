@@ -416,6 +416,9 @@
     "protocol.malformed_json": {
       "none": "no data protection obligation is evidenced by this check"
     },
+    "protocol.missing_session": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
     "protocol.mrtr": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },
