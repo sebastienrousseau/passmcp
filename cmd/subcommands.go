@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -49,6 +50,12 @@ var (
 	callArgsJSON string
 	callArgs     []string
 )
+
+// loginTimeout bounds how long passmcp login waits for the browser to come
+// back to the loopback listener. The listener is a port open on the
+// operator's machine, and it should not stay open because nobody finished
+// the consent screen.
+var loginTimeout = 5 * time.Minute
 
 var callCmd = &cobra.Command{
 	Use:   "call <endpoint> <tool>",
@@ -151,7 +158,10 @@ var loginCmd = &cobra.Command{
 	Long: `Run the OAuth 2.1 authorization-code flow with PKCE against the server's
 authorization server, open the consent URL in your browser, receive the
 redirect on a loopback port, and save the tokens (0600) to the store so
-` + "`passmcp check --auth authorization-code`" + ` can use them.`,
+` + "`passmcp check --auth authorization-code`" + ` can use them.
+
+The loopback listener answers only the redirect path (/callback) and gives
+up after five minutes without a redirect.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runLogin,
 }
@@ -167,7 +177,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	client, err := loginClient(endpoint, cr)
+	client, callbackPath, err := loginClient(endpoint, cr)
 	if err != nil {
 		return err
 	}
@@ -179,7 +189,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "server did not require authorization; nothing to store")
 		return nil
 	}
-	r, err := awaitCallback(cmdContext(cmd), redirectPort, res.AuthorizationURL)
+	r, err := awaitCallback(cmdContext(cmd), redirectPort, callbackPath, res.AuthorizationURL)
 	if err != nil {
 		return err
 	}
@@ -198,15 +208,21 @@ func runLogin(cmd *cobra.Command, args []string) error {
 }
 
 // loginClient builds the client a login runs through, with every secret
-// the operator supplied registered with its recorder.
-func loginClient(endpoint string, cr *creds.Credentials) (*passmcp.Client, error) {
+// the operator supplied registered with its recorder, and returns the path
+// of the redirect URI it will ask the authorization server to use.
+func loginClient(endpoint string, cr *creds.Credentials) (*passmcp.Client, string, error) {
 	rec := telemetry.New()
 	for _, s := range cr.Secrets() {
 		rec.Redactor.Add(s)
 	}
 	cfg := passmcp.Config{Endpoint: endpoint, HTTPClient: &http.Client{Timeout: 60 * time.Second, Transport: rec.Wrap(auth.URLPolicy{}.EndpointTransport(endpoint))}, ClientInfo: passmcp.Implementation{Name: "passmcp", Version: Version}}
 	cr.Apply(&cfg)
-	return passmcp.New(cfg)
+	u, err := url.Parse(cfg.Auth.RedirectURI)
+	if err != nil {
+		return nil, "", err
+	}
+	client, err := passmcp.New(cfg)
+	return client, u.Path, err
 }
 
 // loginCallback is what the authorization server sent back.
@@ -214,8 +230,17 @@ type loginCallback struct{ code, state, iss, errText string }
 
 // callbackHandler answers the browser's redirect and hands its parameters
 // to ch.
-func callbackHandler(ch chan<- loginCallback) http.Handler {
+//
+// Only a GET of the redirect URI's own path is the callback. Anything else
+// that reaches the port (the browser asking for a favicon, a local process
+// probing it) is answered 404 and does not end the login, and only the
+// first callback is taken.
+func callbackHandler(path string, ch chan<- loginCallback) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != path || r.Method != http.MethodGet {
+			http.NotFound(w, r)
+			return
+		}
 		q := r.URL.Query()
 		// iss (RFC 9207) names the authorization server that answered;
 		// CompleteAuthorizationFrom refuses one that is not the issuer the
@@ -232,19 +257,23 @@ func callbackHandler(ch chan<- loginCallback) http.Handler {
 		if fl, ok := w.(http.Flusher); ok {
 			fl.Flush()
 		}
-		ch <- result
+		select {
+		case ch <- result:
+		default:
+		}
 	})
 }
 
 // awaitCallback listens on the loopback redirect port, prints the URL to
-// open, and waits for the browser to come back.
-func awaitCallback(ctx context.Context, port int, authURL string) (loginCallback, error) {
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+// open, and waits for the browser to come back to path, for at most
+// loginTimeout.
+func awaitCallback(ctx context.Context, port int, path, authURL string) (loginCallback, error) {
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return loginCallback{}, fmt.Errorf("listen on redirect port %d: %w", port, err)
 	}
 	ch := make(chan loginCallback, 1)
-	srv := &http.Server{Handler: callbackHandler(ch),
+	srv := &http.Server{Handler: callbackHandler(path, ch),
 		// This listens on the operator's machine for as long as the
 		// browser flow takes. Without header and read timeouts a single
 		// stalled connection holds it open indefinitely.
@@ -260,9 +289,14 @@ func awaitCallback(ctx context.Context, port int, authURL string) (loginCallback
 		_ = srv.Shutdown(sctx) // graceful: lets the callback handler finish its response
 	}()
 	fmt.Fprintf(os.Stderr, "\nOpen this URL to authorize:\n\n  %s\n\nwaiting for the redirect on %s ...\n", authURL, ln.Addr())
+	wait, cancel := context.WithTimeout(ctx, loginTimeout)
+	defer cancel()
 	select {
-	case <-ctx.Done():
-		return loginCallback{}, ctx.Err()
+	case <-wait.Done():
+		if ctx.Err() != nil {
+			return loginCallback{}, ctx.Err()
+		}
+		return loginCallback{}, fmt.Errorf("no authorization redirect arrived within %s; run passmcp login again when you are ready to finish the consent in the browser", loginTimeout)
 	case r := <-ch:
 		return r, nil
 	}
@@ -291,10 +325,10 @@ func storeLogin(endpoint string, client *passmcp.Client, done *passmcp.ConnectRe
 	// their machine needs to know which.
 	switch backend := store.Backend(); backend {
 	case "file":
-		fmt.Fprintf(os.Stderr, "authorized as a user of %s; token stored in %s (mode 0600)\n", done.Initialize.ServerInfo.Name, creds.DefaultStorePath())
+		fmt.Fprintf(os.Stderr, "authorized as a user of %s; token stored in %s (mode 0600)\n", termsafe.String(done.Initialize.ServerInfo.Name), creds.DefaultStorePath())
 		fmt.Fprintf(os.Stderr, "note: no OS keyring was available, so the refresh token is on disk in the clear\n")
 	default:
-		fmt.Fprintf(os.Stderr, "authorized as a user of %s; secrets stored in the %s keyring, the rest in %s\n", done.Initialize.ServerInfo.Name, backend, creds.DefaultStorePath())
+		fmt.Fprintf(os.Stderr, "authorized as a user of %s; secrets stored in the %s keyring, the rest in %s\n", termsafe.String(done.Initialize.ServerInfo.Name), backend, creds.DefaultStorePath())
 	}
 	return nil
 }

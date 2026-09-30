@@ -98,6 +98,11 @@ project announces that a change felt big.
   cannot be read is refused, with the `icacls` command that fixes it.
   This makes `golang.org/x/sys` a direct requirement; it was already in
   the Windows binary.
+- **`passmcp login`'s loopback listener is bounded.** It answers only
+  the redirect URI's path (`/callback`), so a favicon request or a local
+  process reaching the port first no longer ends the login, takes only
+  the first callback, and gives up after five minutes without a
+  redirect instead of listening until interrupted.
 - **A discovered endpoint that does not resolve is refused.**
   `auth.URLPolicy.Validate` used to pass a URL whose host name failed to
   resolve and leave it to the dial-time check; it now refuses it, and an
