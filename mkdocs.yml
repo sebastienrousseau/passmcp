@@ -4,6 +4,7 @@
 site_name: passmcp
 site_description: Onboard, test and diagnose remote MCP servers end to end.
 site_url: https://satellion.com/passmcp/docs/
+copyright: '<a href="https://sebastienrousseau.com/" rel="author">&copy; 2026 Sebastien Rousseau</a>'
 repo_url: https://github.com/sebastienrousseau/passmcp
 repo_name: sebastienrousseau/passmcp
 edit_uri: edit/main/docs/
