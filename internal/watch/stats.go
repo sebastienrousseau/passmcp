@@ -15,7 +15,6 @@ import (
 	"net"
 	"slices"
 	"strconv"
-	"syscall"
 	"time"
 
 	"satellion.com/passmcp"
@@ -175,8 +174,8 @@ var networkKinds = []struct {
 	match func(error) bool
 }{
 	{"dns", func(err error) bool { var e *net.DNSError; return errors.As(err, &e) }},
-	{"connection_refused", func(err error) bool { return errors.Is(err, syscall.ECONNREFUSED) }},
-	{"connection_reset", func(err error) bool { return errors.Is(err, syscall.ECONNRESET) }},
+	{"connection_refused", isConnRefused},
+	{"connection_reset", isConnReset},
 	{"tls", isTLSError},
 	{"eof", func(err error) bool { return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) }},
 	{"network", func(err error) bool { var e *net.OpError; return errors.As(err, &e) }},
