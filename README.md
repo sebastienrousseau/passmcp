@@ -1181,8 +1181,10 @@ page (`man passmcp-check`).
 ### Frequently Asked Questions
 
 - **Does it test stdio servers?**  
-  No. passmcp speaks Streamable HTTP. Put a stdio-to-HTTP bridge in front of
-  a stdio server, or run it in HTTP mode if it has one.
+  Yes. `passmcp check --stdio -- <command>` starts the server, runs the
+  same phases over its stdin and stdout, and stops it. A pipe has no origin
+  to authorize against, so discovery and auth are skipped; test the
+  server's HTTP deployment for those ([docs/stdio.md](docs/stdio.md)).
 - **Why were my tools skipped?**  
   They declare no annotations, or `destructiveHint` is true. The MCP
   specification's default for an unannotated tool is destructive, and passmcp
