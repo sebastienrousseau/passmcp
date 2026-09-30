@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -752,5 +753,38 @@ func TestCheckSurvivesADeadCollector(t *testing.T) {
 	var rep map[string]any
 	if err := json.Unmarshal([]byte(out), &rep); err != nil {
 		t.Fatalf("the report was not produced: %v\n%s", err, out)
+	}
+}
+
+// TestLoginRejectsMixUpIssuer: a redirect whose RFC 9207 iss names another
+// authorization server is the mix-up attack, where a malicious server relays
+// a code an honest one minted. login must refuse it rather than drop iss.
+func TestLoginRejectsMixUpIssuer(t *testing.T) {
+	f := newFakeServer(t)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	code, stderr := loginWithRedirect(t, f.srv.URL+"/mcp", "18979", func(s string) string {
+		if st := stateFrom(s); st != "" {
+			return "code=the-code&state=" + st + "&iss=https%3A%2F%2Fmix-up.invalid"
+		}
+		return ""
+	})
+	if code != 1 || !strings.Contains(stderr, "mix-up.invalid") {
+		t.Errorf("a redirect from another issuer should be refused, got %d\n%s", code, stderr)
+	}
+}
+
+// TestLoginAcceptsMatchingIssuer: the same redirect with the issuer the code
+// was requested from completes, so the check refuses only a mix-up.
+func TestLoginAcceptsMatchingIssuer(t *testing.T) {
+	f := newFakeServer(t)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	code, stderr := loginWithRedirect(t, f.srv.URL+"/mcp", "18980", func(s string) string {
+		if st := stateFrom(s); st != "" {
+			return "code=the-code&state=" + st + "&iss=" + url.QueryEscape(f.srv.URL+"/as")
+		}
+		return ""
+	})
+	if code != 0 || !strings.Contains(stderr, "token stored in") {
+		t.Errorf("the issuer's own redirect should complete, got %d\n%s", code, stderr)
 	}
 }

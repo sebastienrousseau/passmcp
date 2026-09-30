@@ -23,6 +23,12 @@ project announces that a change felt big.
 
 ### Fixed
 
+- **`passmcp login` checks the RFC 9207 issuer on the redirect.** It read
+  only `code` and `state`, so a redirect naming another authorization
+  server, the mix-up attack, was accepted and its token stored, and a
+  server that advertises `authorization_response_iss_parameter_supported`
+  could never complete a login. It now passes `iss` to the check the
+  library already makes.
 - **The family manifest lists passmcp-lsp and passmcp-census as
   released.** Both shipped 0.0.2 with the rest of the family, but the
   manifest tagged with passmcp 0.0.2 still called them unreleased, so

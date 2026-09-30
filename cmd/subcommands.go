@@ -166,11 +166,14 @@ redirect on a loopback port, and save the tokens (0600) to the store so
 		if err != nil {
 			return fmt.Errorf("listen on redirect port %d: %w", port, err)
 		}
-		type cb struct{ code, state, errText string }
+		type cb struct{ code, state, iss, errText string }
 		ch := make(chan cb, 1)
 		srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
-			result := cb{code: q.Get("code"), state: q.Get("state")}
+			// iss (RFC 9207) names the authorization server that answered;
+			// CompleteAuthorizationFrom refuses one that is not the issuer the
+			// code was requested from, which is what stops a mix-up attack.
+			result := cb{code: q.Get("code"), state: q.Get("state"), iss: q.Get("iss")}
 			msg := "Authorization complete. You can close this window."
 			if e := q.Get("error"); e != "" {
 				result = cb{errText: e + ": " + q.Get("error_description")}
@@ -208,7 +211,7 @@ redirect on a loopback port, and save the tokens (0600) to the store so
 		if r.errText != "" {
 			return errors.New("authorization server returned " + r.errText)
 		}
-		done, err := client.CompleteAuthorization(cmdContext(cmd), r.code, r.state)
+		done, err := client.CompleteAuthorizationFrom(cmdContext(cmd), r.code, r.state, r.iss)
 		if err != nil {
 			return err
 		}
