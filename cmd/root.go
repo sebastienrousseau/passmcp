@@ -126,7 +126,7 @@ func init() {
 	pf.StringVar(&profileName, "profile", "", "profile from the config file supplying the endpoint and settings")
 	pf.StringVar(&logLevel, "log-level", "info", "diagnostic verbosity on stderr: error, warn, info or debug ("+diag.EnvVar+")")
 	pf.StringVar(&logFormat, "log-format", "human", "diagnostic format on stderr: human or json")
-	rootCmd.AddCommand(checkCmd, connectCmd, discoverCmd, toolsCmd, callCmd, serveCmd, loginCmd, attestCmd, verifyCmd, badgeCmd, sbomCmd, overlapCmd, explainCmd, watchCmd, fleetCmd, evidenceCmd, a2aCmd, configCmd, versionCmd)
+	rootCmd.AddCommand(checkCmd, connectCmd, discoverCmd, toolsCmd, callCmd, readCmd, promptCmd, serveCmd, loginCmd, attestCmd, verifyCmd, badgeCmd, sbomCmd, overlapCmd, explainCmd, watchCmd, fleetCmd, evidenceCmd, a2aCmd, configCmd, versionCmd)
 }
 
 // Root returns the root command, for documentation generators.

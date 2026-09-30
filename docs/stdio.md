@@ -29,11 +29,14 @@ why there is no `--stdio-command "npx -y thing"` form: splitting a command
 string means quoting rules, and quoting rules mean a shell. There is no
 shell here. The command is executed as named, with the arguments as given.
 
-`check`, `connect`, `tools` and `call` all take `--stdio`. For `call`, which
-has two operands, the tool comes before `--` and the server after it:
+`check`, `connect`, `tools`, `call`, `read` and `prompt` all take
+`--stdio`. For the three with two operands, the tool, resource URI or
+prompt name comes before `--` and the server after it:
 
 ```bash
 passmcp call --stdio get-sum --arg a=2 --arg b=3 -- npx -y @modelcontextprotocol/server-everything stdio
+passmcp read --stdio <uri> -- <command> [args...]
+passmcp prompt --stdio <name> --arg key=value -- <command> [args...]
 ```
 
 ## What the server is handed

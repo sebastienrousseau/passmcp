@@ -475,11 +475,18 @@ func resolveTarget(cmd *cobra.Command, args []string) (engine.TargetSpec, error)
 // transport: an endpoint and a tool over HTTP, a tool and a command after
 // "--" over stdio.
 func callTarget(cmd *cobra.Command, args []string) (engine.TargetSpec, string, error) {
+	return operandTarget(cmd, args, "call", "tool")
+}
+
+// operandTarget resolves the two operands of a command that acts on one
+// named thing on a server: `call` (a tool), `read` (a resource URI) and
+// `prompt` (a prompt name). verb and noun only shape the usage messages.
+func operandTarget(cmd *cobra.Command, args []string, verb, noun string) (engine.TargetSpec, string, error) {
 	before, after := splitAtDash(cmd, args)
 	if useStdio {
 		if len(before) != 1 {
-			return engine.TargetSpec{}, "", fmt.Errorf("with --stdio, name the tool before -- and the server after it:\n\n" +
-				"    passmcp call --stdio <tool> -- <command> [args...]")
+			return engine.TargetSpec{}, "", fmt.Errorf("with --stdio, name the %s before -- and the server after it:\n\n"+
+				"    passmcp %s --stdio <%s> -- <command> [args...]", noun, verb, noun)
 		}
 		t, err := stdioTarget(after)
 		if err != nil {
@@ -491,7 +498,7 @@ func callTarget(cmd *cobra.Command, args []string) (engine.TargetSpec, string, e
 		return engine.TargetSpec{}, "", fmt.Errorf("arguments after -- describe a program to run; pass --stdio to run one")
 	}
 	if len(before) != 2 {
-		return engine.TargetSpec{}, "", fmt.Errorf("usage: passmcp call <endpoint> <tool>, or passmcp call --stdio <tool> -- <command>")
+		return engine.TargetSpec{}, "", fmt.Errorf("usage: passmcp %s <endpoint> <%s>, or passmcp %s --stdio <%s> -- <command>", verb, noun, verb, noun)
 	}
 	return engine.TargetSpec{Endpoint: before[0]}, before[1], nil
 }

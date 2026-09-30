@@ -37,7 +37,7 @@ func resetAll() {
 	output, reportDir, captureBodies, withEvents, verbose, noColor = "text", "", false, false, false, false
 	interactive = false
 	phasesOnly, phasesSkip = nil, nil
-	callArgsJSON, callArgs = "", nil
+	callArgsJSON, callArgs, promptArgs = "", nil, nil
 	redirectPort, tokenAuthMethod = 8976, ""
 	userAgent = ""
 	logLevel = "info"

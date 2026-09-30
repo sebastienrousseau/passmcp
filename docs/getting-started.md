@@ -66,14 +66,25 @@ raw telemetry.
 | `passmcp connect <endpoint>` | net, discovery, auth and handshake only |
 | `passmcp tools <endpoint>` | the connection phases plus the catalog audit, no invocations |
 | `passmcp call <endpoint> <tool>` | one tool invocation with `--arg field=value` or `--json` |
+| `passmcp read <endpoint> <uri>` | read one resource (`resources/read`) and print its contents |
+| `passmcp prompt <endpoint> <name>` | render one prompt (`prompts/get`) with `--arg name=value` |
 | `passmcp login <endpoint>` | authorize as a user in the browser and store the token |
 | `passmcp config init\|validate\|show` | the configuration file |
 | `passmcp version` | print the version |
 
 An endpoint can be replaced by `--profile <name>` when the config file
-names one; see [Configuration](configuration.md). `check`, `connect`, `tools`
-and `call` also accept `--stdio -- <command>` in place of an endpoint; for
-`call` the tool name comes before the `--`.
+names one; see [Configuration](configuration.md). `check`, `connect`, `tools`,
+`call`, `read` and `prompt` also accept `--stdio -- <command>` in place of
+an endpoint; for `call`, `read` and `prompt` the tool name, URI or prompt
+name comes before the `--`.
+
+`read` and `prompt` work like `call`: the same credential flags, `--output
+text` or `json` (the result, its duration and a telemetry summary), exit 1
+when the server returns an error. Both are non-mutating by the MCP
+specification, so unlike tool execution in `check` no policy flag gates
+them ([ADR 0004](adr/0004-read-only-by-default.md)). Text contents are
+printed as they are; binary resource contents are described by URI, size
+and MIME type rather than written to the terminal.
 
 ## Exit status
 
