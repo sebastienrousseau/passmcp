@@ -27,6 +27,9 @@ project announces that a change felt big.
 - **Reproducible builds are verified.** A rebuild of v0.0.4 for
   linux/amd64 matches the released binary bit for bit;
   `docs/packaging.md` gives the commands to repeat the check.
+- **`make branchcover`** measures condition coverage with gobco and fails
+  below 80%; the module is at 81.9%. `MODE=branch` measures branch
+  coverage instead.
 - **`make sbom-check`**, also run in CI, fails when `SBOM.md` disagrees
   with the direct requirements in `go.mod`.
 - The README shows the OpenSSF Best Practices badge, and

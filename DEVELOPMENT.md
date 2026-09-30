@@ -133,6 +133,21 @@ The badge's colour is brightgreen from 90%, green from 85%, yellow from 70%
 and red below. The figure is truncated to one decimal rather than rounded, so
 it never shows the gate as met when it is not.
 
+### Branch coverage
+
+`make branchcover` measures condition coverage with
+[gobco](https://github.com/rillig/gobco) (BSD-2-Clause, pinned in the
+script) and fails below `BRANCH_MIN`, 80% by default; `MODE=branch`
+measures branch coverage instead. Condition coverage is the stricter of
+the two: each operand of `&&` and `||` has to be seen both true and false.
+A package is credited only for its own tests, so the figure errs low.
+
+gobco type-checks every `.go` file in a directory and ignores build
+constraints, so the script runs on a temporary copy of the tracked tree
+with the files the host build ignores removed. Only the host platform's
+files are measured, and a run takes several minutes, so it is not a
+pull-request gate. Results land in `build/branchcover-<mode>/`.
+
 ## Test layout
 
 Tests live beside the code they cover — there is no top-level `tests/`
