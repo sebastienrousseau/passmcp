@@ -8,8 +8,8 @@
     "type": "none"
   },
   "contact_email": "support@satellion.com",
-  "description_for_human": "A diagnostic for Model Context Protocol servers. Nine phases, 131 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
-  "description_for_model": "A diagnostic for Model Context Protocol servers. Nine phases, 131 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
+  "description_for_human": "A diagnostic for Model Context Protocol servers. Nine phases, 138 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
+  "description_for_model": "A diagnostic for Model Context Protocol servers. Nine phases, 138 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
   "legal_info_url": "https://satellion.com/legal",
   "logo_url": "https://satellion.com/favicon.ico",
   "name_for_human": "passmcp — test any MCP server, from your own machine",

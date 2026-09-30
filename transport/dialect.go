@@ -20,6 +20,11 @@ const (
 	V20251125 = "2025-11-25"
 	V20250618 = "2025-06-18"
 	V20250326 = "2025-03-26"
+	// V20241105 is the first published revision. Its HTTP binding was the
+	// HTTP+SSE transport, which this package does not implement; a server
+	// that negotiates it over Streamable HTTP is spoken to with the
+	// session-based dialect, and over stdio the binding does not arise.
+	V20241105 = "2024-11-05"
 )
 
 // Reserved _meta keys defined by the 2026-07-28 specification.
@@ -92,7 +97,7 @@ func DialectFor(version string, client Implementation, caps json.RawMessage) (Di
 	switch version {
 	case V20260728:
 		return &Stateless{ProtocolVersion: version, ClientInfo: client, Capabilities: caps}, nil
-	case V20251125, V20250618, V20250326:
+	case V20251125, V20250618, V20250326, V20241105:
 		return &Sessioned{ProtocolVersion: version}, nil
 	case "":
 		return &Sessioned{}, nil
@@ -100,7 +105,7 @@ func DialectFor(version string, client Implementation, caps json.RawMessage) (Di
 	return nil, fmt.Errorf("transport: unknown protocol version %q", version)
 }
 
-// --- the session-based dialects (2025-03-26 … 2025-11-25) ----------------
+// --- the session-based dialects (2024-11-05 … 2025-11-25) ----------------
 
 // SessionState is the live connection state a session-based dialect reads
 // at send time. *Streamable implements it.

@@ -89,31 +89,6 @@ func firstContactFindings(ctx context.Context, s *Session, c *check, raw *transp
 	}
 }
 
-// unexpectedFirstContact is the first-contact verdict for any other status,
-// and blocks the run with the reason.
-func unexpectedFirstContact(ctx context.Context, s *Session, c *check, raw *transport.RawResult) Finding {
-	// A server on the current revision rejects a handshake-era
-	// initialize because the method is gone, not because the operator
-	// got anything wrong. Reporting "unexpected HTTP 400" would blame
-	// the server for passmcp's own limit, so ask it directly.
-	if disc, ok := statelessBareProbe(ctx, s); ok {
-		name := ""
-		if disc != nil && disc.ServerInfo.Name != "" {
-			name = " (" + disc.ServerInfo.Name + " " + disc.ServerInfo.Version + ")"
-		}
-		s.Era = &passmcp.Negotiation{Era: passmcp.EraStateless, Version: passmcp.StatelessVersions[0], Discovered: disc,
-			Reason: "it answered a stateless request after refusing a handshake-era initialize"}
-		f := c.fail(Critical,
-			"the server speaks "+passmcp.StatelessVersions[0]+name+", the stateless revision that removed initialize",
-			"nothing is wrong with this server. passmcp's diagnostic still opens with the handshake-era initialize, so it cannot complete a run against a stateless-only server yet: the transport speaks the revision but the nine-phase pipeline has not been moved onto it")
-		s.blocked = "the server speaks " + passmcp.StatelessVersions[0] + ", which passmcp cannot yet run a full diagnostic against"
-		return f
-	}
-	f := c.fail(Critical, fmt.Sprintf("unexpected HTTP %d: %s", raw.Status, truncate(string(raw.Body), 200)), "answer 200 for an open server or 401 for a protected one")
-	s.blocked = fmt.Sprintf("first contact returned HTTP %d", raw.Status)
-	return f
-}
-
 // challengeFindings checks the shape of the 401's WWW-Authenticate header
 // and records the Bearer challenge discovery will follow.
 func challengeFindings(s *Session, raw *transport.RawResult) (auth.Challenge, []auth.Challenge, []Finding) {

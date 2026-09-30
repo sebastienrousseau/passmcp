@@ -23,8 +23,9 @@ const (
 	// EraStateless is 2026-07-28 and later: no handshake, no session, every
 	// request carrying its own protocol metadata.
 	EraStateless Era = "stateless"
-	// EraSession is 2025-03-26 through 2025-11-25: an initialize handshake
-	// establishes connection state carried by a session header.
+	// EraSession is 2024-11-05 through 2025-11-25: an initialize handshake
+	// establishes connection state, carried over Streamable HTTP (from
+	// 2025-03-26) by a session header.
 	EraSession Era = "session"
 	// EraUnknown means detection has not run or could not decide.
 	EraUnknown Era = "unknown"
@@ -133,7 +134,7 @@ func (d *DiscoverResult) UnmarshalJSON(b []byte) error {
 var StatelessVersions = []string{transport.V20260728}
 
 // SessionVersions are the handshake revisions passmcp offers, newest first.
-var SessionVersions = []string{transport.V20251125, transport.V20250618, transport.V20250326}
+var SessionVersions = []string{transport.V20251125, transport.V20250618, transport.V20250326, transport.V20241105}
 
 // Negotiate decides which era the server speaks and configures the
 // transport for it.

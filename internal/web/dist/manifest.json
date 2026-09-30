@@ -1,6 +1,6 @@
 {
   "background_color": "#ffffff",
-  "description": "Nine phases, 131 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
+  "description": "Nine phases, 138 checks, every finding tied to the request that produced it. Runs where your credentials already live.",
   "display": "standalone",
   "name": "passmcp",
   "orientation": "portrait-primary",

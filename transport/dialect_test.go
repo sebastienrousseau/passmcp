@@ -211,7 +211,10 @@ func TestDialectFor(t *testing.T) {
 			t.Errorf("DialectFor(%q) = %v, %v", v, d, err)
 		}
 	}
-	for _, v := range []string{V20251125, V20250618, V20250326, ""} {
+	// "2024-11-05" is spelled out rather than named: a server that
+	// negotiates it over this transport is spoken to with the session
+	// dialect, like every other handshake revision.
+	for _, v := range []string{V20251125, V20250618, V20250326, "2024-11-05", ""} {
 		d, err := DialectFor(v, Implementation{}, nil)
 		if err != nil || !d.Stateful() {
 			t.Errorf("DialectFor(%q) = %v, %v", v, d, err)

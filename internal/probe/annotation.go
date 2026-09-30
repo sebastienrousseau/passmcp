@@ -180,6 +180,9 @@ func findDishonestAnnotations(tools []passmcp.Tool) []dishonestAnnotation {
 // does.
 func checkAnnotationHonesty(s *Session) Finding {
 	c := s.check("catalog.tools.annotation_honesty", "readOnlyHint agrees with what the tool says it does")
+	if s.lacks(featAnnotations) {
+		return c.skip(s.lacksReason(featAnnotations))
+	}
 
 	var readOnly int
 	for _, t := range s.Tools {
@@ -234,42 +237,62 @@ func checkAnnotationHonesty(s *Session) Finding {
 // to retry a call that cannot have a second effect.
 func checkIdempotency(s *Session) Finding {
 	c := s.check("catalog.tools.idempotency", "Tools say whether a repeated call is safe")
-	var repeatable, notRepeatable, unstated, contradicted []string
-	for _, t := range s.Tools {
+	if s.lacks(featAnnotations) {
+		return c.skip(s.lacksReason(featAnnotations))
+	}
+	g := sortByIdempotency(s.Tools)
+	if len(g.contradicted) > 0 {
+		return c.warn(
+			fmt.Sprintf("%s read-only and declared not idempotent: %s", plural(len(g.contradicted), "tool is"), list(g.contradicted)),
+			"drop idempotentHint: false from read-only tools, or drop readOnlyHint if the call changes something. A client told a read is unsafe to repeat will not retry it after a timeout")
+	}
+	changing := len(g.repeatable) + len(g.notRepeatable) + len(g.unstated)
+	if changing == 0 {
+		return c.info("every tool is read-only, and a read is safe to repeat; idempotentHint only means something for a tool that changes state")
+	}
+	return c.info(fmt.Sprintf("%s change state: ", plural(changing, "tool")) + strings.Join(g.parts(), "; "))
+}
+
+// idempotencyGroups sorts the tools by what they declare about repeating
+// a call. Read-only tools that do not contradict themselves are in none.
+type idempotencyGroups struct {
+	repeatable, notRepeatable, unstated, contradicted []string
+}
+
+// sortByIdempotency files each tool under what its idempotentHint says.
+func sortByIdempotency(tools []passmcp.Tool) idempotencyGroups {
+	var g idempotencyGroups
+	for _, t := range tools {
 		hint := (*bool)(nil)
 		if t.Annotations != nil {
 			hint = t.Annotations.IdempotentHint
 		}
 		switch {
 		case t.IsReadOnly() && hint != nil && !*hint:
-			contradicted = append(contradicted, t.Name)
+			g.contradicted = append(g.contradicted, t.Name)
 		case t.IsReadOnly():
 		case hint == nil:
-			unstated = append(unstated, t.Name)
+			g.unstated = append(g.unstated, t.Name)
 		case *hint:
-			repeatable = append(repeatable, t.Name)
+			g.repeatable = append(g.repeatable, t.Name)
 		default:
-			notRepeatable = append(notRepeatable, t.Name)
+			g.notRepeatable = append(g.notRepeatable, t.Name)
 		}
 	}
-	if len(contradicted) > 0 {
-		return c.warn(
-			fmt.Sprintf("%s read-only and declared not idempotent: %s", plural(len(contradicted), "tool is"), list(contradicted)),
-			"drop idempotentHint: false from read-only tools, or drop readOnlyHint if the call changes something. A client told a read is unsafe to repeat will not retry it after a timeout")
-	}
-	changing := len(repeatable) + len(notRepeatable) + len(unstated)
-	if changing == 0 {
-		return c.info("every tool is read-only, and a read is safe to repeat; idempotentHint only means something for a tool that changes state")
-	}
+	return g
+}
+
+// parts describes the state-changing groups that are not empty.
+func (g idempotencyGroups) parts() []string {
 	parts := []string{}
-	if len(repeatable) > 0 {
-		parts = append(parts, fmt.Sprintf("%d declared safe to repeat (%s)", len(repeatable), list(repeatable)))
+	if len(g.repeatable) > 0 {
+		parts = append(parts, fmt.Sprintf("%d declared safe to repeat (%s)", len(g.repeatable), list(g.repeatable)))
 	}
-	if len(notRepeatable) > 0 {
-		parts = append(parts, fmt.Sprintf("%d declared not safe (%s)", len(notRepeatable), list(notRepeatable)))
+	if len(g.notRepeatable) > 0 {
+		parts = append(parts, fmt.Sprintf("%d declared not safe (%s)", len(g.notRepeatable), list(g.notRepeatable)))
 	}
-	if len(unstated) > 0 {
-		parts = append(parts, fmt.Sprintf("%d say nothing, which the specification reads as not safe (%s)", len(unstated), list(unstated)))
+	if len(g.unstated) > 0 {
+		parts = append(parts, fmt.Sprintf("%d say nothing, which the specification reads as not safe (%s)", len(g.unstated), list(g.unstated)))
 	}
-	return c.info(fmt.Sprintf("%s change state: ", plural(changing, "tool")) + strings.Join(parts, "; "))
+	return parts
 }

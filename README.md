@@ -21,6 +21,10 @@
   <a href="https://github.com/sebastienrousseau/passmcp/blob/main/DEVELOPMENT.md#requirements"><img src="https://img.shields.io/badge/go-1.26.8%2B-93450a.svg?style=for-the-badge&logo=go" alt="Go 1.26.8+" /></a>
 </p>
 
+<p align="center">
+  <img src=".github/demo.gif" alt="passmcp check run against the example toxic-pair server on loopback: nine phases, a 97 out of 100 score, and three findings with the fix for each" width="100%" />
+</p>
+
 ---
 
 ## Contents
@@ -103,7 +107,7 @@ The flake ships the binary with its manpages and shell completions, and
 ### Go toolchain
 
 ```bash
-go install satellion.com/passmcp/cmd/passmcp@v0.0.3
+go install satellion.com/passmcp/cmd/passmcp@v0.0.4
 ```
 
 Installs into `$(go env GOPATH)/bin` (or `$GOBIN` when set). A binary
@@ -353,7 +357,7 @@ The full picture is in [the manual](https://satellion.com/passmcp/docs/stdio/).
 
 <!-- BEGIN generated readme family table — run `make ecosystem`; do not edit by hand -->
 
-Every component is released at **0.0.3** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
+Every component is released at **0.0.4** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
 
 | Component | Purpose | Use case |
 | :--- | :--- | :--- |
@@ -411,7 +415,7 @@ language server, once outside it, are now inside it.
 
 | Area | Capability | Status |
 | :--- | :--- | :--- |
-| Diagnosis | Nine phases from DNS to token recovery, 131 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Diagnosis | Nine phases from DNS to token recovery, 138 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Transports | Streamable HTTP, and stdio servers run under process custody with `--stdio` | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Credentials | Bearer, API key, basic, OAuth 2.1 client credentials, user login with PKCE, dynamic and metadata-document registration | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Safety | Read-only by default; mutations and destructive tools only by explicit opt-in | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |

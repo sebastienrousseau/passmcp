@@ -319,6 +319,10 @@ type Session struct {
 	// outputHits the ones that addressed the model.
 	outputRefs []string
 	outputHits []outputHit
+	// toolsListRef cites the tools/list requests the catalogue was read
+	// from, for the checks that judge what that listing said rather than
+	// making a request of their own (ADR 0002).
+	toolsListRef string
 	// MRTR records every input_required result the run saw, so
 	// protocol.mrtr can judge whether they were answerable. Observational
 	// rather than probed: passmcp cannot make a server ask for input, and a

@@ -16,6 +16,7 @@ targets=(
   "./diagnostics FuzzValidate"
   "./diagnostics FuzzArguments"
   "./internal/clientconf FuzzParse"
+  "./internal/probe FuzzSchemaValid"
 )
 for t in "${targets[@]}"; do
   set -- $t

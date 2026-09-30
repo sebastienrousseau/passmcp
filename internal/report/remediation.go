@@ -51,6 +51,30 @@ type Remediation struct {
 // remediations is keyed by check id. Families are keyed by their literal
 // prefix with the trailing dot, matching probe.DocFamilies.
 var remediations = map[string]Remediation{
+	"handshake.protocol_version": {
+		Means: "The server answered `initialize` with 2024-11-05, the first " +
+			"published revision of MCP. Version negotiation allows that, so " +
+			"passmcp carries on, but the revision has none of what later ones " +
+			"added: tool annotations and Streamable HTTP (2025-03-26), and " +
+			"structured tool output and elicitation (2025-06-18). With no " +
+			"`readOnlyHint`, no client can tell a lookup from a deletion, so a " +
+			"cautious one, passmcp included, calls nothing.",
+		Steps: []Step{
+			{"Move to a current revision",
+				"Answer `initialize` with the version the client offered when you " +
+					"support it. 2025-06-18 or later gives you everything listed " +
+					"above."},
+			{"Annotate every tool",
+				"Once on 2025-03-26 or later, declare `readOnlyHint: true` on each " +
+					"tool that only reads, and `destructiveHint: false` on each that " +
+					"changes state without destroying anything. That is what lets a " +
+					"client call them without asking."},
+		},
+		Note: "Most SDKs negotiate the newest revision they know, so a server " +
+			"answering 2024-11-05 is usually one built on an old SDK release; " +
+			"updating the package is most of the work.",
+	},
+
 	"handshake.protocol_era": {
 		Means: "MCP has two generations in the field. The older one opens with an " +
 			"`initialize` request, and the server answers with an `Mcp-Session-Id` " +
@@ -1018,7 +1042,16 @@ var remediations = map[string]Remediation{
 				"Even unauthenticated, the answer should be an HTTP-level refusal " +
 					"with a challenge — not a connection error, a redirect to a login " +
 					"page, or an HTML error document."},
+			{"Replace HTTP+SSE with Streamable HTTP",
+				"When the finding says the server speaks the 2024-11-05 HTTP+SSE " +
+					"transport, the POST was refused because that transport takes " +
+					"messages at a second URL it announces in an `endpoint` event. " +
+					"Streamable HTTP replaced it in 2025-03-26: one endpoint that " +
+					"accepts POST. Current SDKs provide it, and most can keep the old " +
+					"SSE and POST endpoints alongside it for older clients."},
 		},
+		Note: "A server that can also run as a program can be checked over stdio " +
+			"in the meantime: `passmcp check --stdio -- <command>`.",
 	},
 
 	"discovery.challenge": {
@@ -1526,6 +1559,64 @@ var remediations = map[string]Remediation{
 			"attacker cannot, which a public server is not.",
 	},
 
+	"protocol.notification_ack": {
+		Means: "The server answered the `notifications/initialized` that " +
+			"completes the handshake with something other than `202 Accepted` " +
+			"and an empty body. A notification has no id, so there is no " +
+			"response a client could match a body to; the Streamable HTTP " +
+			"transport requires the bare acknowledgement, and a client that " +
+			"reads what comes back is owed exactly that.",
+		Steps: []Step{
+			{"Answer an accepted notification with 202 and nothing else",
+				"No JSON-RPC envelope, no `{}` and no event stream. A `200` or a " +
+					"`204` is not the status the transport names."},
+			{"Refuse only what you cannot accept, with a 4xx",
+				"If the notification is rejected, the handshake is not complete " +
+					"and the client has to be told so with an error status."},
+		},
+		Note: "Judged from the acknowledgement the handshake already received; " +
+			"passmcp sends no extra notification to test this.",
+	},
+
+	"protocol.content_type": {
+		Means: "A reply to a request was labelled something other than " +
+			"`application/json` or `text/event-stream`, or carried no label at " +
+			"all. Those are the only two the Streamable HTTP transport allows, " +
+			"and a client that chooses how to read a reply by its header, as " +
+			"the reference SDKs do, refuses anything else even when the body is " +
+			"valid JSON-RPC. An HTML type usually means the request never " +
+			"reached the MCP server: a sign-in page, an SSO or firewall " +
+			"interstitial, or a path that is not the endpoint answered instead.",
+		Steps: []Step{
+			{"Set the header on every reply to a request",
+				"`Content-Type: application/json` for one JSON object, or " +
+					"`text/event-stream` when the reply is a stream."},
+			{"If the type is HTML, check what sits in front of the server",
+				"Exempt the MCP path from interactive sign-in and bot " +
+					"challenges, and confirm the URL is the MCP endpoint rather " +
+					"than a site root or documentation page."},
+		},
+	},
+
+	"protocol.missing_session": {
+		Means: "The server issued an `Mcp-Session-Id` at initialize, then served " +
+			"a request that carried none. Either the session is not needed, in " +
+			"which case issuing one only makes every client track state for " +
+			"nothing, or it is needed and is not being enforced, so whatever the " +
+			"session scopes is reachable without it.",
+		Steps: []Step{
+			{"Answer a request without the session id with 400",
+				"The Streamable HTTP transport asks a server that requires a " +
+					"session to refuse such a request with `400 Bad Request`; " +
+					"`initialize` is the only request exempt."},
+			{"Or stop issuing a session id",
+				"A server that keeps no per-session state does not need one, " +
+					"and a client then has nothing to lose or replay."},
+		},
+		Note: "passmcp sends one ping with its credentials and without the " +
+			"session id, so a refusal can only be about the missing session.",
+	},
+
 	// --- catalog -----------------------------------------------------------
 
 	"catalog.tools.list": {
@@ -1580,6 +1671,53 @@ var remediations = map[string]Remediation{
 			{"Make every inputSchema type: object",
 				"Even a tool with no arguments has an object schema with no " +
 					"properties. The finding names which tools are wrong."},
+		},
+	},
+
+	"catalog.tools.schema_valid": {
+		Means: "A tool's `inputSchema` or `outputSchema` is not valid JSON Schema " +
+			"2020-12 in a part a client reads: a `type` that is not one of the " +
+			"seven JSON types, a `required` that is not a list of names, a " +
+			"`properties` entry that is not a schema, or a `$ref` that points at " +
+			"nothing. A client builds and checks arguments from these schemas; " +
+			"one it cannot read is a tool it cannot call correctly, and many " +
+			"SDKs drop the tool rather than guess.",
+		Steps: []Step{
+			{"Go to the pointer the finding names",
+				"Each entry reads `tool field#/json/pointer: problem`. The pointer " +
+					"is relative to that schema's root, so `#/properties/q/type` is " +
+					"the `type` of the `q` property."},
+			{"Generate schemas rather than write them by hand",
+				"A schema derived from the handler's own parameter types (zod, " +
+					"pydantic, a Go struct) cannot drift into an invalid shape. " +
+					"Validate the published catalogue against the 2020-12 " +
+					"meta-schema in your own tests."},
+			{"Declare every required property",
+				"A name in `required` that `properties` does not declare is valid " +
+					"JSON Schema, and a client generating arguments has no type for " +
+					"it. Declare it, or drop it from `required`."},
+		},
+		Note: "Unknown keywords are only noted: JSON Schema ignores them, and " +
+			"so does every client passmcp knows of.",
+	},
+
+	"catalog.tools.order": {
+		Means: "Two `tools/list` requests made one after the other returned the " +
+			"same tools in a different order. The specification does not require " +
+			"an order, but a client puts the tools into the model's context in the " +
+			"order it received them, so a server that reshuffles changes the " +
+			"prompt prefix on every connection and every prompt cache keyed on it " +
+			"misses: more latency and more cost for every agent, for no change in " +
+			"the catalogue.",
+		Steps: []Step{
+			{"Return tools in a fixed order",
+				"Sort by name, or keep registration order, before building the " +
+					"`tools/list` result. The usual cause is iterating a hash map, " +
+					"whose order a runtime randomises on purpose."},
+			{"Keep pages stable too",
+				"When the list is paginated, the same cursor should return the " +
+					"same page. The finding cites both listings, so the two orders " +
+					"can be compared in the wire log."},
 		},
 	},
 
@@ -1663,6 +1801,27 @@ var remediations = map[string]Remediation{
 		},
 	},
 
+	"execution.resources.uri": {
+		Means: "A `resources/read` answered with contents filed under a different " +
+			"`uri` from the one requested, or with no `uri` at all. Every item in " +
+			"`contents` carries the URI of what it is, and a client holding " +
+			"several resources at once matches contents to requests by that " +
+			"field. Contents under another URI are attached to the wrong " +
+			"resource, or dropped.",
+		Steps: []Step{
+			{"Echo the requested URI",
+				"Set `contents[].uri` to exactly the string the client sent in " +
+					"`params.uri`. Do not canonicalise it on the way back: a " +
+					"trailing slash or a changed case is a different key to the " +
+					"client."},
+			{"Keep sub-resources distinguishable",
+				"A read that returns several items, such as a directory's " +
+					"children, may give each its own URI, but the resource asked " +
+					"for should be among them. The finding cites the read that " +
+					"showed the mismatch."},
+		},
+	},
+
 	"execution.prompts": {
 		Means: "A prompt rendered with no messages. There is nothing for the model " +
 			"to receive, so the prompt is unusable however well it is described.",
@@ -1670,6 +1829,29 @@ var remediations = map[string]Remediation{
 			{"Return at least one message",
 				"Or report an error if the arguments given cannot produce one."},
 		},
+	},
+
+	"execution.prompts.validation": {
+		Means: "A prompt that declares a required argument was rendered without " +
+			"it, or refused with something other than JSON-RPC `-32602` " +
+			"(Invalid params), which is the error the specification names for a " +
+			"missing required argument. A prompt rendered without its input " +
+			"hands the model a template with a hole in it; a refusal a client " +
+			"cannot classify cannot be turned into a request for the missing " +
+			"value.",
+		Steps: []Step{
+			{"Check arguments before rendering",
+				"Compare `params.arguments` in `prompts/get` with the prompt's " +
+					"declared `arguments`, and stop before rendering when one marked " +
+					"`required` is absent."},
+			{"Refuse with -32602",
+				"Return a JSON-RPC error with code `-32602` and a message naming " +
+					"the missing argument, not an HTTP error and not a server-error " +
+					"code. The finding cites the request, and the per-prompt result " +
+					"records what came back."},
+		},
+		Note: "Most SDKs validate prompt arguments for you when the prompt is " +
+			"registered with its argument list rather than parsed by hand.",
 	},
 
 	// --- performance -------------------------------------------------------

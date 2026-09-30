@@ -106,9 +106,10 @@ precedence = "override"
 SPDX-FileCopyrightText = "2024 - 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>"
 SPDX-License-Identifier = "MIT"
 
-# passmcp's own images: the README logo and the site's screenshots.
+# passmcp's own images: the README logo, the README demo (rendered by
+# `make demo` from .github/demo.tape) and the site's screenshots.
 [[annotations]]
-path = [".github/logo.png", "web/images/**"]
+path = [".github/logo.png", ".github/demo.gif", "web/images/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-only"

@@ -49,7 +49,24 @@ check id is copied from the report, and nothing the model says can change
 one. The report file is only read.
 
 Sending is asked for by --model on the command where it happens, never by
-an API key that happens to be in the environment.`,
+an API key that happens to be in the environment.
+
+--curl <check-id> prints, instead, a curl command for every recorded
+request the findings with that check id cite, so the evidence can be sent
+again by hand. It needs a report made with --events (and --capture-bodies
+to include request bodies), and it sends nothing itself.
+
+  passmcp check URL --output json --events --capture-bodies > report.json
+  passmcp explain report.json --curl protocol.origin > repro.sh
+  PASSMCP_TOKEN=... sh repro.sh
+
+Every request passes through passmcp's redactor again, and every masked
+credential becomes a shell variable named after where it sat: a bearer
+token is "${PASSMCP_TOKEN}", a client_secret parameter
+"${PASSMCP_CLIENT_SECRET}". The command carries no secret; it runs once
+you export your own. Masking also hides which credential was sent, so for
+a check that deliberately sent an invalid or foreign token
+(auth.rejects_garbage, auth.wrong_audience) export one of those instead.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if explainOutput != "md" && explainOutput != "json" {
@@ -65,6 +82,9 @@ an API key that happens to be in the environment.`,
 		}
 		if len(rep.Phases) == 0 {
 			return fmt.Errorf("the report records no phases, so there is nothing to explain")
+		}
+		if explainCurl != "" {
+			return writeCurlRepro(cmd.OutOrStdout(), &rep, explainCurl)
 		}
 
 		var model enrich.Model
@@ -122,4 +142,5 @@ func init() {
 	f.StringVar(&explainKeyEnv, "api-key-env", "ANTHROPIC_API_KEY", "environment variable holding the API key")
 	f.StringVar(&explainURL, "api-url", enrich.DefaultURL, "Messages API origin, for a proxy or gateway")
 	f.StringVar(&explainOutput, "output", "md", "output format: md or json")
+	f.StringVar(&explainCurl, "curl", "", "print a redacted curl command for each request the findings with this check id cite (the report needs --events)")
 }

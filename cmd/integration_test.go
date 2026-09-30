@@ -37,7 +37,7 @@ func resetAll() {
 	output, reportDir, captureBodies, withEvents, verbose, noColor = "text", "", false, false, false, false
 	interactive = false
 	phasesOnly, phasesSkip = nil, nil
-	callArgsJSON, callArgs = "", nil
+	callArgsJSON, callArgs, promptArgs = "", nil, nil
 	redirectPort, tokenAuthMethod = 8976, ""
 	userAgent = ""
 	logLevel = "info"
@@ -45,7 +45,7 @@ func resetAll() {
 	verifyAgainst = ""
 	verifyReproduce, reproPerm = false, reproducePermissions{}
 	overlapOutput = "text"
-	explainModel, explainKeyEnv, explainURL, explainOutput = "", "ANTHROPIC_API_KEY", "https://api.anthropic.com", "md"
+	explainModel, explainKeyEnv, explainURL, explainOutput, explainCurl = "", "ANTHROPIC_API_KEY", "https://api.anthropic.com", "md", ""
 	verifyMaxFail, verifyMinScore, verifyOutput = 0, 0.0, "text"
 	verifyPolicy, policyFile = "", ""
 	baselineFile, approveBaseline = "", false

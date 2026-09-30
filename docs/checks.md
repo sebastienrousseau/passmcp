@@ -9,13 +9,13 @@ description: >-
 
 # The check inventory
 
-passmcp runs **131 checks** across **9 phases**.
+passmcp runs **138 checks** across **9 phases**.
 
 22 of them apply only to a server that is a program rather than a URL, and
 replace the ones that have no meaning over a pipe. A run reports every check it
 did not make, by id and with the reason, rather than leaving it out.
 
-130 of those are fixed, and 1 is a family whose id is built at run time —
+137 of those are fixed, and 1 is a family whose id is built at run time —
 one check per value the run encounters, marked `*` below.
 
 This file is generated from the source: every check is created through
@@ -81,24 +81,27 @@ that is what a reader sees in a report.
 | <span id="check-handshake-initialize" data-can-fail="true"></span>`handshake.initialize` | initialize succeeds |
 | <span id="check-handshake-instructions" data-can-fail="false"></span>`handshake.instructions` | Server instructions |
 | <span id="check-handshake-protocol_era" data-can-fail="true"></span>`handshake.protocol_era` | Protocol generation |
-| <span id="check-handshake-protocol_version" data-can-fail="false"></span>`handshake.protocol_version` | Negotiated protocol version |
+| <span id="check-handshake-protocol_version" data-can-fail="true"></span>`handshake.protocol_version` | Negotiated protocol version |
 | <span id="check-handshake-server_info" data-can-fail="true"></span>`handshake.server_info` | Server identifies itself |
 | <span id="check-handshake-session" data-can-fail="false"></span>`handshake.session` | Mcp-Session-Id issued |
 | <span id="check-handshake-stateless" data-can-fail="true"></span>`handshake.stateless` | Stateless session setup |
 
-## protocol — 19 checks
+## protocol — 22 checks
 
 | Check | What it looks for |
 |---|---|
 | <span id="check-protocol-accept_header" data-can-fail="false"></span>`protocol.accept_header` | Request without Accept header |
 | <span id="check-protocol-bogus_session" data-can-fail="true"></span>`protocol.bogus_session` | Unknown session id is rejected |
+| <span id="check-protocol-content_type" data-can-fail="true"></span>`protocol.content_type` | Replies are JSON or an event stream |
 | <span id="check-protocol-deprecated_features" data-can-fail="true"></span>`protocol.deprecated_features` | Removed mechanisms are gone |
 | <span id="check-protocol-extensions" data-can-fail="true"></span>`protocol.extensions` | Advertised extensions |
 | <span id="check-protocol-get_stream" data-can-fail="true"></span>`protocol.get_stream` | GET on the MCP endpoint |
 | <span id="check-protocol-id_echo" data-can-fail="true"></span>`protocol.id_echo` | Response id matches request id |
 | <span id="check-protocol-invalid_params" data-can-fail="true"></span>`protocol.invalid_params` | tools/call without a name is rejected |
 | <span id="check-protocol-malformed_json" data-can-fail="true"></span>`protocol.malformed_json` | Malformed JSON is rejected |
+| <span id="check-protocol-missing_session" data-can-fail="true"></span>`protocol.missing_session` | A request without Mcp-Session-Id is rejected |
 | <span id="check-protocol-mrtr" data-can-fail="true"></span>`protocol.mrtr` | Requests for client input are answerable |
+| <span id="check-protocol-notification_ack" data-can-fail="true"></span>`protocol.notification_ack` | notifications/initialized is acknowledged with 202 |
 | <span id="check-protocol-origin" data-can-fail="true"></span>`protocol.origin` | A foreign Origin is rejected |
 | <span id="check-protocol-ping" data-can-fail="true"></span>`protocol.ping` | _(title computed at run time)_ |
 | <span id="check-protocol-routing_headers" data-can-fail="true"></span>`protocol.routing_headers` | Mirrored routing headers are validated |
@@ -110,7 +113,7 @@ that is what a reader sees in a report.
 | <span id="check-protocol-unknown_tool" data-can-fail="true"></span>`protocol.unknown_tool` | Unknown tool is reported |
 | <span id="check-protocol-version_header" data-can-fail="false"></span>`protocol.version_header` | Bad MCP-Protocol-Version is rejected |
 
-## catalog — 30 checks
+## catalog — 32 checks
 
 | Check | What it looks for |
 |---|---|
@@ -140,12 +143,14 @@ that is what a reader sees in a report.
 | <span id="check-catalog-tools-idempotency" data-can-fail="true"></span>`catalog.tools.idempotency` | Tools say whether a repeated call is safe |
 | <span id="check-catalog-tools-input_schema" data-can-fail="true"></span>`catalog.tools.input_schema` | inputSchema is a JSON Schema object |
 | <span id="check-catalog-tools-list" data-can-fail="true"></span>`catalog.tools.list` | tools/list |
+| <span id="check-catalog-tools-order" data-can-fail="true"></span>`catalog.tools.order` | tools/list order is stable |
 | <span id="check-catalog-tools-output_schema" data-can-fail="true"></span>`catalog.tools.output_schema` | Tools declare outputSchema |
+| <span id="check-catalog-tools-schema_valid" data-can-fail="true"></span>`catalog.tools.schema_valid` | Tool schemas are structurally valid JSON Schema |
 | <span id="check-catalog-tools-title" data-can-fail="false"></span>`catalog.tools.title` | Tools have a human title |
 | <span id="check-catalog-tools-unique" data-can-fail="true"></span>`catalog.tools.unique` | Tool names are unique |
 | <span id="check-catalog-toxic_combination" data-can-fail="true"></span>`catalog.toxic_combination` | No tool pair reads private data and sends it out |
 
-## execution — 9 checks
+## execution — 11 checks
 
 | Check | What it looks for |
 |---|---|
@@ -155,7 +160,9 @@ that is what a reader sees in a report.
 | <span id="check-execution-payload_size" data-can-fail="true"></span>`execution.payload_size` | Results leave room for the conversation |
 | <span id="check-execution-policy" data-can-fail="false"></span>`execution.policy` | Safety policy |
 | <span id="check-execution-prompts" data-can-fail="true"></span>`execution.prompts` | Prompt rendering |
+| <span id="check-execution-prompts-validation" data-can-fail="true"></span>`execution.prompts.validation` | Prompts reject a missing required argument |
 | <span id="check-execution-resources" data-can-fail="true"></span>`execution.resources` | Resource reads |
+| <span id="check-execution-resources-uri" data-can-fail="true"></span>`execution.resources.uri` | Resource reads return the URI requested |
 | <span id="check-execution-tools" data-can-fail="true"></span>`execution.tools` | Tool invocations |
 | <span id="check-execution-validation" data-can-fail="true"></span>`execution.validation` | Tools reject missing required arguments |
 

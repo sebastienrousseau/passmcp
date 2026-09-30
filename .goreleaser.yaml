@@ -7,21 +7,15 @@ project_name: passmcp
 
 # Replace an existing GitHub release on re-run, so a release can be retried
 # after fixing a publishing secret.
+#
+# The page's notes are not goreleaser's: the release workflow's last step
+# (scripts/releasepage) rewrites the title and body in the family layout
+# once every asset is attached, so the changelog is disabled below rather
+# than published and overwritten. The title is set here too, so the page
+# is named right from its first second.
 release:
   mode: replace
-  header: |
-    Full notes are in
-    [CHANGELOG.md](https://github.com/sebastienrousseau/passmcp/blob/main/CHANGELOG.md).
-
-    **Verify what you downloaded:**
-
-    ```bash
-    gh attestation verify <asset> --owner sebastienrousseau
-    ```
-
-    Every asset is covered by `checksums.txt`, which is signed
-    (`checksums.txt.sigstore.json`), and SLSA build provenance ships as
-    `checksums.txt.intoto.jsonl`.
+  name_template: "{{ .ProjectName }} {{ .Version }}"
 
 # Manpages and shell completions are rendered from the cobra command tree
 # before anything is packaged. Generated, never committed: a checked-in .1
@@ -276,23 +270,4 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  sort: asc
-  groups:
-    - title: Features
-      regexp: '^feat(\([^)]*\))?!?:'
-      order: 0
-    - title: Fixes
-      regexp: '^fix(\([^)]*\))?!?:'
-      order: 1
-    - title: Security and dependencies
-      regexp: '^(sec|deps|chore\(deps\)|chore\(docker\)|chore\(actions\))'
-      order: 2
-    - title: Other
-      order: 99
-  filters:
-    exclude:
-      - '^Merge pull request'
-      - '^Merge branch'
-      - '^docs:'
-      - '^test:'
-      - '^chore: '
+  disable: true

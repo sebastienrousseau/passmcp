@@ -29,11 +29,14 @@ why there is no `--stdio-command "npx -y thing"` form: splitting a command
 string means quoting rules, and quoting rules mean a shell. There is no
 shell here. The command is executed as named, with the arguments as given.
 
-`check`, `connect`, `tools` and `call` all take `--stdio`. For `call`, which
-has two operands, the tool comes before `--` and the server after it:
+`check`, `connect`, `tools`, `call`, `read` and `prompt` all take
+`--stdio`. For the three with two operands, the tool, resource URI or
+prompt name comes before `--` and the server after it:
 
 ```bash
 passmcp call --stdio get-sum --arg a=2 --arg b=3 -- npx -y @modelcontextprotocol/server-everything stdio
+passmcp read --stdio <uri> -- <command> [args...]
+passmcp prompt --stdio <name> --arg key=value -- <command> [args...]
 ```
 
 ## What the server is handed
@@ -86,11 +89,14 @@ subject over a pipe and are reported as skipped, with the reason:
 | `discovery` | a child process has no origin and no metadata to discover; the trust decision was made when you chose which program to run |
 | `auth` | there is nothing to authenticate to, so there is also no wrong credential to send and no refusal to check |
 
-Five conformance probes inside the protocol phase are about the HTTP
+Eight conformance probes inside the protocol phase are about the HTTP
 binding rather than about MCP, and are likewise skipped by name:
 `protocol.accept_header`, `protocol.get_stream`,
-`protocol.bogus_session`, `protocol.version_header` and `protocol.origin`
-— a pipe has no headers to send and no listener to rebind. So is
+`protocol.bogus_session`, `protocol.missing_session`,
+`protocol.version_header`, `protocol.origin`,
+`protocol.notification_ack` and `protocol.content_type` — a pipe has no
+headers to send or label, no listener to rebind and no status to
+acknowledge with. So is
 `handshake.session`: over a pipe the connection *is* the session, so there
 is no session id a correct server would issue.
 

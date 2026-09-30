@@ -70,10 +70,26 @@ type quirks struct {
 	holdStream        bool // with getStream: keep the stream open and idle until the client leaves
 	bogusSessionOK    bool
 	lenientVersion    bool
-	catalog           string // "", "dupes", "bad", "empty", "nocap", "relative"
+	catalog           string // "", "dupes", "bad", "empty", "nocap", "relative", "noschema"
 	resourcesFail     bool
 	readFail          bool
 	resourcesEmpty    bool
+	// readURI is the uri resources/read files its contents under: "" echoes
+	// the URI requested, as a correct server does; "-" omits the field.
+	readURI string
+	// By default prompts/get refuses a render without the prompt's
+	// required argument with -32602, as a correct server does.
+	// promptLenient renders it anyway; promptMissingCode refuses with that
+	// JSON-RPC code instead, or with that HTTP status when positive; and
+	// promptOptional makes the argument optional, so there is nothing to
+	// omit.
+	promptLenient     bool
+	promptMissingCode int
+	promptOptional    bool
+	// toolOrder varies tools/list between calls: "shuffle" reverses every
+	// second answer, "grow" adds a tool to every second answer, and
+	// "failsecond" fails every listing after the first.
+	toolOrder         string
 	templatesFail     bool
 	promptsFail       bool
 	promptsEmpty      bool
@@ -121,6 +137,28 @@ type quirks struct {
 	wrongAudience         string
 	wrongAudienceAccepted bool
 	wrongAudienceStatus   int
+	// legacy2024 and sseTransport are the 2024-11-05 revision over
+	// Streamable HTTP and over its own HTTP+SSE transport (legacy_test.go).
+	legacy2024   bool
+	sseTransport string
+	// notifyStatus answers notifications/initialized with this status
+	// instead of 202, and notifyBody writes a body after the header has been
+	// flushed, so it arrives chunked with no Content-Length to go by.
+	notifyStatus int
+	notifyBody   string
+	// replyContentType labels every JSON-RPC reply with this media type
+	// instead of application/json; "-" sends no Content-Type at all.
+	// sseReplies sends each reply as a one-event stream instead.
+	replyContentType string
+	sseReplies       bool
+	// loginPage answers every POST with an HTML sign-in page, as an SSO
+	// proxy or a WAF in front of the server does.
+	loginPage bool
+	// sessionOptional serves a request that carries no Mcp-Session-Id,
+	// and hands out a session id nobody registered while doing it.
+	// missingSessionStatus refuses one with this status instead of 400.
+	sessionOptional      bool
+	missingSessionStatus int
 }
 
 // fakeServer is a protected MCP server with its own authorization server,
@@ -140,6 +178,7 @@ type fakeServer struct {
 	slowTool       time.Duration
 	rateLimitAfter int
 	burst          atomic.Int32
+	toolLists      atomic.Int32 // tools/list requests answered
 	q              quirks
 }
 
@@ -250,60 +289,8 @@ func newFakeServer(t *testing.T) *fakeServer {
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	})
-	mux.HandleFunc("/mcp", f.handle)
+	mux.HandleFunc("/mcp", f.route)
 	return f
-}
-
-func (f *fakeServer) validToken(r *http.Request) bool {
-	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if tok == "" || f.q.rejectCredentials {
-		return false
-	}
-	if f.q.wrongAudience != "" && tok == f.q.wrongAudience {
-		return f.q.wrongAudienceAccepted
-	}
-	if f.acceptAnyToken {
-		return true
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.tokens[tok]
-}
-
-func (f *fakeServer) unauthorized(w http.ResponseWriter, r *http.Request) {
-	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	garbage := strings.HasPrefix(tok, "passmcp-invalid-")
-	status := 401
-	if garbage && f.q.garbageStatus != 0 {
-		status = f.q.garbageStatus
-	}
-	if !garbage && tok == "" && f.q.firstContactStatus != 0 {
-		status = f.q.firstContactStatus
-	}
-	if tok != "" && tok == f.q.wrongAudience && f.q.wrongAudienceStatus != 0 {
-		status = f.q.wrongAudienceStatus
-	}
-	hdr := fmt.Sprintf(`Bearer resource_metadata="%s/.well-known/oauth-protected-resource/mcp", scope="mcp:read"`, f.srv.URL)
-	if f.q.challenge != "" {
-		hdr = f.q.challenge
-	}
-	if f.noChallenge || hdr == "-" || (garbage && f.q.garbageNoHeader) {
-		hdr = ""
-	}
-	if hdr != "" && status == 401 {
-		w.Header().Set("WWW-Authenticate", hdr)
-		if f.q.dpopNonce != "" {
-			w.Header().Set("DPoP-Nonce", f.q.dpopNonce)
-		}
-	}
-	if status/100 == 2 && garbage {
-		// Pretend the garbage token was fine: fall through to the handler.
-		return
-	}
-	w.WriteHeader(status)
-	if status/100 == 2 {
-		_, _ = w.Write([]byte("not a result"))
-	}
 }
 
 func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -340,11 +327,16 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(405)
 		return
 	}
+	if f.q.loginPage {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<!doctype html><html><body><form>Sign in</form></body></html>"))
+		return
+	}
 	if r.Header.Get("Accept") == "" && !f.q.lenientAccept {
 		w.WriteHeader(406)
 		return
 	}
-	if v := r.Header.Get(transport.HeaderProtocolVersion); v != "" && v != "2025-11-25" && v != f.q.protocolVersion && !f.q.lenientVersion {
+	if v := r.Header.Get(transport.HeaderProtocolVersion); v != "" && v != "2025-11-25" && v != f.version() && !f.q.lenientVersion {
 		w.WriteHeader(400)
 		return
 	}
@@ -366,8 +358,15 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if sid == "" && req.Method != "initialize" && !f.q.stateless {
-		w.WriteHeader(400)
-		return
+		if !f.q.sessionOptional {
+			st := f.q.missingSessionStatus
+			if st == 0 {
+				st = http.StatusBadRequest
+			}
+			w.WriteHeader(st)
+			return
+		}
+		w.Header().Set(transport.HeaderSessionID, "sess-unregistered")
 	}
 	replyID := func() int64 {
 		if req.ID == nil {
@@ -380,14 +379,11 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	reply := func(v any) {
 		b, _ := json.Marshal(v)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"result":%s}`, replyID(), b)
+		f.writeReply(w, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"result":%s}`, replyID(), b))
 	}
 	rpcErr := func(code int, msg string) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"error":{"code":%d,"message":%q}}`, replyID(), code, msg)
+		f.writeReply(w, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"error":{"code":%d,"message":%q}}`, replyID(), code, msg))
 	}
-	yes, no := true, false
 	switch req.Method {
 	case "initialize":
 		if !f.q.stateless {
@@ -397,11 +393,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			f.mu.Unlock()
 			w.Header().Set(transport.HeaderSessionID, sid)
 		}
-		pv := "2025-11-25"
-		if f.q.protocolVersion != "" {
-			pv = f.q.protocolVersion
-		}
-		res := map[string]any{"protocolVersion": pv, "capabilities": map[string]any{"tools": map[string]any{}, "resources": map[string]any{}, "prompts": map[string]any{}},
+		res := map[string]any{"protocolVersion": f.version(), "capabilities": map[string]any{"tools": map[string]any{}, "resources": map[string]any{}, "prompts": map[string]any{}},
 			"serverInfo": map[string]any{"name": "fake", "version": "1.0"}, "instructions": "Use wisely."}
 		if f.q.noCapabilities {
 			res["capabilities"] = map[string]any{}
@@ -414,7 +406,17 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(res)
 	case "notifications/initialized":
-		w.WriteHeader(202)
+		st := f.q.notifyStatus
+		if st == 0 {
+			st = http.StatusAccepted
+		}
+		w.WriteHeader(st)
+		if f.q.notifyBody != "" {
+			if fl, ok := w.(http.Flusher); ok {
+				fl.Flush()
+			}
+			_, _ = w.Write([]byte(f.q.notifyBody))
+		}
 	case "ping":
 		if f.q.pingFail {
 			rpcErr(-32000, "ping broken")
@@ -430,32 +432,12 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(map[string]any{})
 	case "tools/list":
-		if f.q.toolsFail {
+		tools, ok := f.listTools()
+		if !ok {
 			rpcErr(-32603, "tools broken")
 			return
 		}
-		tools := []map[string]any{
-			{"name": "get_time", "description": "Returns the current time in ISO 8601 format", "inputSchema": map[string]any{"type": "object"}, "outputSchema": map[string]any{"type": "object", "required": []string{"iso"}, "properties": map[string]any{"iso": map[string]any{"type": "string"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
-			{"name": "search", "description": "Search documents by query string", "inputSchema": map[string]any{"type": "object", "required": []string{"q"}, "properties": map[string]any{"q": map[string]any{"type": "string"}}}, "outputSchema": map[string]any{"type": "object", "required": []string{"hits"}, "properties": map[string]any{"hits": map[string]any{"type": "array"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
-			{"name": "lax", "description": "Accepts anything without validation", "inputSchema": map[string]any{"type": "object", "required": []string{"x"}, "properties": map[string]any{"x": map[string]any{"type": "string"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
-		}
-		if !f.q.readOnlyOnly {
-			tools = append(tools, map[string]any{"name": "delete_all", "description": "Deletes every document permanently", "inputSchema": map[string]any{"type": "object"}})
-		}
-		tools = append(tools, f.q.extraTools...)
-		switch f.q.catalog {
-		case "dupes":
-			tools = append(tools, map[string]any{"name": "get_time", "description": "Duplicate name for the same thing", "inputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": yes}})
-		case "bad":
-			tools = []map[string]any{
-				{"name": "nodesc", "inputSchema": map[string]any{"type": "string"}, "annotations": map[string]any{"readOnlyHint": yes}},
-				{"name": "shortdesc", "description": "tiny", "inputSchema": map[string]any{"properties": map[string]any{}}, "outputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": yes}, "title": "T"},
-				{"name": "brokenschema", "description": "Has an unparsable input schema", "inputSchema": "not-json-object", "annotations": map[string]any{"readOnlyHint": no, "destructiveHint": no}},
-			}
-		case "empty":
-			tools = nil
-		}
-		reply(map[string]any{"tools": tools})
+		reply(map[string]any{"tools": f.revisionTools(tools)})
 	case "tools/call":
 		var p struct {
 			Name string         `json:"name"`
@@ -522,13 +504,13 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			if f.q.toolOutput != "" {
 				text = f.q.toolOutput
 			}
-			reply(map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "structuredContent": map[string]any{"iso": "2026-01-01T00:00:00Z"}})
+			reply(f.revisionResult(map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "structuredContent": map[string]any{"iso": "2026-01-01T00:00:00Z"}}))
 		case "search":
 			if _, ok := p.Args["q"]; !ok {
 				reply(map[string]any{"isError": true, "content": []map[string]any{{"type": "text", "text": "q required"}}})
 				return
 			}
-			reply(map[string]any{"content": []map[string]any{{"type": "text", "text": "ok"}}, "structuredContent": map[string]any{"hits": "not-an-array"}})
+			reply(f.revisionResult(map[string]any{"content": []map[string]any{{"type": "text", "text": "ok"}}, "structuredContent": map[string]any{"hits": "not-an-array"}}))
 		case "lax", "shortdesc", "nodesc":
 			reply(map[string]any{"content": []map[string]any{{"type": "text", "text": "whatever"}}})
 		case "delete_all":
@@ -565,11 +547,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			rpcErr(-32002, "read failed")
 			return
 		}
-		if f.q.resourcesEmpty {
-			reply(map[string]any{"contents": []map[string]any{}})
-			return
-		}
-		reply(map[string]any{"contents": []map[string]any{{"uri": "fake://doc/1", "mimeType": "text/plain", "text": "hello"}}})
+		reply(f.readContents(req.Params))
 	case "prompts/list":
 		if f.q.catalog == "nocap" {
 			rpcErr(-32601, "no prompts")
@@ -580,17 +558,17 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		if f.q.catalog == "relative" {
 			desc, argDesc = "", ""
 		}
-		reply(map[string]any{"prompts": []map[string]any{{"name": "summarise", "description": desc, "arguments": []map[string]any{{"name": "doc", "description": argDesc, "required": true}}}}})
+		reply(map[string]any{"prompts": []map[string]any{{"name": "summarise", "description": desc, "arguments": []map[string]any{{"name": "doc", "description": argDesc, "required": !f.q.promptOptional}}}}})
 	case "prompts/get":
-		if f.q.promptsFail {
-			rpcErr(-32602, "bad prompt")
-			return
+		res, code := f.renderPrompt(req.Params)
+		switch {
+		case code > 0:
+			w.WriteHeader(code)
+		case code < 0:
+			rpcErr(code, "bad prompt")
+		default:
+			reply(res)
 		}
-		if f.q.promptsEmpty {
-			reply(map[string]any{"messages": []map[string]any{}})
-			return
-		}
-		reply(map[string]any{"messages": []map[string]any{{"role": "user", "content": map[string]any{"type": "text", "text": "Summarise"}}}})
 	default:
 		switch {
 		case f.q.unknownMethodOK:

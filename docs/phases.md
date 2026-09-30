@@ -48,7 +48,7 @@ what is observed.
 
 | Finding | Checks |
 |---|---|
-| `discovery.first_contact` | 200 means open; 401 means protected; 403 or anything else is a deviation |
+| `discovery.first_contact` | 200 means open; 401 means protected; 403 or anything else is a deviation. A 4xx followed by a `GET` whose first event is `endpoint` is named as the 2024-11-05 HTTP+SSE transport ([below](#older-revisions)) |
 | `discovery.creds_unused` | warns when credentials were supplied to an open server |
 | `discovery.challenge` | a `WWW-Authenticate: Bearer` challenge with `resource_metadata` |
 | `discovery.prm` | RFC 9728 protected-resource metadata: the hint, then the path-aware and root well-known locations |
@@ -75,11 +75,44 @@ what is observed.
 | Finding | Checks |
 |---|---|
 | `handshake.initialize` | initialize succeeds with the credentials |
-| `handshake.protocol_version` | the negotiated version |
+| `handshake.protocol_version` | the negotiated version: the newest passes, `2025-06-18` and `2025-03-26` are information, `2024-11-05` is a warning ([below](#older-revisions)) |
 | `handshake.server_info` | name and version populated |
 | `handshake.capabilities` | tools, resources, prompts, logging declared |
 | `handshake.instructions` | server instructions present |
 | `handshake.session` | an `Mcp-Session-Id` was issued (stateless servers are noted, not penalised) |
+
+### Older revisions
+
+passmcp offers the newest handshake revision it speaks, `2025-11-25`, and
+accepts any of `2025-06-18`, `2025-03-26` and `2024-11-05` in answer, as the
+specification's version negotiation allows. A server on an older revision
+is graded rather than refused, and a check about a field its revision does
+not have is skipped with the revision named, rather than passed on the
+absence or failed for it:
+
+| Introduced in | What | Checks skipped on an earlier revision |
+|---|---|---|
+| `2025-03-26` | tool annotations | `catalog.tools.annotations`, `catalog.tools.annotation_honesty`, `catalog.tools.idempotency` |
+| `2025-06-18` | structured tool output (`outputSchema`, `structuredContent`) | `catalog.tools.output_schema`, and `execution.content` unless a call returned an empty result, which is a violation on any revision |
+
+`2024-11-05` is a warning on `handshake.protocol_version` rather than
+information, because what it lacks is what a cautious client acts on. It
+predates tool annotations, so nothing separates a read-only tool from a
+destructive one, and the execution phase invokes no tool under the default
+policy ([ADR-0004](adr/0004-read-only-by-default.md)): `execution.tools` is
+skipped and says so. `--allow-mutations` does not change that, because it
+adds only tools that declare `destructiveHint: false`; `--allow-destructive`
+does, and belongs only where the tools are known to be safe to call.
+
+Over a pipe, that is the whole difference. Over HTTP there is a second
+one: the transport of `2024-11-05` was HTTP+SSE, which Streamable HTTP
+replaced in `2025-03-26` and which passmcp does not implement. A server
+that answers a Streamable HTTP `POST` and negotiates `2024-11-05` is run
+like any other. A server that refuses the `POST` with a 4xx and opens an
+event stream on `GET` whose first event is `endpoint` is on the old
+transport: `discovery.first_contact` fails and names it, and the run stops
+there. If the server can also run as a program, `passmcp check --stdio`
+checks it.
 
 ## protocol: Protocol conformance
 
@@ -99,11 +132,14 @@ MCP specification require.
 | `protocol.unknown_tool` | calling a tool that does not exist is reported, not answered with success |
 | `protocol.accept_header`, `protocol.get_stream` | informational: strictness about `Accept`, and whether GET opens a server event stream |
 | `protocol.bogus_session` | a session id the server never issued is rejected |
+| `protocol.missing_session` | once a session id was issued, a `ping` sent with credentials but without `Mcp-Session-Id` is refused, with 400 as the transport asks; serving it is a warning. Skipped when no session id was issued and on `2026-07-28`, which has no sessions |
 | `protocol.version_header` | a bad `MCP-Protocol-Version` is rejected |
 | `protocol.tasks.unknown_id`, `protocol.tasks.capability` | for a server advertising the Tasks extension: an unknown task id gets -32602, and a client that did not declare the extension gets -32021 |
 | `protocol.tasks.undeclared` | no task is returned to a call that did not declare the extension |
 | `protocol.tasks.lifecycle` | a task created by calling a read-only tool is retrievable at once, carries the required fields, reaches a terminal state within 30 seconds and keeps it; passmcp cancels any task it does not see finish |
 | `protocol.origin` | a request from a foreign `Origin` is refused, as the transport requires against DNS rebinding; failing on loopback or a private address, a warning on a public host |
+| `protocol.notification_ack` | the `notifications/initialized` the handshake sent was answered `202 Accepted` with no body, as the transport requires; judged from that recorded exchange, with no extra request. Skipped on `2026-07-28`, which has no handshake |
+| `protocol.content_type` | the reply to a liveness call is labelled `application/json` or `text/event-stream`, the only two the transport allows. The client still reads a mislabelled JSON body, so this is where the label is judged; a reply that is not JSON-RPC at all (an HTML sign-in page, say) is named by its type at the first request that reads it |
 
 ## catalog: Tool, resource and prompt catalog
 
@@ -113,8 +149,10 @@ Lists everything; invokes nothing.
 |---|---|
 | `catalog.tools.list`, `catalog.resources.list`, `catalog.prompts.list` | each list succeeds when its capability is declared, and nothing lists without one |
 | `catalog.tools.unique` | tool names are unique |
+| `catalog.tools.order` | a second `tools/list` returns the same tools in the same order, citing both listings. A reshuffle warns: the specification allows it, but a client puts tools into the model's context in list order, so it defeats prompt caching. A catalogue that changed in between is noted; fewer than two tools is skipped without a request |
 | `catalog.tools.descriptions` | every tool has a description of at least 20 characters |
 | `catalog.tools.input_schema` | `inputSchema` describes an object |
+| `catalog.tools.schema_valid` | every `inputSchema` and `outputSchema` is structurally valid JSON Schema 2020-12 where a client reads it: `type` names JSON types, `required` is a list of strings, `properties` holds schemas, local `$ref`s resolve. Structure that is not allowed fails; a required name `properties` does not declare, or an unknown `$schema` dialect, warns; unknown keywords are noted. Each entry names the tool and the JSON pointer, and the finding cites the `tools/list` request |
 | `catalog.tools.annotations` | tools declare `readOnlyHint`/`destructiveHint`; unannotated tools are treated as destructive |
 | `catalog.tools.idempotency` | information: which state-changing tools declare `idempotentHint`, and which leave it at the specification's default of "not safe to repeat"; a read-only tool declaring it is not idempotent is a warning |
 | `catalog.tools.output_schema` | tools declare `outputSchema` |
@@ -162,7 +200,9 @@ is not something a maintainer can act on and `…<U+202E>nothing…` is.
 | `execution.content` | `structuredContent` validates against `outputSchema`; a declared schema with no structured content is a violation |
 | `execution.validation` | each tool with required arguments is called once more with one omitted, and must reject the call |
 | `execution.resources` | up to `--max-resources` resources read; failures and empty reads reported |
+| `execution.resources.uri` | each of those reads that returned contents filed at least one item under the URI requested, and every item has a `uri`; a mismatch warns, citing the read. No extra request: it judges the reads above |
 | `execution.prompts` | up to `--max-prompts` prompts rendered with placeholder arguments |
+| `execution.prompts.validation` | each of those prompts that declares a required argument, and rendered with it, is rendered once more with its first required argument omitted, and must be refused with JSON-RPC -32602. Rendering anything fails; another code, or no JSON-RPC answer, warns. Rendering is read-only, so no policy applies; skipped when no prompt declares a required argument |
 
 ## performance: Latency and concurrency
 

@@ -48,7 +48,7 @@ const MinInterval = 30 * time.Second
 type Event struct {
 	// At is when, in UTC.
 	At time.Time `json:"at"`
-	// Kind is "pulse", "drift", "error" or "settled".
+	// Kind is "pulse", "drift", "error", "settled" or "summary".
 	Kind string `json:"kind"`
 	// Target is the server being watched.
 	Target string `json:"target"`
@@ -60,6 +60,18 @@ type Event struct {
 	Severity string `json:"severity,omitempty"`
 	// Err is why a pulse failed, when one did.
 	Err string `json:"error,omitempty"`
+	// LatencyMS is how long the pulse took, connect to listing, in
+	// milliseconds. Set on every pulse, answered or not.
+	LatencyMS float64 `json:"latency_ms,omitempty"`
+	// Status is the class of the pulse's outcome (ok, protocol_error,
+	// transport_error, auth_error or timeout). Set on every pulse.
+	Status string `json:"status,omitempty"`
+	// ErrorKind narrows a failed pulse's Status, such as
+	// connection_refused or jsonrpc_-32601.
+	ErrorKind string `json:"error_kind,omitempty"`
+	// Summary is the availability of the run so far, on a "summary"
+	// event.
+	Summary *Summary `json:"summary,omitempty"`
 	// Detail is a sentence for a person.
 	Detail string `json:"detail"`
 }
@@ -99,76 +111,129 @@ type Result struct {
 	// Latest is the most recent snapshot, which is what --approve
 	// promotes.
 	Latest *baseline.Snapshot
+	// Target is the server that was watched, as reports name it.
+	Target string
+	// Summary is the availability and latency of the pulses taken.
+	Summary Summary
+}
+
+// SummaryEvent is the run's summary as the event that closes a stream.
+func (r *Result) SummaryEvent(at time.Time) Event {
+	sum := r.Summary
+	return Event{At: at, Kind: "summary", Target: r.Target, Summary: &sum, Detail: sum.Sentence()}
 }
 
 // Run watches until the context is cancelled, or once when Once is set.
 func Run(ctx context.Context, opts Options) (*Result, error) {
-	if opts.Sink == nil {
-		return nil, errors.New("watch: a sink is required")
+	if err := opts.normalise(); err != nil {
+		return nil, err
 	}
-	if opts.Approved == nil {
-		return nil, errors.New("watch: nothing to compare against; approve a baseline first")
-	}
-	if opts.Interval <= 0 {
-		opts.Interval = DefaultInterval
-	}
-	if opts.Interval < MinInterval {
-		return nil, fmt.Errorf("watch: an interval under %s would make this the abusive client passmcp warns about", MinInterval)
-	}
-	if opts.Now == nil {
-		opts.Now = func() time.Time { return time.Now().UTC() }
-	}
-
-	res := &Result{}
-	target := targetName(opts.Spec)
-
-	for {
-		snap, changes, err := pulse(ctx, opts)
-		res.Pulses++
-
-		switch {
-		case err != nil:
-			// A server that cannot be reached is not a server that
-			// changed, and reporting it as drift would make every network
-			// blip an incident. It is still worth saying out loud.
-			opts.Sink(Event{
-				At: opts.Now(), Kind: "error", Target: target, Err: err.Error(),
-				Detail: "could not reach the server: " + err.Error(),
-			})
-		case len(changes) == 0:
-			res.Latest = snap
-			opts.Sink(Event{
-				At: opts.Now(), Kind: "pulse", Target: target, Digest: snap.Digest,
-				Detail: fmt.Sprintf("unchanged, %d tool(s)", len(snap.Tools)),
-			})
-		default:
-			res.Latest = snap
-			res.Drifted = true
-			worst := baseline.Worst(changes)
-			if worst > res.Worst {
-				res.Worst = worst
-			}
-			opts.Sink(Event{
-				At: opts.Now(), Kind: "drift", Target: target, Digest: snap.Digest,
-				Changes: changes, Severity: worst.String(),
-				Detail: fmt.Sprintf("%d change(s) since the catalogue was approved, worst %s",
-					len(changes), worst),
-			})
-		}
-
-		if opts.Once {
-			return res, nil
-		}
-		select {
-		case <-ctx.Done():
-			opts.Sink(Event{
-				At: opts.Now(), Kind: "settled", Target: target,
-				Detail: fmt.Sprintf("stopped after %d pulse(s)", res.Pulses),
-			})
-			return res, nil
-		case <-time.After(opts.Interval):
+	w := &watcher{opts: opts, res: &Result{Target: targetName(opts.Spec)}}
+	for w.step(ctx) {
+		if opts.Once || !w.wait(ctx) {
+			break
 		}
 	}
+	w.res.Summary = w.stats.Summary()
+	return w.res, nil
+}
+
+// normalise fills defaults and refuses options a watcher cannot run with.
+func (o *Options) normalise() error {
+	if o.Sink == nil {
+		return errors.New("watch: a sink is required")
+	}
+	if o.Approved == nil {
+		return errors.New("watch: nothing to compare against; approve a baseline first")
+	}
+	if o.Interval <= 0 {
+		o.Interval = DefaultInterval
+	}
+	if o.Interval < MinInterval {
+		return fmt.Errorf("watch: an interval under %s would make this the abusive client passmcp warns about", MinInterval)
+	}
+	if o.Now == nil {
+		o.Now = func() time.Time { return time.Now().UTC() }
+	}
+	return nil
+}
+
+// watcher is one run's state between pulses.
+type watcher struct {
+	opts  Options
+	res   *Result
+	stats Stats
+}
+
+// step takes one pulse, records it and reports it. It returns false when
+// the pulse was cut short by the context: that is the operator leaving,
+// not the server failing, so it is neither counted nor reported as an
+// error.
+//
+// The pulse is timed as it is taken. Measuring availability adds no
+// request, so it cannot turn the watcher into the load generator
+// MinInterval exists to prevent.
+func (w *watcher) step(ctx context.Context) bool {
+	t0 := time.Now()
+	snap, changes, err := pulse(ctx, w.opts)
+	latency := time.Since(t0)
+	if err != nil && ctx.Err() != nil {
+		w.settle()
+		return false
+	}
+	st, kind := Classify(err)
+	w.stats.Observe(st, kind, latency)
+	w.res.Pulses++
+	ev := w.event(snap, changes, err)
+	ev.LatencyMS = float64(latency) / float64(time.Millisecond)
+	ev.Status, ev.ErrorKind = string(st), kind
+	w.opts.Sink(ev)
+	return true
+}
+
+// event describes one completed pulse, and folds it into the result.
+func (w *watcher) event(snap *baseline.Snapshot, changes []baseline.Change, err error) Event {
+	ev := Event{At: w.opts.Now(), Target: w.res.Target}
+	switch {
+	case err != nil:
+		// A server that cannot be reached is not a server that
+		// changed, and reporting it as drift would make every network
+		// blip an incident. It is still worth saying out loud.
+		ev.Kind, ev.Err = "error", err.Error()
+		ev.Detail = "could not reach the server: " + err.Error()
+	case len(changes) == 0:
+		w.res.Latest = snap
+		ev.Kind, ev.Digest = "pulse", snap.Digest
+		ev.Detail = fmt.Sprintf("unchanged, %d tool(s)", len(snap.Tools))
+	default:
+		w.res.Latest = snap
+		w.res.Drifted = true
+		worst := baseline.Worst(changes)
+		w.res.Worst = max(w.res.Worst, worst)
+		ev.Kind, ev.Digest, ev.Changes, ev.Severity = "drift", snap.Digest, changes, worst.String()
+		ev.Detail = fmt.Sprintf("%d change(s) since the catalogue was approved, worst %s", len(changes), worst)
+	}
+	return ev
+}
+
+// wait sleeps until the next pulse. It returns false, having said how far
+// the watcher got, when the context ends first.
+func (w *watcher) wait(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		w.settle()
+		return false
+	case <-time.After(w.opts.Interval):
+		return true
+	}
+}
+
+// settle reports that the watcher stopped.
+func (w *watcher) settle() {
+	w.opts.Sink(Event{
+		At: w.opts.Now(), Kind: "settled", Target: w.res.Target,
+		Detail: fmt.Sprintf("stopped after %d pulse(s)", w.res.Pulses),
+	})
 }
 
 // pulse takes one reading.

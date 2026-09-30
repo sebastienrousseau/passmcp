@@ -37,12 +37,7 @@ func phaseHandshake(ctx context.Context, s *Session) []Finding {
 	s.Reached = true
 	out = append(out, c.pass(fmt.Sprintf("%s %s", res.ServerInfo.Name, res.ServerInfo.Version)))
 
-	c = s.check("handshake.protocol_version", "Negotiated protocol version")
-	if res.ProtocolVersion == passmcp.SupportedProtocolVersions[0] {
-		out = append(out, c.pass(res.ProtocolVersion))
-	} else {
-		out = append(out, c.info(fmt.Sprintf("%s (passmcp offered %s)", res.ProtocolVersion, passmcp.SupportedProtocolVersions[0])))
-	}
+	out = append(out, protocolVersionFinding(s.check("handshake.protocol_version", "Negotiated protocol version"), res.ProtocolVersion))
 
 	c = s.check("handshake.server_info", "serverInfo populated")
 	switch {
@@ -197,7 +192,7 @@ func phaseProtocol(ctx context.Context, s *Session) []Finding {
 	out = append(out, probeVersionHeader(s, tr, pctx, live, liveParams))
 
 	out = append(out, checkOrigin(pctx("foreign origin"), s, tr, live, liveParams))
-	return out
+	return append(out, checkReplies(s, tr, pctx, live, liveParams)...)
 }
 
 // rawProbe sends one hand-built message through rawExchange under its own

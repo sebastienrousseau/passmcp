@@ -633,7 +633,13 @@
     "catalog.tools.list": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },
+    "catalog.tools.order": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
     "catalog.tools.output_schema": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "catalog.tools.schema_valid": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },
     "catalog.tools.title": {
@@ -760,7 +766,13 @@
     "execution.prompts": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },
+    "execution.prompts.validation": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
     "execution.resources": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
+    "execution.resources.uri": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },
     "execution.tools": {
@@ -879,6 +891,9 @@
         "A.8.26"
       ]
     },
+    "protocol.content_type": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
     "protocol.deprecated_features": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },
@@ -903,7 +918,13 @@
         "A.8.29"
       ]
     },
+    "protocol.missing_session": {
+      "none": "protocol conformance: the specification says a server SHOULD refuse a request without its session id, and one that serves it shows no access control was bypassed, so no control in this framework is evidenced"
+    },
     "protocol.mrtr": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
+    "protocol.notification_ack": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },
     "protocol.origin": {

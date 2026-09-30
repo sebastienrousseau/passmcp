@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -100,5 +101,71 @@ func TestSessionExpiryAnd401(t *testing.T) {
 	var he *HTTPStatusError
 	if !errors.As(err, &he) || he.StatusCode != 401 || he.Header.Get("WWW-Authenticate") == "" {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// A reply that is not JSON-RPC names what it was instead of surfacing the
+// JSON decoder's complaint about its first byte. An HTML page is by far
+// the commonest: a sign-in form, an SSO redirect target or a firewall
+// interstitial standing in front of the server, or a path that is not the
+// MCP endpoint.
+func TestNonJSONReplyNamesItsContentType(t *testing.T) {
+	for _, tc := range []struct {
+		name, header, body, want string
+	}{
+		{"html", "text/html; charset=utf-8", "<!doctype html><title>Sign in</title>", "got text/html; likely a login"},
+		{"none", "-", "Forbidden", "got no Content-Type"},
+		{"other", "application/xml", "<error/>", "got application/xml"},
+		{"unparsable", "not a media type;;", "nope", "got not a media type;;"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tc.header == "-" {
+					w.Header()["Content-Type"] = nil
+				} else {
+					w.Header().Set("Content-Type", tc.header)
+				}
+				fmt.Fprint(w, tc.body)
+			}))
+			defer srv.Close()
+			err := New(srv.URL, srv.Client()).Call(context.Background(), "ping", nil, nil)
+			var cte *ContentTypeError
+			if !errors.As(err, &cte) {
+				t.Fatalf("err = %v, want a *ContentTypeError", err)
+			}
+			if !strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), "application/json or text/event-stream") {
+				t.Errorf("err = %q, want it to contain %q", err, tc.want)
+			}
+			if cte.Unwrap() == nil {
+				t.Error("the decode error is not kept")
+			}
+		})
+	}
+}
+
+// Leniency is kept where it costs nothing: a body that is a JSON-RPC
+// response is read whatever its label, and a body labelled JSON that is
+// not is still a plain decode error rather than a content-type one.
+func TestContentTypeErrorOnlyWhenTheBodyIsNotJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req Request
+		json.NewDecoder(r.Body).Decode(&req)
+		if req.Method == "garbled" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, "{not json")
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"result":{}}`, *req.ID)
+	}))
+	defer srv.Close()
+	s := New(srv.URL, srv.Client())
+	if err := s.Call(context.Background(), "ping", nil, nil); err != nil {
+		t.Fatalf("a JSON-RPC body labelled text/plain: %v", err)
+	}
+	err := s.Call(context.Background(), "garbled", nil, nil)
+	var cte *ContentTypeError
+	if err == nil || errors.As(err, &cte) {
+		t.Fatalf("err = %v, want a decode error that is not a *ContentTypeError", err)
 	}
 }

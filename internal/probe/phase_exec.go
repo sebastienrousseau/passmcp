@@ -62,6 +62,8 @@ type PromptResult struct {
 	OK       bool   `json:"ok"`
 	Error    string `json:"error,omitempty"`
 	Messages int    `json:"messages,omitempty"`
+	// NegativeTest is what happened when a required argument was omitted.
+	NegativeTest string `json:"negative_test,omitempty"`
 }
 
 // phaseExecution invokes what the policy allows and validates content.
@@ -125,6 +127,9 @@ type execRun struct {
 	s       *Session
 	limiter *diagnostics.Limiter
 	gen     *diagnostics.Generator
+	// uriReads are the resource reads that returned contents, with the
+	// URIs those contents were filed under.
+	uriReads []uriRead
 }
 
 // pctx labels a request as part of the execution phase.
@@ -211,16 +216,17 @@ func (e *execRun) classifyCall(t passmcp.Tool, tr *ToolResult, res *passmcp.Call
 	default:
 		n.okCount++
 		tr.OK = true
-		recordContent(t, tr, res)
+		recordContent(t, tr, res, !s.lacks(featStructured))
 		if len(tr.SchemaIssues) > 0 {
 			n.schemaBad++
 		}
 	}
 }
 
-// recordContent notes what a successful call returned and whether it
-// honoured the tool's outputSchema.
-func recordContent(t passmcp.Tool, tr *ToolResult, res *passmcp.CallToolResult) {
+// recordContent notes what a successful call returned and, when the
+// negotiated revision has outputSchema (structured), whether it honoured
+// the tool's.
+func recordContent(t passmcp.Tool, tr *ToolResult, res *passmcp.CallToolResult, structured bool) {
 	seen := map[string]bool{}
 	for _, c := range res.Content {
 		if !seen[c.Type] {
@@ -233,7 +239,7 @@ func recordContent(t passmcp.Tool, tr *ToolResult, res *passmcp.CallToolResult) 
 	if len(res.Content) == 0 && !tr.Structured {
 		tr.SchemaIssues = append(tr.SchemaIssues, "empty result: no content and no structuredContent")
 	}
-	if len(t.OutputSchema) > 0 {
+	if structured && len(t.OutputSchema) > 0 {
 		if !tr.Structured {
 			tr.SchemaIssues = append(tr.SchemaIssues, "outputSchema declared but structuredContent missing")
 		} else {
@@ -275,9 +281,18 @@ func toolsFinding(s *Session, n toolTally) Finding {
 	switch {
 	case len(s.Tools) == 0:
 		return c.skip("no tools")
+	case n.executed == 0 && s.lacks(featAnnotations) && !s.Opts.Policy.AllowDestructive:
+		return noToolsForLegacy(c, s)
 	case n.executed == 0:
 		return c.warn(fmt.Sprintf("0 of %d tools executed: none permitted by policy", len(s.Tools)), "annotate read-only tools with readOnlyHint, or opt in with --allow-mutations")
+	default:
+		return executedToolsVerdict(c, n)
 	}
+}
+
+// executedToolsVerdict is the execution.tools verdict once at least one
+// tool was invoked.
+func executedToolsVerdict(c *check, n toolTally) Finding {
 	detail := fmt.Sprintf("%d executed: %d ok, %d tool errors, %d protocol errors", n.executed, n.okCount, n.toolErr, n.protoErr)
 	if n.needsInput > 0 {
 		detail += fmt.Sprintf(", %d needing client input", n.needsInput)
@@ -307,9 +322,14 @@ func toolsFinding(s *Session, n toolTally) Finding {
 func executedFindings(s *Session, n toolTally) []Finding {
 	var out []Finding
 	c := s.check("execution.content", "Results validate against outputSchema")
-	if n.schemaBad > 0 {
+	// An empty result is still a violation on a revision without
+	// outputSchema; only the schema half has nothing to grade there.
+	switch {
+	case n.schemaBad > 0:
 		out = append(out, c.fail(Major, fmt.Sprintf("%d tool(s) returned content that does not match their contract", n.schemaBad), "see per-tool schema issues"))
-	} else {
+	case s.lacks(featStructured):
+		out = append(out, c.skip(s.lacksReason(featStructured)))
+	default:
 		out = append(out, c.pass("no contract violations among successful calls"))
 	}
 	c = s.check("execution.validation", "Tools reject missing required arguments")
@@ -351,13 +371,18 @@ func (e *execRun) readResources() (out []Finding, aborted bool) {
 	}
 	c := s.check("execution.resources", "Resource reads")
 	detail := fmt.Sprintf("%d of %d read: %d ok, %d failed, %d empty", limit, n, t.ok, t.failed, t.empty)
+	return []Finding{resourceReadVerdict(c, t, detail), e.resourceURIFinding()}, false
+}
+
+// resourceReadVerdict is the execution.resources verdict on the reads.
+func resourceReadVerdict(c *check, t readTally, detail string) Finding {
 	switch {
 	case t.failed > 0:
-		return []Finding{c.fail(Major, detail, "every listed resource should be readable")}, false
+		return c.fail(Major, detail, "every listed resource should be readable")
 	case t.empty > 0:
-		return []Finding{c.warn(detail, "a read that returns no contents is indistinguishable from a broken one")}, false
+		return c.warn(detail, "a read that returns no contents is indistinguishable from a broken one")
 	default:
-		return []Finding{c.pass(detail)}, false
+		return c.pass(detail)
 	}
 }
 
@@ -367,6 +392,7 @@ func (e *execRun) readResource(r passmcp.Resource, t *readTally) ResourceResult 
 	rr := ResourceResult{URI: r.URI}
 	cctx, cancel := context.WithTimeout(e.pctx("resources/read"), s.Opts.CallTimeout)
 	start := time.Now()
+	from := s.Opts.Recorder.Count()
 	res, err := s.Client.ReadResource(cctx, r.URI)
 	rr.Duration = Millis(time.Since(start))
 	cancel()
@@ -375,6 +401,7 @@ func (e *execRun) readResource(r passmcp.Resource, t *readTally) ResourceResult 
 		rr.Error = truncate(err.Error(), 120)
 		return rr
 	}
+	e.noteURIs(r.URI, res.Contents, from, s.Opts.Recorder.Count())
 	t.ok++
 	rr.OK = true
 	rr.Items = len(res.Contents)
@@ -400,21 +427,32 @@ func (e *execRun) getPrompts() (out []Finding, aborted bool) {
 	}
 	limit := min(n, s.Opts.MaxPrompts)
 	var t readTally
+	var neg promptNegatives
 	for _, p := range s.Prompts[:limit] {
 		if err := e.limiter.Wait(e.ctx); err != nil {
 			return nil, true
 		}
-		s.PromptResults = append(s.PromptResults, e.getPrompt(p, &t))
+		pr := e.getPrompt(p, &t)
+		// Negative test: omit a required argument and expect -32602.
+		if e.negativeRender(p, &pr, &neg) {
+			return nil, true
+		}
+		s.PromptResults = append(s.PromptResults, pr)
 	}
 	c := s.check("execution.prompts", "Prompt rendering")
 	detail := fmt.Sprintf("%d of %d rendered: %d ok, %d failed, %d empty", limit, n, t.ok, t.failed, t.empty)
+	return []Finding{promptRenderVerdict(c, t, detail), promptValidationFinding(s, neg, limit)}, false
+}
+
+// promptRenderVerdict is the execution.prompts verdict on the renders.
+func promptRenderVerdict(c *check, t readTally, detail string) Finding {
 	switch {
 	case t.failed > 0:
-		return []Finding{c.fail(Major, detail, "prompts/get should succeed with the required arguments")}, false
+		return c.fail(Major, detail, "prompts/get should succeed with the required arguments")
 	case t.empty > 0:
-		return []Finding{c.warn(detail, "a prompt with no messages is unusable")}, false
+		return c.warn(detail, "a prompt with no messages is unusable")
 	default:
-		return []Finding{c.pass(detail)}, false
+		return c.pass(detail)
 	}
 }
 

@@ -1,0 +1,255 @@
+// SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+
+package probe
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+
+	"satellion.com/passmcp/internal/creds"
+	"satellion.com/passmcp/internal/telemetry"
+	"satellion.com/passmcp/transport"
+)
+
+var replyBearer = &creds.Credentials{Mode: creds.ModeBearer, Token: "tok-1234"}
+
+// replyPhases is the smallest run that reaches the protocol phase with a
+// session.
+func replyPhases(o *Options) {
+	o.Only = []string{"net", "discovery", "auth", "handshake", "protocol"}
+}
+
+// An HTML page where the MCP endpoint should be is reported for what it is
+// at the first request that reads a reply, instead of as the JSON
+// decoder's complaint about a '<'.
+func TestLoginPageIsNamedAtInitialize(t *testing.T) {
+	f := newFakeServer(t)
+	f.acceptAnyToken = true
+	f.q.loginPage = true
+	s, fs := run(t, f, replyBearer, replyPhases)
+	expect(t, fs, "handshake.initialize", Fail, "got text/html; likely a login")
+	if d := fs["handshake.initialize"].Detail; strings.Contains(d, "invalid character") {
+		t.Errorf("detail still leads with the decoder's error: %q", d)
+	}
+	if s.Blocked() == "" {
+		t.Error("a login page at initialize must block the run")
+	}
+}
+
+// evidenceMethod is the JSON-RPC method of the one request a finding
+// cites, so a test can prove the finding points at the exchange it judged.
+func evidenceMethod(t *testing.T, s *Session, f Finding) string {
+	t.Helper()
+	if len(f.Evidence) != 1 {
+		t.Fatalf("%s cites %v, want exactly one request", f.ID, f.Evidence)
+	}
+	var seq int
+	if _, err := fmt.Sscanf(f.Evidence[0], "req#%d", &seq); err != nil {
+		t.Fatalf("%s evidence %q: %v", f.ID, f.Evidence[0], err)
+	}
+	for _, e := range s.Opts.Recorder.Events() {
+		if e.Seq == seq && e.RPC != nil {
+			return e.RPC.Method
+		}
+	}
+	t.Fatalf("%s cites req#%d, which is not a recorded JSON-RPC exchange", f.ID, seq)
+	return ""
+}
+
+// The acknowledgement the handshake already received is the evidence: no
+// second notification is sent to judge the first.
+func TestNotificationAck(t *testing.T) {
+	f := newFakeServer(t)
+	f.acceptAnyToken = true
+	s, fs := run(t, f, replyBearer, replyPhases)
+	expect(t, fs, "protocol.notification_ack", Pass, "202 Accepted, empty body")
+	if m := evidenceMethod(t, s, fs["protocol.notification_ack"]); m != "notifications/initialized" {
+		t.Errorf("protocol.notification_ack cites a %s exchange", m)
+	}
+	notes := 0
+	for _, e := range s.Opts.Recorder.Events() {
+		if e.RPC != nil && e.RPC.Method == "notifications/initialized" {
+			notes++
+		}
+	}
+	if notes != 1 {
+		t.Errorf("%d notifications/initialized were sent; the check must reuse the handshake's", notes)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		want   string
+	}{
+		// The body arrives chunked, after the header was flushed, so the
+		// size is read rather than taken from a Content-Length.
+		{"body on 202", 202, `{"ok":true}`, "202 Accepted with a body of 11 bytes"},
+		{"200 with a body", 200, `{"jsonrpc":"2.0"}`, "HTTP 200 with a body of 17 bytes"},
+		{"200 empty", 200, "", "HTTP 200 with no body"},
+		{"204", 204, "", "HTTP 204 with no body"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeServer(t)
+			f.acceptAnyToken = true
+			f.q.notifyStatus, f.q.notifyBody = tc.status, tc.body
+			_, fs := run(t, f, replyBearer, replyPhases)
+			expect(t, fs, "protocol.notification_ack", Fail, tc.want)
+			if got := fs["protocol.notification_ack"]; got.Severity != Minor || !strings.Contains(got.Advice, "202 Accepted") {
+				t.Errorf("severity %q, advice %q", got.Severity, got.Advice)
+			}
+		})
+	}
+}
+
+// Where the exchange never happened there is nothing to judge, and the
+// finding says why rather than passing.
+func TestNotificationAckSkips(t *testing.T) {
+	s := runStateless(t, statelessFake(t, statelessOpts{}), nil)
+	f, ok := findingByID(s, "protocol.notification_ack")
+	if !ok || f.Status != Skip || !strings.Contains(f.Detail, "no initialize handshake") {
+		t.Errorf("stateless: %+v", f)
+	}
+
+	// A recording too short to still hold the handshake.
+	fk := newFakeServer(t)
+	fk.acceptAnyToken = true
+	_, fs := run(t, fk, replyBearer, func(o *Options) {
+		replyPhases(o)
+		o.Recorder.MaxEvents = 2
+	})
+	expect(t, fs, "protocol.notification_ack", Skip, "no notifications/initialized")
+}
+
+// The verdicts no fake can reach through a completed handshake, because a
+// notification that fails or is refused fails initialize first.
+func TestAckVerdictRefusedOrFailed(t *testing.T) {
+	s := &Session{Opts: Options{Recorder: telemetry.New()}}
+	got := ackVerdict(s.check("protocol.notification_ack", "t"), telemetry.Event{Status: 400})
+	if got.Status != Fail || got.Severity != Major || !strings.Contains(got.Detail, "HTTP 400") {
+		t.Errorf("refused: %+v", got)
+	}
+	got = ackVerdict(s.check("protocol.notification_ack", "t"), telemetry.Event{Error: "connection reset"})
+	if got.Status != Info || !strings.Contains(got.Detail, "connection reset") {
+		t.Errorf("failed: %+v", got)
+	}
+}
+
+// A reply to a request is a JSON object or an event stream, labelled as
+// one. The client reads a mislabelled JSON body anyway, so the run goes
+// on; the finding is what tells the author that a stricter client will
+// not.
+func TestContentType(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		quirk func(*quirks)
+		st    Status
+		want  string
+	}{
+		{"json", func(*quirks) {}, Pass, "application/json"},
+		{"event stream", func(q *quirks) { q.sseReplies = true }, Pass, "text/event-stream"},
+		{"text/plain", func(q *quirks) { q.replyContentType = "text/plain; charset=utf-8" }, Fail, "got text/plain"},
+		{"none", func(q *quirks) { q.replyContentType = "-" }, Fail, "got no Content-Type"},
+		{"html", func(q *quirks) { q.replyContentType = "text/html" }, Fail, "likely a login"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeServer(t)
+			f.acceptAnyToken = true
+			tc.quirk(&f.q)
+			s, fs := run(t, f, replyBearer, replyPhases)
+			expect(t, fs, "protocol.content_type", tc.st, tc.want)
+			got := fs["protocol.content_type"]
+			if m := evidenceMethod(t, s, got); m != "ping" {
+				t.Errorf("protocol.content_type cites a %s exchange", m)
+			}
+			if tc.st == Fail && (got.Severity != Major || !strings.Contains(got.Advice, "application/json")) {
+				t.Errorf("severity %q, advice %q", got.Severity, got.Advice)
+			}
+		})
+	}
+
+	// The revision without a handshake answers the same way.
+	s := runStateless(t, statelessFake(t, statelessOpts{}), nil)
+	if f, ok := findingByID(s, "protocol.content_type"); !ok || f.Status != Pass {
+		t.Errorf("stateless: %+v", f)
+	}
+}
+
+// With no reply to read, there is no label to judge: an observation, not
+// a pass.
+func TestContentTypeVerdictWithoutAReply(t *testing.T) {
+	s := &Session{Opts: Options{Recorder: telemetry.New()}}
+	got := contentTypeVerdict(s.check("protocol.content_type", "t"), "ping", &transport.RawResult{Status: 500}, nil)
+	if got.Status != Info || !strings.Contains(got.Detail, "HTTP 500") {
+		t.Errorf("500: %+v", got)
+	}
+	got = contentTypeVerdict(s.check("protocol.content_type", "t"), "ping", nil, errors.New("connection reset"))
+	if got.Status != Info || !strings.Contains(got.Detail, "connection reset") {
+		t.Errorf("failed: %+v", got)
+	}
+}
+
+// A server that issued a session id is asked one read-only question
+// without it, with the operator's credentials, so a refusal can only be
+// about the missing session.
+func TestMissingSession(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		quirk func(*quirks)
+		st    Status
+		want  string
+	}{
+		{"400", func(*quirks) {}, Pass, "400 for a request without Mcp-Session-Id"},
+		{"other refusal", func(q *quirks) { q.missingSessionStatus = 404 }, Pass, "the specification asks for 400"},
+		{"served", func(q *quirks) { q.sessionOptional = true }, Warn, "served a request without Mcp-Session-Id"},
+		{"server error", func(q *quirks) { q.missingSessionStatus = 500 }, Info, "HTTP 500"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeServer(t)
+			f.acceptAnyToken = true
+			tc.quirk(&f.q)
+			s, fs := run(t, f, replyBearer, replyPhases)
+			expect(t, fs, "protocol.missing_session", tc.st, tc.want)
+			if m := evidenceMethod(t, s, fs["protocol.missing_session"]); m != "ping" {
+				t.Errorf("protocol.missing_session cites a %s exchange", m)
+			}
+			// The probe must not adopt a session id the server hands out
+			// to the session-less request.
+			sid := s.Client.Transport().SessionID()
+			f.mu.Lock()
+			known := f.sessions[sid]
+			f.mu.Unlock()
+			if !known {
+				t.Errorf("the client left the probe holding session %q, which the server never registered", sid)
+			}
+		})
+	}
+}
+
+func TestMissingSessionSkips(t *testing.T) {
+	// The handshake revisions, with no session id issued.
+	f := newFakeServer(t)
+	f.acceptAnyToken = true
+	f.q.stateless = true
+	_, fs := run(t, f, replyBearer, replyPhases)
+	expect(t, fs, "protocol.missing_session", Skip, "issued no session id")
+	if ev := fs["protocol.missing_session"].Evidence; len(ev) != 0 {
+		t.Errorf("a skip made requests: %v", ev)
+	}
+
+	s := runStateless(t, statelessFake(t, statelessOpts{}), nil)
+	if got, ok := findingByID(s, "protocol.missing_session"); !ok || got.Status != Skip || !strings.Contains(got.Detail, "no sessions") {
+		t.Errorf("stateless: %+v", got)
+	}
+}
+
+func TestMissingSessionVerdictFailed(t *testing.T) {
+	s := &Session{Opts: Options{Recorder: telemetry.New()}}
+	got := missingSessionVerdict(s.check("protocol.missing_session", "t"), nil, errors.New("connection reset"))
+	if got.Status != Info || !strings.Contains(got.Detail, "connection reset") {
+		t.Errorf("failed: %+v", got)
+	}
+}

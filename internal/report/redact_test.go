@@ -35,7 +35,7 @@ func TestReportMasksReflectedSecrets(t *testing.T) {
 		Execution: Execution{
 			Tools:     tools,
 			Resources: []probe.ResourceResult{{URI: "https://x/r?token=" + secret, Error: with("e")}},
-			Prompts:   []probe.PromptResult{{Name: "p", Error: with("e")}},
+			Prompts:   []probe.PromptResult{{Name: "p", Error: with("e"), NegativeTest: with("n")}},
 		},
 	}
 	r.maskSecrets(red)

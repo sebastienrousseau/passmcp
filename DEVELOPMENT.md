@@ -126,7 +126,7 @@ to it.
 |---|---|
 | `<pkg>/<pkg>_test.go` | The package's main suite |
 | `testserver_test.go`, `internal/probe/fake_test.go` | Fake MCP and authorization servers under `httptest`, with knobs for the failure modes each phase must observe |
-| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`); run for a fixed duration per push by `scripts/fuzz.sh` |
+| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`), `FuzzSchemaValid` (`internal/probe`); run for a fixed duration per push by `scripts/fuzz.sh` |
 | `cmd/*_test.go` | Flag validation, credential resolution and config precedence |
 
 Three properties the suite deliberately enforces:
@@ -198,6 +198,14 @@ and nothing catches it.
 that directory and cleans it after running its before-hooks, which would
 delete the generated pages before packaging.
 
+The README demo, `.github/demo.gif`, is the one generated file that is
+committed, because GitHub renders it from the tree. Regenerate it with
+`make demo` whenever the output it shows changes: it builds `passmcp` and the
+example server into `build/demo` and records `.github/demo.tape` with
+[VHS](https://github.com/charmbracelet/vhs), which needs `vhs`, `ttyd` and
+`ffmpeg` on `PATH`. Leave 90 seconds between renders: the example server a
+render starts stops itself then, and holds its port until it does.
+
 ## Release model
 
 Releases are tag-triggered and fully automated. Nothing is published by
@@ -206,14 +214,33 @@ hand.
 1. Prepare the release on a `feat/vX.Y.Z` branch: `CHANGELOG.md` gains a
    `## [X.Y.Z]` heading, and pre-1.0 the patch digit moves. Merge to
    `main`.
+   The branch also adds `docs/releases/vX.Y.Z.md`, the release's
+   highlights: the only part of the release page written by hand.
 2. Dry-run the pipeline: run the Release workflow via `workflow_dispatch`
-   with `dry_run: true`. It builds and packages everything and stops before
+   with `dry_run: true`. It builds and packages everything, prints the
+   release page it would publish for those artefacts, and stops before
    publishing, signing and attesting.
 3. Tag and push: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
 4. The workflow builds the target matrix, signs with keyless cosign,
    attaches SLSA provenance and a CycloneDX SBOM, and publishes archives,
    deb and rpm packages, the Homebrew formula, the AUR package and the
    container image.
+5. Its last step writes the release page in the family layout:
+   title `passmcp X.Y.Z`, the highlights, GitHub's generated
+   `## What's Changed` (and `## New Contributors` when there are any), the
+   SHA-256 of every attached asset under `## Checksums`, and the
+   `**Full Changelog**` link. It reads the page back and fails unless
+   GitHub shows what it composed. Nothing on the page is edited by hand.
+
+To see the page a tag has, or would have, without publishing anything
+(`gh` needs a token with contents access for GitHub's generated notes):
+
+```sh
+go run ./scripts/releasepage -name passmcp -tag vX.Y.Z
+```
+
+The title goes to stderr and the notes to stdout. `-publish` writes the
+page, which is the workflow's job, not a local one.
 
 Every commit must be **cryptographically signed** and carry a DCO
 `Signed-off-by` trailer. See [CONTRIBUTING.md](CONTRIBUTING.md).
