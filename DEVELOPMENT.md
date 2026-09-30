@@ -203,7 +203,7 @@ to it.
 |---|---|
 | `<pkg>/<pkg>_test.go` | The package's main suite |
 | `testserver_test.go`, `internal/probe/fake_test.go` | Fake MCP and authorization servers under `httptest`, with knobs for the failure modes each phase must observe |
-| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` and `FuzzHeaderValue` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`), `FuzzParse` (`internal/clientconf`), `FuzzSchemaValid` (`internal/probe`), `FuzzString` (`internal/termsafe`); run for a fixed duration per push by `scripts/fuzz.sh` |
+| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` and `FuzzHeaderValue` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`), `FuzzParse` (`internal/clientconf`), `FuzzRunSpecJSON` and `FuzzCredentialRedaction` (`internal/engine`), `FuzzSchemaValid` (`internal/probe`), `FuzzHTMLEscaping` and `FuzzFixFirst` (`internal/report`), `FuzzString` (`internal/termsafe`); run for a fixed duration per push by `scripts/fuzz.sh` |
 | `cmd/*_test.go` | Flag validation, credential resolution and config precedence |
 
 Three properties the suite deliberately enforces:

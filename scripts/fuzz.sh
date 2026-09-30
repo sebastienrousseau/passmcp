@@ -17,7 +17,11 @@ targets=(
   "./diagnostics FuzzValidate"
   "./diagnostics FuzzArguments"
   "./internal/clientconf FuzzParse"
+  "./internal/engine FuzzRunSpecJSON"
+  "./internal/engine FuzzCredentialRedaction"
   "./internal/probe FuzzSchemaValid"
+  "./internal/report FuzzHTMLEscaping"
+  "./internal/report FuzzFixFirst"
   "./internal/termsafe FuzzString"
 )
 for t in "${targets[@]}"; do
