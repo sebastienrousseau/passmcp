@@ -198,6 +198,14 @@ and nothing catches it.
 that directory and cleans it after running its before-hooks, which would
 delete the generated pages before packaging.
 
+The README demo, `.github/demo.gif`, is the one generated file that is
+committed, because GitHub renders it from the tree. Regenerate it with
+`make demo` whenever the output it shows changes: it builds `passmcp` and the
+example server into `build/demo` and records `.github/demo.tape` with
+[VHS](https://github.com/charmbracelet/vhs), which needs `vhs`, `ttyd` and
+`ffmpeg` on `PATH`. Leave 90 seconds between renders: the example server a
+render starts stops itself then, and holds its port until it does.
+
 ## Release model
 
 Releases are tag-triggered and fully automated. Nothing is published by

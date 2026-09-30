@@ -6,7 +6,8 @@
 # §7.3): a centred plain-text h1, the template's second-level headings in
 # the template's order, no unresolved {{UPPER_SNAKE_CASE}} variable outside
 # code, and the family's badge row: seven shields.io badges in the family's
-# order, all for-the-badge, the toolchain badge naming go.mod's floor. The
+# order, all for-the-badge, the toolchain badge naming go.mod's floor,
+# followed by the demo block showing .github/demo.gif (§7.1.1). The
 # heading list is the template's; update both together.
 #
 #   scripts/readme-check.sh [README.md]
@@ -80,5 +81,19 @@ grep -q "img.shields.io/badge/go-${floor}%2B-" <<<"${badges}" || {
   echo "readme-check: the toolchain badge does not state go.mod's floor, ${floor}" >&2
   exit 1
 }
+
+# The visual demo (AGENTS.md §7.1.1): the template's demo block directly
+# under the badge row, with alt text, pointing at a GIF that is committed.
+demo_block='^  <img src="\.github/demo\.gif" alt="[^"][^"]*" width="100%" />$'
+demo_line=$(grep -n "${demo_block}" "${readme}" | head -1 | cut -d: -f1 || true)
+last_badge=$(grep -n '<img src="https://img.shields.io/' "${readme}" | tail -1 | cut -d: -f1 || true)
+contents=$(grep -n '^## Contents$' "${readme}" | head -1 | cut -d: -f1 || true)
+if [ -z "${demo_line}" ] || [ -z "${last_badge}" ] || [ -z "${contents}" ] ||
+  [ "${demo_line}" -lt "${last_badge}" ] || [ "${demo_line}" -gt "${contents}" ]; then
+  echo "readme-check: no demo block under the badge row:" >&2
+  echo '  <img src=".github/demo.gif" alt="what the demo shows" width="100%" />' >&2
+  exit 1
+fi
+[ -f .github/demo.gif ] || { echo "readme-check: .github/demo.gif is missing; run make demo" >&2; exit 1; }
 
 echo "readme-check: ${readme} follows the template (${project})"
