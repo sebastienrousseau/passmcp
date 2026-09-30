@@ -70,3 +70,15 @@ was derived from is the evidence, and it is cited by the
 `catalog.tools.list` finding immediately before. If findings without a
 citable basis multiply, evidence should grow a second kind — a pointer
 into the report's own catalog — and this record gets a successor.
+
+## Enforcement
+
+Added 2026-09-30. The rule is enforced in code rather than by review
+alone. `check.done` records a `pass` that carries no evidence (no request
+in its window and nothing cited with `ev`) as `info`, with a note in its
+detail, unless the check is listed in `derivedChecks`
+(`internal/probe/evidence.go`) with where its evidence is: the exception
+this record describes, made explicit and reviewable. The probe test
+suite fails if any test produces such a pass, so a new check that
+forgets its evidence is caught before it ships, and
+`TestDerivedChecksAreRealChecks` keeps the list to checks that exist.

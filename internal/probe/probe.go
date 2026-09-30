@@ -754,7 +754,20 @@ func (c *check) done(st Status, sev Severity, detail, advice string) Finding {
 			c.f.Evidence = append(c.f.Evidence, fmt.Sprintf("req#%d-%d", c.from+1, to))
 		}
 	}
-	return c.f
+	return enforceEvidence(c.f)
+}
+
+// enforceEvidence records a pass that has no evidence, and is not a
+// derived check, as info (ADR-0002; see evidence.go).
+func enforceEvidence(f Finding) Finding {
+	if !unevidenced(f) {
+		return f
+	}
+	f.Status, f.Detail = Info, f.Detail+unevidencedNote
+	if onUnevidenced != nil {
+		onUnevidenced(f)
+	}
+	return f
 }
 
 func (c *check) pass(detail string) Finding                  { return c.done(Pass, "", detail, "") }

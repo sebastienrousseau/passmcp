@@ -155,7 +155,10 @@ how a co-maintainer is added.
 - **Findings pass only on evidence.** A check returns `pass` only after
   a request that showed the property, and cites it; a failed or absent
   request is never a pass
-  ([ADR 0002](docs/adr/0002-findings-cite-requests.md)). A blocked phase
+  ([ADR 0002](docs/adr/0002-findings-cite-requests.md)). `check.done`
+  records an unevidenced pass as info, and the probe suite fails on one;
+  a check that judges an earlier response is declared in
+  `internal/probe/evidence.go` with where its evidence is. A blocked phase
   makes later phases skipped, not passed.
 - **Secrets stay redacted.** A new credential kind registers its secret
   with the recorder before the first request, and a new report or

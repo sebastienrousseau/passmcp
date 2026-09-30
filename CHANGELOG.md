@@ -64,6 +64,14 @@ project announces that a change felt big.
 
 ### Changed
 
+- **A pass needs evidence, in code.** ADR-0002's rule was a convention:
+  a check could return `pass` without making a request or citing
+  anything. `check.done` now records such a finding as `info`, with a
+  note in its detail, unless the check is a declared derived check (one
+  that judges an earlier response in the same run, listed with where its
+  evidence is in `internal/probe/evidence.go`). No check the test suite
+  exercises changes status; the probe suite fails if one would.
+
 - **`--rps` and `--concurrency` have maximums.** `check`, its sibling
   commands and `discover` refuse `--rps` above 100 (or not a number) and
   `--concurrency` above 64, with an error that names the limit. Zero and

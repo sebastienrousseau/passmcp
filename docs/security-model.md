@@ -303,6 +303,12 @@ guard is the strict one, and an unknown case is refused.
   `internal/probe/phase_net.go`).
 - **Blocked runs.** When a phase sets `Session.blocked`, every later
   phase is recorded as skipped with the reason, never passed.
+- **Unevidenced passes.** A check that returns `pass` without a request
+  in its window or evidence it cites is recorded as `info`, unless it is
+  a declared derived check (`internal/probe/evidence.go`,
+  [ADR-0002](adr/0002-findings-cite-requests.md)); the probe suite fails
+  on any such pass (`TestAPassWithoutEvidenceIsRecordedAsInfo` and the
+  guard in its `TestMain`).
 - **The hosted diagnostic.** `passmcp serve --public` scans only an
   allowlist it was started with, and a missing allowlist admits nothing
   (`TestAllowlistNilIsClosed`,

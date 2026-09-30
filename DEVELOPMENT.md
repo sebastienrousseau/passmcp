@@ -355,5 +355,8 @@ This is what keeps `--output json` and `--output ndjson` pipeable. A
 
 **A finding passes only on evidence.** Each check records the range of
 recorder sequence numbers it made (`req#12-14`), and `pass` is reserved for
-a property a request actually showed. See
+a property a request actually showed. `check.done` enforces it: a pass with
+no evidence is recorded as info unless the check is declared derived in
+`internal/probe/evidence.go`, and the probe suite fails if any test
+produces one. See
 [docs/adr/0002-findings-cite-requests.md](docs/adr/0002-findings-cite-requests.md).
