@@ -62,6 +62,13 @@ project announces that a change felt big.
   pre-commit alike, and it no longer allows a variant spelling of
   "unparsable" that two comments used.
 
+### Changed
+
+- **`--rps` and `--concurrency` have maximums.** `check`, its sibling
+  commands and `discover` refuse `--rps` above 100 (or not a number) and
+  `--concurrency` above 64, with an error that names the limit. Zero and
+  negative rates still switch the throttle off.
+
 ### Security
 
 - **Server text can no longer drive the operator's terminal.** Tool

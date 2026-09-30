@@ -18,6 +18,7 @@ import (
 
 	"satellion.com/passmcp-reporting/graph"
 	"satellion.com/passmcp/internal/discover"
+	"satellion.com/passmcp/internal/engine"
 	"satellion.com/passmcp/internal/probe"
 	"satellion.com/passmcp/internal/report"
 )
@@ -175,6 +176,22 @@ func TestDiscoverCommandReadsEverySource(t *testing.T) {
 	}
 	if !types[discover.SourceConfig] || !types[discover.SourceGateway] || !types[discover.SourceRegistry] {
 		t.Errorf("the endpoint's sources %+v do not name all three", res.Endpoints[0].Sources)
+	}
+}
+
+// TestDiscoverBoundsThePace: discover probes many targets at once, so its
+// --rps and --concurrency have the same ceilings as a check's.
+func TestDiscoverBoundsThePace(t *testing.T) {
+	for name, o := range map[string]discoverFlags{
+		"rps":         {output: "text", concurrency: 1, rps: engine.MaxRPS + 1},
+		"concurrency": {output: "text", concurrency: engine.MaxConcurrency + 1, rps: 2},
+	} {
+		if err := checkDiscoverFlags(o); err == nil || !strings.Contains(err.Error(), "maximum") {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+	if err := checkDiscoverFlags(discoverFlags{output: "text", concurrency: engine.MaxConcurrency, rps: engine.MaxRPS}); err != nil {
+		t.Errorf("the maximums themselves were refused: %v", err)
 	}
 }
 

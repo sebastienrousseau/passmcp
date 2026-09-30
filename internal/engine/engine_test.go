@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -541,6 +542,42 @@ func TestGateDecidesWhetherARunFailed(t *testing.T) {
 // A spec carrying a policy that cannot be enforced must be refused before the
 // run starts. Nothing has been measured at that point, so proceeding would
 // produce a verdict the policy could not judge.
+// TestValidateBoundsThePace: --rps and --concurrency are how much load a
+// run puts on somebody else's server, and a value past any sane figure is
+// a typo or a load test, not a diagnostic. Zero and negative rates still
+// mean "no throttle", as documented.
+func TestValidateBoundsThePace(t *testing.T) {
+	base := RunSpec{Target: TargetSpec{Endpoint: "https://x/mcp"}}.WithDefaults()
+	for name, tc := range map[string]struct {
+		pace PacingSpec
+		want string
+	}{
+		"rps over the maximum":         {PacingSpec{RPS: MaxRPS + 1, Concurrency: 4}, "--rps"},
+		"rps not a number":             {PacingSpec{RPS: math.NaN(), Concurrency: 4}, "--rps"},
+		"rps infinite":                 {PacingSpec{RPS: math.Inf(1), Concurrency: 4}, "--rps"},
+		"concurrency over the maximum": {PacingSpec{RPS: 2, Concurrency: MaxConcurrency + 1}, "--concurrency"},
+	} {
+		s := base
+		s.Pacing = tc.pace
+		err := s.Validate()
+		if err == nil || !strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), "maximum") {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+	for name, pace := range map[string]PacingSpec{
+		"at the maximums": {RPS: MaxRPS, Concurrency: MaxConcurrency},
+		"unthrottled":     {RPS: 0, Concurrency: 4},
+		"negative rate":   {RPS: -1, Concurrency: 4},
+		"no burst":        {RPS: 2, Concurrency: -1},
+	} {
+		s := base
+		s.Pacing = pace
+		if err := s.Validate(); err != nil {
+			t.Errorf("%s: refused: %v", name, err)
+		}
+	}
+}
+
 func TestValidateRefusesAnUnenforceablePolicy(t *testing.T) {
 	spec := RunSpec{Target: TargetSpec{Endpoint: "https://mcp.example.com/mcp"}}.WithDefaults()
 	spec.Gate = &policy.Policy{Version: 99, Name: "from the future"}

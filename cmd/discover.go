@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"satellion.com/passmcp/internal/diag"
 	"satellion.com/passmcp/internal/discover"
+	"satellion.com/passmcp/internal/engine"
 	"satellion.com/passmcp/internal/telemetry"
 )
 
@@ -102,8 +103,8 @@ func init() {
 	f.StringVar(&o.reportDir, "report-dir", "", "write discovery.json, discovery.sarif, telemetry.ndjson and attestations here")
 	f.StringVar(&o.statePath, "state", "", "state file from a previous run, to report new and disappeared endpoints")
 	f.StringVar(&o.output, "output", "text", "output format: text, json or sarif")
-	f.Float64Var(&o.rps, "rps", 2, "max requests per second across the run; 0 or negative disables throttling")
-	f.IntVar(&o.concurrency, "concurrency", 4, "targets probed at once")
+	f.Float64Var(&o.rps, "rps", 2, fmt.Sprintf("max requests per second across the run, at most %d; 0 or negative disables throttling", engine.MaxRPS))
+	f.IntVar(&o.concurrency, "concurrency", 4, fmt.Sprintf("targets probed at once, at most %d", engine.MaxConcurrency))
 	f.DurationVar(&o.timeout, "timeout", 10*time.Second, "per-request timeout")
 }
 
@@ -149,6 +150,9 @@ func checkDiscoverFlags(o discoverFlags) error {
 	}
 	if o.concurrency < 1 {
 		return errors.New("discover: --concurrency must be at least 1")
+	}
+	if err := engine.ValidatePace(o.rps, o.concurrency); err != nil {
+		return fmt.Errorf("discover: %w", err)
 	}
 	return nil
 }

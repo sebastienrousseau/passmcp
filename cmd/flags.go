@@ -187,8 +187,8 @@ func paceFlags() *pflag.FlagSet {
 	paceOnce.Do(func() {
 		fs := pflag.NewFlagSet("pacing", pflag.ContinueOnError)
 		fs.IntVar(&samples, "samples", 5, "repeat calls per tool in the performance phase")
-		fs.IntVar(&concurrency, "concurrency", 4, "workers in the parallel burst (0 disables)")
-		fs.Float64Var(&rps, "rps", 2, "max requests per second; 0 or negative disables throttling")
+		fs.IntVar(&concurrency, "concurrency", 4, fmt.Sprintf("workers in the parallel burst, at most %d (0 disables)", engine.MaxConcurrency))
+		fs.Float64Var(&rps, "rps", 2, fmt.Sprintf("max requests per second, at most %d; 0 or negative disables throttling", engine.MaxRPS))
 		fs.DurationVar(&callTimeout, "timeout", 30*time.Second, "per-call timeout")
 		fs.StringVar(&userAgent, "user-agent", "", "User-Agent sent on every HTTP request, the unauthenticated first contact included (default: Go's)")
 		fs.Uint64Var(&seed, "seed", 1, "seed for generated arguments")

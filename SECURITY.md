@@ -159,7 +159,10 @@ is worse than one that omits them.
   `TestPolicyDefaults`; the probe suite's fake server panics if its
   destructive tool is ever called under the default policy.
 - **Requests are throttled** to `--rps` (default 2) including the
-  parallel burst, unless `--allow-load` is passed.
+  parallel burst, unless `--allow-load` is passed. `--rps` is capped at
+  100 and `--concurrency` at 64 workers, for `check` and `discover`
+  alike; a larger value is refused before anything is sent
+  (`engine.ValidatePace`, `TestValidateBoundsThePace`).
 - **One deliberately invalid bearer token** is sent to check the server
   rejects it. Nothing else adversarial is sent: no fuzzing of server
   inputs beyond a single malformed JSON body and an unknown method name,

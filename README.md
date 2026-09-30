@@ -873,8 +873,8 @@ them off unless you know why you are turning one on; see
 | Option | Default | Description |
 | :--- | :--- | :--- |
 | `--samples` | `5` | Repeat calls per tool in the performance phase |
-| `--concurrency` | `4` | Workers in the parallel burst (`0` disables) |
-| `--rps` | `2` | Max requests per second; `0` or negative disables throttling |
+| `--concurrency` | `4` | Workers in the parallel burst, at most `64` (`0` disables) |
+| `--rps` | `2` | Max requests per second, at most `100`; `0` or negative disables throttling |
 | `--timeout` | `30s` | Per-call timeout |
 | `--seed` | `1` | Seed for generated arguments |
 | `--fill-optional` | off | Also populate optional schema properties |
