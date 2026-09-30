@@ -36,7 +36,7 @@ project announces that a change felt big.
   `CONTRIBUTING.md` describes how pull requests are reviewed.
 - **Complexity ceilings at the portfolio's values.** Functions are held
   to cyclomatic complexity 10, cognitive complexity 15 and 60 lines, and
-  files to 500 lines. The 104 older functions and files over a ceiling
+  files to 500 lines. The 100 older functions and files over a ceiling
   are listed in `.complexity-baseline`, which `make lint` and CI enforce
   and which may only shrink: a new offender, a worse one, or an
   improvement the file does not record fails the build.
