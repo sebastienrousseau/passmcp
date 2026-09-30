@@ -7,7 +7,8 @@
 # the template's order, no unresolved {{UPPER_SNAKE_CASE}} variable outside
 # code, and the family's badge row: seven shields.io badges in the family's
 # order, all for-the-badge, the toolchain badge naming go.mod's floor,
-# followed by the demo block showing .github/demo.gif (§7.1.1). The
+# followed by the demo block showing .github/demo.gif (§7.1.1), and every
+# message the Troubleshooting table quotes still in the source. The
 # heading list is the template's; update both together.
 #
 #   scripts/readme-check.sh [README.md]
@@ -95,5 +96,28 @@ if [ -z "${demo_line}" ] || [ -z "${last_badge}" ] || [ -z "${contents}" ] ||
   exit 1
 fi
 [ -f .github/demo.gif ] || { echo "readme-check: .github/demo.gif is missing; run make demo" >&2; exit 1; }
+
+# The Troubleshooting table quotes what passmcp prints, so a reader can
+# search for it. Every backtick-quoted message in its Error Message column
+# must appear verbatim in a tracked, non-test .go file outside testdata. A
+# row quotes the fixed text of a message, never an example built from a
+# format string: `unknown setting`, not `unknown setting "rsp"`, which
+# would match nothing. There is no ignore list; a row that cannot be
+# matched is reworded to the real text.
+bt='`'
+messages=$(awk '
+  /^### Troubleshooting$/ { in_table = 1; next }
+  in_table && /^#/ { exit }
+  in_table && /^\| `/ { split($0, cols, " \\| "); print cols[1] }
+' "${readme}" | grep -oE "${bt}[^${bt}]+${bt}" | tr -d "${bt}" || true)
+[ -n "${messages}" ] || { echo "readme-check: no quoted messages found in the Troubleshooting table" >&2; exit 1; }
+missing=0
+while IFS= read -r message; do
+  if ! git grep -qF -e "${message}" -- '*.go' ':!:*_test.go' ':!:**/testdata/**'; then
+    echo "readme-check: Troubleshooting quotes \"${message}\", which no non-test .go file contains" >&2
+    missing=1
+  fi
+done <<<"${messages}"
+[ "${missing}" -eq 0 ] || exit 1
 
 echo "readme-check: ${readme} follows the template (${project})"

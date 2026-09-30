@@ -1173,10 +1173,10 @@ page (`man passmcp-check`).
 | :--- | :--- | :--- |
 | `server requires authorization and no credentials were supplied` | The server answered 401 and `--auth` resolved to `none`. | Pass `--token-env`, `--client-id`/`--client-secret-env`, or run `passmcp login`. |
 | `--auth client-credentials needs --client-id` | Client-credentials mode with nothing to identify the client. | Supply `--client-id`, `--client-metadata-url`, or `PASSMCP_CLIENT_ID`. |
-| `token endpoint invalid_target` | The authorization server rejected the RFC 8707 resource indicator. | Pass `--resource` with the value the server expects. |
+| `the server rejected the resource indicator` | The token endpoint answered `invalid_target`: it rejected the RFC 8707 resource indicator. | Pass `--resource` with the value the server expects. |
 | `no stored token for this endpoint` | `--auth authorization-code` without a prior login. | Run `passmcp login <endpoint>` first. |
 | `credentials rejected at initialize` | The token was issued but the MCP server did not accept it. | Check audience/resource, scope and expiry; `--log-level debug` shows the challenge. |
-| `unknown setting "rsp"` | A config key does not match any flag name. | Settings are named after flags; see `passmcp check --help`. |
+| `unknown setting` | A config key, such as `rsp` for `rps`, does not match any flag name. | Settings are named after flags; see `passmcp check --help`. |
 
 ### Frequently Asked Questions
 

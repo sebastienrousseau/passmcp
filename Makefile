@@ -238,7 +238,8 @@ spdx-check:
 	go run ./scripts/spdx_sweep.go
 
 # The README follows the portfolio template: headings in order, no
-# unresolved {{VARIABLES}} (AGENTS.md §7.3).
+# unresolved {{VARIABLES}} (AGENTS.md §7.3), and every error message the
+# Troubleshooting table quotes still present in the Go source.
 readme-check:
 	scripts/readme-check.sh
 
