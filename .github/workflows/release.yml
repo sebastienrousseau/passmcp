@@ -129,6 +129,27 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # The release page a tag would publish, composed from the artefacts
+      # built above and printed rather than published. The version is the
+      # newest CHANGELOG heading; a tag that does not exist yet is placed at
+      # this commit for GitHub's generated notes.
+      - name: Compose the release page (dry run)
+        if: env.DRY_RUN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="v$(sed -n 's/^## \[\([0-9][0-9.]*\)\].*/\1/p' CHANGELOG.md | head -1)"
+          assets=(dist/checksums.txt)
+          while read -r _ name; do
+            if [ -f "dist/${name}" ]; then
+              assets+=("dist/${name}")
+            else
+              echo "::notice::${name} is not in dist/; it is left off the dry-run page"
+            fi
+          done < dist/checksums.txt
+          go run ./scripts/releasepage -name passmcp -tag "${tag}" -target "${GITHUB_SHA}" "${assets[@]}"
+
       # Provenance comes first, before any packaging step can fail.
       #
       # In v0.0.1 it did not, and the cost was exactly what the comment on
@@ -201,6 +222,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: go run ./scripts/cra/main.go release-assets --tag "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}"
+
+      # The release page in the family layout (AGENTS.md in ~/Code, §3):
+      # title "passmcp X.Y.Z", the highlights from docs/releases/, GitHub's
+      # generated change list, the SHA-256 of every asset attached, and the
+      # Full Changelog link. It runs after every upload, so the checksums
+      # cover the provenance bundle and the VEX document too, and it reads
+      # the page back and fails unless GitHub shows what it composed.
+      - name: Publish the release page
+        if: env.DRY_RUN != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: go run ./scripts/releasepage -name passmcp -tag "${GITHUB_REF_NAME}" -publish
 
       # The cask goreleaser generated, handed to the `brew` job below as an
       # artefact rather than regenerated there, so what reaches the tap is

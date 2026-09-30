@@ -206,14 +206,33 @@ hand.
 1. Prepare the release on a `feat/vX.Y.Z` branch: `CHANGELOG.md` gains a
    `## [X.Y.Z]` heading, and pre-1.0 the patch digit moves. Merge to
    `main`.
+   The branch also adds `docs/releases/vX.Y.Z.md`, the release's
+   highlights: the only part of the release page written by hand.
 2. Dry-run the pipeline: run the Release workflow via `workflow_dispatch`
-   with `dry_run: true`. It builds and packages everything and stops before
+   with `dry_run: true`. It builds and packages everything, prints the
+   release page it would publish for those artefacts, and stops before
    publishing, signing and attesting.
 3. Tag and push: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
 4. The workflow builds the target matrix, signs with keyless cosign,
    attaches SLSA provenance and a CycloneDX SBOM, and publishes archives,
    deb and rpm packages, the Homebrew formula, the AUR package and the
    container image.
+5. Its last step writes the release page in the family layout:
+   title `passmcp X.Y.Z`, the highlights, GitHub's generated
+   `## What's Changed` (and `## New Contributors` when there are any), the
+   SHA-256 of every attached asset under `## Checksums`, and the
+   `**Full Changelog**` link. It reads the page back and fails unless
+   GitHub shows what it composed. Nothing on the page is edited by hand.
+
+To see the page a tag has, or would have, without publishing anything
+(`gh` needs a token with contents access for GitHub's generated notes):
+
+```sh
+go run ./scripts/releasepage -name passmcp -tag vX.Y.Z
+```
+
+The title goes to stderr and the notes to stdout. `-publish` writes the
+page, which is the workflow's job, not a local one.
 
 Every commit must be **cryptographically signed** and carry a DCO
 `Signed-off-by` trailer. See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -10,8 +10,9 @@ description: >-
 Every release's page is composed from `docs/releases/v<VERSION>.md`, the
 only part written by hand. It holds a `## Highlights ⭐️` section of two to
 four bullets, each `* **<Feature>**: <one or two plain sentences>`. The
-release script adds GitHub's generated change list, the SHA-256 of every
-asset and the Full Changelog link.
+release workflow's last step (`scripts/releasepage`) adds GitHub's
+generated change list, the SHA-256 of every asset and the Full Changelog
+link, and titles the page `passmcp <VERSION>`.
 
 ## A release that fixes a vulnerability
 
