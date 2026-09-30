@@ -5,6 +5,7 @@ package passmcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -891,6 +892,7 @@ func (c *Client) ListToolsWithHints(ctx context.Context) ([]Tool, CacheHints, er
 		}
 		all = append(all, page.Tools...)
 		if page.NextCursor == "" || page.NextCursor == cursor {
+			c.rememberTools(all)
 			return all, hints, nil
 		}
 		if err := pg.next(page.NextCursor); err != nil {
@@ -924,4 +926,19 @@ func Unauthorized(err error) (auth.Challenge, bool) {
 		return auth.Challenge{Scheme: "Bearer", Params: map[string]string{}}, true
 	}
 	return ch, true
+}
+
+// rememberTools hands the listed tools' input schemas to the stateless
+// binding, which mirrors x-mcp-header arguments on tools/call. The other
+// bindings have no such headers.
+func (c *Client) rememberTools(tools []Tool) {
+	d, ok := c.tr.Dialect().(*transport.Stateless)
+	if !ok {
+		return
+	}
+	schemas := make(map[string]json.RawMessage, len(tools))
+	for _, t := range tools {
+		schemas[t.Name] = t.InputSchema
+	}
+	d.RememberTools(schemas)
 }

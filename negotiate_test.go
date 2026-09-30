@@ -26,8 +26,9 @@ func statelessServer(t *testing.T, opts statelessOpts) *httptest.Server {
 			ID     json.RawMessage `json:"id"`
 			Method string          `json:"method"`
 			Params struct {
-				Name string         `json:"name"`
-				Meta map[string]any `json:"_meta"`
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
+				Meta      map[string]any `json:"_meta"`
 			} `json:"params"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
@@ -70,6 +71,12 @@ func statelessServer(t *testing.T, opts statelessOpts) *httptest.Server {
 				rpcErr(http.StatusBadRequest, transport.CodeHeaderMismatch, "Mcp-Name does not match body", "")
 				return
 			}
+			if opts.paramHeaders {
+				if msg := paramHeaderMismatch(r.Header, req.Params.Arguments); msg != "" {
+					rpcErr(http.StatusBadRequest, transport.CodeHeaderMismatch, msg, "")
+					return
+				}
+			}
 		}
 		if ver != opts.version {
 			rpcErr(http.StatusBadRequest, transport.CodeUnsupportedProtocolVersion, "unsupported version",
@@ -89,6 +96,10 @@ func statelessServer(t *testing.T, opts statelessOpts) *httptest.Server {
 			}
 			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"resultType":"complete","serverInfo":{"name":"stateless-demo","version":"2.0"},"capabilities":{"tools":{}},"instructions":"hi"}}`, id)
 		case "tools/list":
+			if opts.paramHeaders {
+				fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"resultType":"complete","tools":[{"name":"t","description":"d","inputSchema":%s}]}}`, id, annotatedSchema)
+				return
+			}
 			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"resultType":"complete","tools":[{"name":"t","description":"d","inputSchema":{"type":"object"}}]}}`, id)
 		default:
 			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"resultType":"complete"}}`, id)
@@ -104,6 +115,32 @@ type statelessOpts struct {
 	// metaServerInfo answers server/discover the way the 2026-07-28
 	// reference SDKs do: identity in _meta, not at the top level.
 	metaServerInfo bool
+	// paramHeaders lists a tool whose inputSchema annotates arguments with
+	// x-mcp-header and answers -32020 when tools/call does not mirror them.
+	paramHeaders bool
+}
+
+// annotatedSchema has one top-level and one nested x-mcp-header argument,
+// and a number the binding does not mirror because it is not an integer.
+const annotatedSchema = `{"type":"object","properties":{"region":{"type":"string","x-mcp-header":"Region"},"ratio":{"type":"number","x-mcp-header":"Ratio"},"opts":{"type":"object","properties":{"dry":{"type":"boolean","x-mcp-header":"Dry"}}}}}`
+
+// paramHeaderMismatch is the strict server's check: every annotated
+// argument the call carries is mirrored, and nothing else is.
+func paramHeaderMismatch(h http.Header, args map[string]any) string {
+	want := map[string]string{"Region": fmt.Sprint(args["region"])}
+	if o, ok := args["opts"].(map[string]any); ok {
+		want["Dry"] = fmt.Sprint(o["dry"])
+	}
+	for name, v := range want {
+		got, ok := transport.DecodeHeaderValue(h.Get("Mcp-Param-" + name))
+		if !ok || got != v {
+			return "Mcp-Param-" + name + " does not match the argument"
+		}
+	}
+	if h.Get("Mcp-Param-Ratio") != "" {
+		return "Mcp-Param-Ratio mirrors a non-integer number"
+	}
+	return ""
 }
 
 func newClient(t *testing.T, srv *httptest.Server) *Client {
@@ -420,5 +457,23 @@ func TestExtensionIDsReadsCapabilities(t *testing.T) {
 	var nilResult *DiscoverResult
 	if nilResult.ExtensionIDs() != nil {
 		t.Error("a nil result advertised extensions")
+	}
+}
+
+// TestStatelessMirrorsAnnotatedArguments: under 2026-07-28 a tools/call
+// mirrors every x-mcp-header argument into Mcp-Param-{Name}; a strict server
+// answers -32020 otherwise, and the failure would be passmcp's, not its.
+func TestStatelessMirrorsAnnotatedArguments(t *testing.T) {
+	srv := statelessServer(t, statelessOpts{version: transport.V20260728, paramHeaders: true})
+	c := newClient(t, srv)
+	if _, err := c.Negotiate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ListTools(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	args := map[string]any{"region": "eu-west", "ratio": 0.5, "opts": map[string]any{"dry": false}}
+	if _, err := c.CallTool(context.Background(), "t", args); err != nil {
+		t.Fatalf("tools/call with annotated arguments: %v", err)
 	}
 }

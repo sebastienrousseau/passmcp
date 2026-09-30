@@ -23,6 +23,14 @@ project announces that a change felt big.
 
 ### Fixed
 
+- **Stateless tool calls mirror `x-mcp-header` arguments.** Under
+  2026-07-28, an argument whose schema carries `x-mcp-header` must also be
+  sent as an `Mcp-Param-{Name}` header. passmcp sent none, so a strict
+  server answered `tools/call` with -32020 and the execution phase
+  reported the server as failing for passmcp's own omission. Strings,
+  booleans and integers under a plain `properties` chain are now mirrored,
+  encoded like `Mcp-Name`; invalid header names and other types are left
+  out.
 - **Paging a list stops on a cursor cycle.** `tools/list`,
   `resources/list`, `resources/templates/list` and `prompts/list` stopped
   only when a server repeated the cursor it was just given, so cursors
