@@ -22,6 +22,7 @@ import (
 	"satellion.com/passmcp/internal/diag"
 	"satellion.com/passmcp/internal/engine"
 	"satellion.com/passmcp/internal/telemetry"
+	"satellion.com/passmcp/internal/termsafe"
 	"satellion.com/passmcp/internal/tui"
 	"satellion.com/passmcp/transport"
 )
@@ -121,8 +122,11 @@ func callArguments() (map[string]any, error) {
 	return argsMap, nil
 }
 
-// writeCallResult prints a tool result for a person.
+// writeCallResult prints a tool result for a person. Everything in it was
+// chosen by the server, so it is written through termsafe: the result is
+// text for a terminal, and --output json is there for the exact bytes.
 func writeCallResult(w io.Writer, tool string, d time.Duration, res *passmcp.CallToolResult) {
+	w = termsafe.NewWriter(w)
 	status := "ok"
 	if res.IsError {
 		status = "isError"

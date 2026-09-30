@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"satellion.com/passmcp/internal/probe"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // mdPrinter writes one formatted fragment of a Markdown report.
@@ -17,7 +18,12 @@ type mdPrinter func(format string, a ...any)
 
 // Markdown renders a shareable report. Its fixed text comes from the
 // mdMessages catalogue; everything else is the run's own data.
+//
+// Server text is cleaned of terminal control sequences first, as for Text:
+// a Markdown report is printed to a terminal as often as it is opened in a
+// viewer, and a control character has no business in either.
 func Markdown(w io.Writer, r *Report) {
+	r = termsafe.Value(r)
 	p := mdPrinter(func(format string, a ...any) { _, _ = fmt.Fprintf(w, format, a...) })
 	mdHeader(p, r)
 	mdFailuresAndWarnings(p, r)

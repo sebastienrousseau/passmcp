@@ -17,6 +17,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // Level is the verbosity threshold.
@@ -194,7 +196,11 @@ func emit(l Level, f string, args ...any) {
 		lg.Log(context.Background(), slogFor(l), msg)
 		return
 	}
-	_, _ = fmt.Fprintf(w, "%s: %s\n", strings.ToUpper(l.String()), msg)
+	// The human format goes to a terminal, and a message often quotes
+	// something a server chose. The JSON format above is left faithful:
+	// its encoder escapes control characters, and a log pipeline is owed
+	// what was actually said.
+	_, _ = fmt.Fprintf(w, "%s: %s\n", strings.ToUpper(l.String()), termsafe.String(msg))
 }
 
 // Errorf reports a failure that stopped something from working.

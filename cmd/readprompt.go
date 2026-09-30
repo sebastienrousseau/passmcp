@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"satellion.com/passmcp"
 	"satellion.com/passmcp/internal/telemetry"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // read and prompt are call's siblings for the two other things a server
@@ -34,7 +35,8 @@ var readCmd = &cobra.Command{
   passmcp read https://mcp.example.com/mcp file:///README.md
   passmcp read https://mcp.example.com/mcp ui://dashboard --output json
 
-Text contents are printed as they are; binary (blob) contents are
+Text contents are printed with terminal control sequences removed
+(--output json carries them exactly); binary (blob) contents are
 described by URI, size and MIME type rather than written to a terminal.
 resources/read is non-mutating by the MCP specification, so no policy flag
 is needed.
@@ -169,8 +171,12 @@ func writeIndentedJSON(w io.Writer, v any) error {
 	return enc.Encode(v)
 }
 
-// writeResource prints a resource for a person.
+// writeResource prints a resource for a person. The contents are the
+// server's, so they are written through termsafe: text for a terminal
+// has its control sequences removed, and --output json carries the exact
+// bytes.
 func writeResource(w io.Writer, uri string, d time.Duration, res *passmcp.ReadResourceResult) {
+	w = termsafe.NewWriter(w)
 	_, _ = fmt.Fprintf(w, "%s ok in %s\n", uri, d.Round(time.Millisecond))
 	for _, c := range res.Contents {
 		if c.Blob != "" {
@@ -181,8 +187,10 @@ func writeResource(w io.Writer, uri string, d time.Duration, res *passmcp.ReadRe
 	}
 }
 
-// writePrompt prints a rendered prompt for a person.
+// writePrompt prints a rendered prompt for a person, through termsafe as
+// writeResource does.
 func writePrompt(w io.Writer, name string, d time.Duration, res *passmcp.GetPromptResult) {
+	w = termsafe.NewWriter(w)
 	_, _ = fmt.Fprintf(w, "%s ok in %s\n", name, d.Round(time.Millisecond))
 	if res.Description != "" {
 		_, _ = fmt.Fprintln(w, res.Description)

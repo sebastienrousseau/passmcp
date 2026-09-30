@@ -19,6 +19,7 @@ import (
 	"satellion.com/passmcp/internal/baseline"
 	"satellion.com/passmcp/internal/diag"
 	"satellion.com/passmcp/internal/engine"
+	"satellion.com/passmcp/internal/termsafe"
 	"satellion.com/passmcp/internal/watch"
 )
 
@@ -162,8 +163,12 @@ type watchWriter struct {
 	lastErr string
 }
 
+// newWatchWriter writes format to w. The text form goes through termsafe,
+// because an event quotes the server's errors and tool names and is read
+// on a terminal; the JSON forms are encoded, which escapes, and are owed
+// exactly what the server said.
 func newWatchWriter(format engine.Format, w io.Writer) *watchWriter {
-	return &watchWriter{format: format, w: w, enc: json.NewEncoder(w)}
+	return &watchWriter{format: format, w: termsafe.NewWriter(w), enc: json.NewEncoder(w)}
 }
 
 // event handles one event as it happens.

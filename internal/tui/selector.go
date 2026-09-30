@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // Item is one tool offered in the selector.
@@ -128,7 +129,9 @@ func (m *selectorModel) renderCustomTable() string {
 		if m.selected[it.Name] {
 			checkChar = "✔"
 		}
-		name := it.Name
+		// The name is the server's; the selection stays keyed by it, and
+		// only what is drawn is cleaned.
+		name := termsafe.String(it.Name)
 		if len(name) > 35 {
 			name = name[:32] + "..."
 		}
@@ -177,10 +180,18 @@ func (m *selectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleFetched installs the tool list, selecting by default every tool
 // the safety policy would run anyway.
+// shownError is a listing error as the selector draws it. Its text often
+// quotes the server, so it is cleaned of terminal control sequences; the
+// error it wraps is still there for errors.Is and errors.As.
+type shownError struct{ err error }
+
+func (e shownError) Error() string { return termsafe.String(e.err.Error()) }
+func (e shownError) Unwrap() error { return e.err }
+
 func (m *selectorModel) handleFetched(msg fetchedItemsMsg) (tea.Model, tea.Cmd) {
 	m.loading = false
 	if msg.err != nil {
-		m.loadingErr = msg.err
+		m.loadingErr = shownError{msg.err}
 		return m, tea.Quit
 	}
 	m.items = msg.items

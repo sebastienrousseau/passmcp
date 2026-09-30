@@ -130,6 +130,15 @@ is worse than one that omits them.
   `transport.MaxResponseBytes`, `MaxStreamBytes` and `MaxStreamEvents`;
   generated arguments are bounded by clamped schema limits; and the
   telemetry recording is bounded by `telemetry.Recorder.MaxEvents`.
+- **Server text cannot drive the operator's terminal.** Tool names,
+  descriptions, error text and content are cleaned of ANSI escape
+  sequences and C0/C1 control characters by `internal/termsafe` before
+  any rendering meant for a person writes them: the text and Markdown
+  reports, the TUI, human-format diagnostics and the text output of
+  `call`, `read`, `prompt` and `watch`. JSON and NDJSON output keep the
+  server's text exactly, escaped by the encoder. Verified by
+  `internal/termsafe/termsafe_test.go` and the renderer tests that feed
+  each output a hostile string.
 
 ### What passmcp sends to a server
 
@@ -184,9 +193,10 @@ is worse than one that omits them.
 - **The parsing boundaries are fuzzed** (`.github/workflows/fuzz.yml`):
   `FuzzParseWWWAuthenticate` in `auth`, `FuzzReadSSE` and
   `FuzzHeaderValue` in `transport`, `FuzzValidate` and `FuzzArguments`
-  in `diagnostics`. Every byte of a `WWW-Authenticate` header, an SSE
-  stream or a tool schema comes from the server under test, and so do
-  the names passmcp encodes into parameter headers.
+  in `diagnostics`, and `FuzzString` in `internal/termsafe`. Every byte
+  of a `WWW-Authenticate` header, an SSE stream, a tool schema or a
+  string printed to the operator's terminal comes from the server under
+  test, and so do the names passmcp encodes into parameter headers.
 - **Tests run with the race detector and randomised ordering**
   (`make test-race`).
 - **Commits are cryptographically signed and carry a DCO trailer.**

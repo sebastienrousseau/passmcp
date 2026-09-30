@@ -62,6 +62,15 @@ project announces that a change felt big.
   pre-commit alike, and it no longer allows a variant spelling of
   "unparsable" that two comments used.
 
+### Security
+
+- **Server text can no longer drive the operator's terminal.** Tool
+  names, descriptions, error text and content are cleaned of ANSI escape
+  sequences and C0/C1 control characters before the text and Markdown
+  reports, the TUI, human-format diagnostics and the text output of
+  `call`, `read`, `prompt` and `watch` write them. JSON and NDJSON output
+  still carry the server's text exactly.
+
 ### Fixed
 
 - **The coverage badge is checked after it is published.** The edge

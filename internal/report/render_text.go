@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 	"satellion.com/passmcp/internal/probe"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // TextOptions tune the terminal rendering.
@@ -63,7 +64,12 @@ func mark(st probe.Status, color bool) string {
 // Text renders the report to the terminal's scrollback: a plain-language
 // verdict and what to improve first, for anyone; then the score and, with
 // --verbose, the full per-check detail, for developers.
+//
+// Everything the server chose is cleaned of terminal control sequences
+// first (internal/termsafe): this is written to somebody's terminal, and
+// the caller's report is left as it is for the machine renderings.
 func Text(w io.Writer, r *Report, o TextOptions) {
+	r = termsafe.Value(r)
 	if o.Color {
 		lipgloss.SetColorProfile(termenv.TrueColor)
 	}

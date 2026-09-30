@@ -133,11 +133,24 @@ with an invalid token.
 error text, content — is bounded before it enters a finding, and response
 bodies are capped at 1 MiB on the raw transport and at `BodyCap` (64 KiB)
 in captured telemetry. Findings never embed server text unescaped into
-the Markdown renderer's table cells.
+the Markdown renderer's table cells. Every rendering meant for a person
+(the text and Markdown reports, the live TUI and tool selector, the
+human diagnostic format, and the text output of `call`, `read`,
+`prompt` and `watch`) removes ANSI escape sequences and C0 and C1
+control characters from server text before it reaches a terminal, so a
+tool name or an error string cannot move the cursor, retitle the window
+or write to the clipboard. The machine renderings (JSON, NDJSON, SARIF,
+HAR, structured diagnostics) keep the server's text exactly: their
+encoders escape control characters, and a consumer of them is owed what
+the server sent.
 
 **Evidence.** `truncate` in `internal/probe`; `io.LimitReader` in
 `transport.Streamable.Do`; `Recorder.BodyCap`; `esc` in
-`internal/report/render_md.go`.
+`internal/report/render_md.go`; `internal/termsafe`, with
+`TestTextAndMarkdownNeutraliseTerminalSequences`,
+`TestRunViewNeutralisesServerText`, `TestSelectorNeutralisesToolNames`,
+`TestHumanFormatNeutralisesTerminalSequences` and
+`TestTextOutputsNeutraliseServerText`.
 
 ### C5. The release artefacts you download are the artefacts we built
 
@@ -159,8 +172,10 @@ parsers for each, and that encoder, are fuzz targets run on every push.
 **Evidence.** `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` and
 `FuzzHeaderValue` (`transport`), `FuzzValidate` and `FuzzArguments`
 (`diagnostics`),
-`FuzzSchemaValid` (`internal/probe`) and `FuzzParse`
-(`internal/clientconf`), driven by `scripts/fuzz.sh` and
+`FuzzSchemaValid` (`internal/probe`), `FuzzParse`
+(`internal/clientconf`) and `FuzzString` (`internal/termsafe`, the
+terminal-sequence filter every person-facing rendering of server text
+passes through), driven by `scripts/fuzz.sh` and
 `.github/workflows/fuzz.yml`.
 
 ## 4. Threats considered and out of scope
@@ -384,6 +399,7 @@ countermeasure and the evidence for it.
 | **CWE-400**, **CWE-770** Uncontrolled resource consumption | Response bodies capped (32 MiB, and 1 MiB for OAuth documents), SSE streams capped in bytes and events, schema recursion bounded at depth 64, pagination stops on a cursor cycle, telemetry bounded in events and body size, requests throttled to `--rps`, `watch` pulses no faster than every 30 s | `transport.MaxResponseBytes`, `MaxStreamEvents`, `diagnostics.MaxSchemaDepth`, `Recorder.BodyCap`; `TestResponseBodyIsBounded`, `TestStreamEventsAreBounded`, `TestValidateDepthIsBounded`, `TestRecursiveRefTerminates`, `TestListToolsStopsOnACursorCycle`, `TestRecorderIsBounded`, `TestProbeSurvivesHostileServers`, `TestRunRefusesAnImpoliteInterval` |
 | **CWE-20** Improper input validation | Every server-sent structure is parsed defensively, and the parsers of server bytes are fuzzed: `WWW-Authenticate`, SSE, JSON Schema, client configuration; run specifications are validated before a run; fleet names are restricted to a safe pattern | `engine.RunSpec.Validate`; `FuzzParseWWWAuthenticate`, `FuzzReadSSE`, `FuzzHeaderValue`, `FuzzValidate`, `FuzzSchemaValid`, `FuzzParse`, `FuzzRunSpecJSON`; `TestValidate`, `TestParseRefusesInlineSecretsAndMistakes` |
 | **CWE-117** Improper output neutralization for logs | A finding's detail is collapsed to one line before it is recorded, so server text cannot forge a line in the text report or a log; structured logs are JSON-encoded; Markdown table cells are escaped; the HTML report is rendered through `html/template` and fuzzed; hidden bidi and zero-width characters are shown as code points in poisoning excerpts | `oneLine` and `truncate` in `internal/probe`, `esc` in `internal/report/render_md.go`, `diagnostics.visible`; `FuzzHTMLEscaping`, `TestHTMLEscapesHostileCatalog`, `TestScanTextFindsHiddenCharacters` |
+| **CWE-150** Improper neutralization of escape, meta or control sequences | Server text written for a person (text and Markdown reports, TUI, human diagnostics, `call`/`read`/`prompt`/`watch` text) has ANSI escape sequences and C0/C1 control characters removed at the renderer; machine formats stay faithful and are escaped by their encoders | `internal/termsafe`; `TestStringRemovesControlSequences`, `TestTextAndMarkdownNeutraliseTerminalSequences`, `TestTextOutputsNeutraliseServerText` |
 | **CWE-78**, **CWE-88** OS command and argument injection | No shell is ever invoked; a stdio server is executed as named with its arguments as given; keyring keys are encoded before they reach a helper; the web shell cannot start a program unless `--allow-stdio` is passed | `transport/stdio.go`, `internal/creds/keyring.go`; `TestKeyNeverEscapesTheCommand`, `TestAHostileKeyCannotReachTheShell`, `TestBrowserCannotStartAProgram` |
 | **CWE-352**, **CWE-346** Cross-site request forgery and origin validation | `passmcp login` binds its redirect listener to `127.0.0.1`, checks `state` in constant time, always uses PKCE S256 and refuses a server that advertises PKCE methods without it, and checks the RFC 9207 `iss`; the web shell requires its per-run token and a same-origin request | `auth.NewPKCE`, `auth.NewState`, `checkIssuer` in `client.go`; `TestLoginWrongState`, `TestLoginRejectsMixUpIssuer`, `TestAuthorizationCodeFlow`, `TestGuards`, `TestRemoteBindRefused` |
 | **CWE-22** Path traversal | Report files have fixed names inside the operator's directory; names derived from data are hashes (discovery) or must match a safe pattern (fleet) | `engine.Result.WriteDir`, `safeName` in `internal/fleet/file.go`; `TestParseRefusesInlineSecretsAndMistakes` |
