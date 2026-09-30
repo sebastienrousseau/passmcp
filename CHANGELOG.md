@@ -61,9 +61,6 @@ project announces that a change felt big.
 - One codespell configuration, `.codespellrc`, is read by CI and
   pre-commit alike, and it no longer allows a variant spelling of
   "unparsable" that two comments used.
-
-### Changed
-
 - **`watch` events carry `latency_ms` on every pulse.** The field was
   omitted when it was zero, which a coarse clock (Windows' 15.6 ms tick)
   measures for a fast pulse, so an answered pulse could arrive with no
