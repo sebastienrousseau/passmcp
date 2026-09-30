@@ -14,7 +14,7 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [Unreleased]
+## [0.0.3] — 2026-09-30
 
 ### Changed
 
