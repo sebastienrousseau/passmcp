@@ -28,7 +28,7 @@ that do not apply and say what you actually did for the rest.
 - [ ] `make test-race` passes
 - [ ] New or changed behaviour is covered by a test against a fake server that fails without the change
 - [ ] A new finding cites its requests (`req#N`) and cannot pass without one
-- [ ] `make sbom` passes (required if `go.mod` changed)
+- [ ] `make sbom-check` passes (required if `go.mod` changed)
 - [ ] `CHANGELOG.md` has an entry under the right heading
 
 ## Risk

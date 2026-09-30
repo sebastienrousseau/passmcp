@@ -80,7 +80,7 @@ is the cross-platform matrix.
 | Lint | `make lint` |
 | Vulnerability scan | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` |
 | Licence headers (SPDX) | `make spdx-check` |
-| SBOM drift | `make sbom` |
+| SBOM drift | `make sbom-check` |
 | Example compilation | `make example-check` |
 | API compatibility | `make api-check` |
 | Check inventory | `make checks-verify` (regenerate with `make checks`) |

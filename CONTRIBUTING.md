@@ -173,7 +173,7 @@ how a co-maintainer is added.
 - **`CHANGELOG.md` has an entry** under `## [Unreleased]` for anything a
   user would notice.
 - **A new dependency is justified** in the commit message and recorded
-  in `SBOM.md` (`make sbom`).
+  in `SBOM.md` (`make sbom-check`).
 - **Commits are signed, signed off, and Conventional.**
 
 ### What makes a change acceptable

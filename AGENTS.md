@@ -20,7 +20,7 @@ Nothing merges without these. All of them are reproducible locally.
 | Race detector, randomised order | `make test-race` |
 | Lint at zero findings | `make lint` |
 | SPDX header on every source file | `make spdx-check` |
-| `SBOM.md` agrees with `go.mod` | `make sbom` |
+| `SBOM.md` agrees with `go.mod` | `make sbom-check` |
 | Examples still compile | `make example-check` |
 | Fuzz targets still build and run | `make fuzz` |
 | Install tree is correct | `make install-smoke` |
@@ -114,7 +114,7 @@ the new code. Never reach a branch by pointing a test at a live server.
 - Do not couple a structure or documentation cleanup to a behaviour
   change. They review differently and the cleanup is what gets dropped.
 - Do not add a dependency without saying why in the commit. The module
-  has two direct dependencies and a hand-maintained `SBOM.md` that CI
+  has ten direct dependencies and a hand-maintained `SBOM.md` that CI
   checks against `go.mod`; a new one is not free.
 - Do not add a CI gate that does not currently pass. A red gate on
   arrival teaches everyone to ignore it.

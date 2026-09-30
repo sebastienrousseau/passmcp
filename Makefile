@@ -13,7 +13,7 @@ export CGO_ENABLED = 0
 COVER_MIN ?= 85
 
 .PHONY: spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
-        fuzz sbom coverage bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
+        fuzz sbom sbom-check coverage bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
         ecosystem ecosystem-verify commitlint ssg-check readme-check demo verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
 all: format vet lint spdx-check example-check ecosystem-verify ssg-check test test-race build
@@ -260,14 +260,17 @@ example-check:
 fuzz:
 	scripts/fuzz.sh
 
-sbom: build
+sbom-check:
+	scripts/sbom-check.sh
+
+sbom: sbom-check build
 	syft scan dir:. -o cyclonedx-json > $(DIST)/sbom.cdx.json
 
 clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage bench api-check vet lint format spdx-check example-check readme-check demo verify-versions fuzz sbom trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage bench api-check vet lint format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).
