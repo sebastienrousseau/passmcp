@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -80,7 +81,7 @@ func TestDiscoverPRMHintFirstAndEmptyServers(t *testing.T) {
 func TestDiscoverServerPathAware(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/oauth-authorization-server/tenant1" {
-			json.NewEncoder(w).Encode(ServerMetadata{Issuer: "x", TokenEndpoint: "https://x/token"})
+			json.NewEncoder(w).Encode(ServerMetadata{Issuer: "http://" + r.Host + "/tenant1", TokenEndpoint: "https://x/token"})
 			return
 		}
 		http.NotFound(w, r)
@@ -93,6 +94,52 @@ func TestDiscoverServerPathAware(t *testing.T) {
 	}
 	if md.TokenEndpoint != "https://x/token" {
 		t.Errorf("md = %+v", md)
+	}
+}
+
+// TestDiscoverServerRequiresTheIssuerItAskedFor is RFC 8414 §3.3: the
+// issuer in the metadata must be identical to the issuer the document was
+// fetched for, or the document must not be used. A document that names
+// another issuer is refused, not skipped over: it is a server claiming to
+// speak for someone else.
+func TestDiscoverServerRequiresTheIssuerItAskedFor(t *testing.T) {
+	var issuer string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/oauth-authorization-server/tenant1":
+			json.NewEncoder(w).Encode(ServerMetadata{Issuer: issuer, TokenEndpoint: "https://x/token"})
+		case "/.well-known/openid-configuration/tenant1":
+			// A second candidate that would match must not rescue the
+			// first one's mismatch.
+			json.NewEncoder(w).Encode(ServerMetadata{Issuer: "http://" + r.Host + "/tenant1", TokenEndpoint: "https://x/token"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	d := &Discoverer{Client: srv.Client()}
+	want := srv.URL + "/tenant1"
+	for name, got := range map[string]string{
+		"another issuer": "https://evil.example/tenant1",
+		"missing issuer": "",
+		"trailing slash": want + "/",
+		"different case": strings.ToUpper(want[:4]) + want[4:],
+		"another tenant": srv.URL + "/tenant2",
+	} {
+		issuer = got
+		md, err := d.DiscoverServer(context.Background(), want)
+		var mm *IssuerMismatchError
+		if md != nil || !errors.As(err, &mm) {
+			t.Errorf("%s: metadata naming issuer %q was accepted for %q (err %v)", name, got, want, err)
+			continue
+		}
+		if mm.Issuer != want || mm.Got != got || !strings.Contains(err.Error(), "RFC 8414") {
+			t.Errorf("%s: error = %+v / %v", name, mm, err)
+		}
+	}
+	issuer = want
+	if md, err := d.DiscoverServer(context.Background(), want); err != nil || md.Issuer != want {
+		t.Errorf("matching issuer refused: %v", err)
 	}
 }
 

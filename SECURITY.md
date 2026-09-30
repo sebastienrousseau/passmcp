@@ -111,6 +111,12 @@ is worse than one that omits them.
   (RFC 9207). Both are refusals, not warnings; `--allow-resource-mismatch`
   is the deliberate override. Verified by `TestConnectErrorPaths` in
   `client_more_test.go`.
+- **Authorization server metadata must name the issuer it was fetched
+  for** (RFC 8414 §3.3), compared exactly. A document that names another
+  issuer is not used, and there is no override: `discovery.as` fails as
+  critical and the run stops before any credential is sent. Verified by
+  `TestDiscoverServerRequiresTheIssuerItAskedFor` in `auth` and
+  `TestAuthorizationServerNamingAnotherIssuerBlocks` in `internal/probe`.
 - **Requests that must arrive unauthenticated do.** A second, bare
   transport carries no token, header or basic credential, so the first
   contact and the invalid-token probe cannot be silently upgraded by the

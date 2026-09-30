@@ -41,6 +41,9 @@ type quirks struct {
 	asCIMD           bool
 	asNoRegistration bool
 	asHTTPIssuer     bool
+	// asIssuer replaces the issuer the authorization server metadata
+	// names, which RFC 8414 §3.3 requires to be the one it was fetched for.
+	asIssuer string
 	// prmAS replaces the authorization server the resource metadata names.
 	prmAS string
 	// prmExtra and asExtra add fields to the resource and authorization
@@ -227,6 +230,9 @@ func newFakeServer(t *testing.T) *fakeServer {
 		}
 		md := map[string]any{"issuer": base + "/as", "authorization_endpoint": base + "/as/authorize", "token_endpoint": base + "/as/token",
 			"grant_types_supported": []string{"client_credentials", "authorization_code"}}
+		if f.q.asIssuer != "" {
+			md["issuer"] = f.q.asIssuer
+		}
 		if !f.q.asNoRegistration {
 			md["registration_endpoint"] = base + "/as/register"
 		}

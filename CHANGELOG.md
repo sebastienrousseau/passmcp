@@ -70,6 +70,11 @@ project announces that a change felt big.
   reports, the TUI, human-format diagnostics and the text output of
   `call`, `read`, `prompt` and `watch` write them. JSON and NDJSON output
   still carry the server's text exactly.
+- **Authorization server metadata must name its own issuer.** A document
+  whose `issuer` is not exactly the issuer it was fetched for is refused
+  (RFC 8414 §3.3): `discovery.as` fails as critical, the run stops before
+  a credential is sent, and the library returns
+  `auth.IssuerMismatchError`.
 
 ### Fixed
 
