@@ -38,6 +38,24 @@ Optional, only needed for the gate that uses them:
 | `markdownlint-cli2`, `codespell`, `lychee` | the Docs Lint workflow and `pre-commit` |
 | `nix` | optional; `nix develop` provides every row above, pinned |
 
+### Pinned tools
+
+No tool CI installs floats. Where each pin lives, and how it moves:
+
+| Tool | Pinned in | Bumped by |
+|---|---|---|
+| `govulncheck`, `gorelease` | `tools/go.mod`, a separate module built by `make tools` into `build/tools/` | Dependabot (`/tools`), or `go -C tools get -tool <module>@<version> && go -C tools mod tidy` |
+| `golangci-lint` | `version:` in `ci.yml`'s lint job and `GOLANGCI_LINT_VERSION` in `.devcontainer/post-create.sh` | by hand, both together |
+| `goreleaser` | `version:` in `ci.yml`'s release-config job and `release.yml` | by hand, both together |
+| `gobco` | `GOBCO_VERSION` in `scripts/branchcover.sh` | by hand |
+| GitHub Actions | commit SHA in each workflow | Dependabot (`github-actions`) |
+
+Dependabot reads Go modules and action references, not the `version:`
+input of an action, which is why the hand-bumped rows name every place
+that has to move in the same commit. `tools/go.mod` is its own module so
+the tools never enter passmcp's dependency graph, `SBOM.md` or
+`./...`.
+
 Nothing else is required. There is no code generation step in the build,
 no vendored dependency tree, and no CGO — `CGO_ENABLED=0` everywhere, which
 is what makes the released binaries static and the cross-compilation
@@ -78,7 +96,7 @@ is the cross-platform matrix.
 | Build and test | `go build ./... && make test` |
 | Race and shuffled tests | `make test-race` |
 | Lint | `make lint` |
-| Vulnerability scan | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` |
+| Vulnerability scan | `make vulncheck` |
 | Licence headers (SPDX) | `make spdx-check` |
 | SBOM drift | `make sbom-check` |
 | Example compilation | `make example-check` |

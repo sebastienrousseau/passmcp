@@ -99,7 +99,7 @@ jobs:
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: '~> v2'
+          version: v2.18.2
           # A dry run builds and packages everything, then stops: --snapshot
           # skips the publish, sign and announce pipes and does not need a tag.
           #
@@ -199,11 +199,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOTOOLCHAIN: auto
-          GOBIN: ${{ runner.temp }}/gobin
         run: |
           set -euo pipefail
-          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-          "${GOBIN}/govulncheck" -format json ./... > "${RUNNER_TEMP}/vuln.json"
+          # The scanner's version is pinned in tools/go.mod.
+          make tools
+          build/tools/govulncheck -format json ./... > "${RUNNER_TEMP}/vuln.json"
           go run ./scripts/cra/main.go vex --in "${RUNNER_TEMP}/vuln.json" \
             --product "pkg:golang/satellion.com/passmcp@${GITHUB_REF_NAME}" \
             --out "${RUNNER_TEMP}/passmcp.openvex.json"

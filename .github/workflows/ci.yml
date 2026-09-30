@@ -200,18 +200,16 @@ jobs:
       - name: Run govulncheck
         env:
           GOTOOLCHAIN: auto
-          GOBIN: ${{ github.workspace }}/.gobin
         run: |
           set -euo pipefail
-          # GOTOOLCHAIN=auto so the install resolves whatever toolchain
+          # GOTOOLCHAIN=auto so the build resolves whatever toolchain
           # the scanner itself needs; the analysis runs against this
           # module as declared in go.mod either way.
           #
-          # Pinned, not @latest: whatever @latest resolved to at run time
-          # would execute in CI, and everything else here is pinned.
-          GOTOOLCHAIN=auto go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-          "${GOBIN}/govulncheck" -version
-          "${GOBIN}/govulncheck" ./...
+          # Pinned, not @latest: the version comes from tools/go.mod,
+          # which Dependabot watches, so what runs here is what a
+          # reviewed commit chose.
+          make vulncheck
 
   # passmcp exports importable packages, and the README tells people to use
   # them. A signature that moves without the version saying so breaks a
@@ -304,7 +302,7 @@ jobs:
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: '~> v2'
+          version: v2.18.2
           args: check
 
       # The container base is pinned by digest, which Scorecard checks and
