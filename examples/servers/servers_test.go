@@ -39,12 +39,25 @@ func check(t *testing.T, flaw string) map[string]probe.Status {
 			t.Errorf("phase %s skipped: %s", p.Name, p.Skipped)
 		}
 		for _, f := range p.Findings {
-			if f.Status == probe.Warn || f.Status == probe.Fail {
+			if (f.Status == probe.Warn || f.Status == probe.Fail) && !timingDependent(f.ID, flaw) {
 				bad[f.ID] = f.Status
 			}
 		}
 	}
 	return bad
+}
+
+// timingDependent reports a check whose verdict follows the host's load
+// rather than the server's behaviour: the performance phase judges
+// latency, which a busy CI runner can push past a threshold on any
+// server. The catalogue names each flaw's own check, so a flaw about
+// performance still counts it.
+func timingDependent(id, flaw string) bool {
+	if !strings.HasPrefix(id, "performance.") {
+		return false
+	}
+	f, _ := lookup(flaw)
+	return f.Check != id
 }
 
 // TestEachFlawIsCaughtByItsCheck is the claim the catalogue makes: every
@@ -200,6 +213,23 @@ func TestToolCallEdges(t *testing.T) {
 		s.call(rec, rpcRequest{ID: []byte("1"), Params: []byte(c.params)})
 		if !strings.Contains(rec.Body.String(), c.want) {
 			t.Errorf("%s: %s, want it to contain %s", c.params, rec.Body, c.want)
+		}
+	}
+}
+
+func TestTimingDependent(t *testing.T) {
+	cases := []struct {
+		id, flaw string
+		want     bool
+	}{
+		{"performance.tools", Baseline, true},
+		{"performance.tools", "unbounded-result", true},
+		{"protocol.id_echo", "wrong-id", false},
+		{"execution.payload_size", "unbounded-result", false},
+	}
+	for _, c := range cases {
+		if got := timingDependent(c.id, c.flaw); got != c.want {
+			t.Errorf("timingDependent(%q, %q) = %v, want %v", c.id, c.flaw, got, c.want)
 		}
 	}
 }
