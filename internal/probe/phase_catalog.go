@@ -130,12 +130,7 @@ func auditTools(s *Session, tools []passmcp.Tool, cacheHints passmcp.CacheHints)
 	// Whether the annotations exist, and then whether they are true.
 	// The second is the one passmcp has a stake in: it invokes what
 	// readOnlyHint: true claims is safe.
-	c := s.check("catalog.tools.annotations", "Tools declare behaviour annotations")
-	if len(g.noAnn) > 0 {
-		out = append(out, c.warn(fmt.Sprintf("%d of %d without annotations: %s", len(g.noAnn), len(tools), list(g.noAnn)), "add readOnlyHint/destructiveHint; unannotated tools are treated as destructive and skipped by cautious clients"))
-	} else {
-		out = append(out, c.pass("all annotated"))
-	}
+	out = append(out, annotationsFinding(s, g, len(tools)))
 	out = append(out, checkAnnotationHonesty(s))
 	out = append(out, checkIdempotency(s))
 	out = append(out, outputSchemaFinding(s, g, len(tools)))
@@ -185,10 +180,25 @@ func toolShapeFindings(s *Session, g toolGaps) []Finding {
 	return out
 }
 
+// annotationsFinding judges how many tools declare behaviour annotations.
+func annotationsFinding(s *Session, g toolGaps, total int) Finding {
+	c := s.check("catalog.tools.annotations", "Tools declare behaviour annotations")
+	switch {
+	case s.lacks(featAnnotations):
+		return c.skip(s.lacksReason(featAnnotations) + "; every tool is treated as destructive")
+	case len(g.noAnn) > 0:
+		return c.warn(fmt.Sprintf("%d of %d without annotations: %s", len(g.noAnn), total, list(g.noAnn)), "add readOnlyHint/destructiveHint; unannotated tools are treated as destructive and skipped by cautious clients")
+	default:
+		return c.pass("all annotated")
+	}
+}
+
 // outputSchemaFinding judges how many tools declare an outputSchema.
 func outputSchemaFinding(s *Session, g toolGaps, total int) Finding {
 	c := s.check("catalog.tools.output_schema", "Tools declare outputSchema")
 	switch {
+	case s.lacks(featStructured):
+		return c.skip(s.lacksReason(featStructured))
 	case len(g.noOut) == total:
 		return c.warn("none declare outputSchema", "add outputSchema and return structuredContent so results are machine-checkable")
 	case len(g.noOut) > 0:

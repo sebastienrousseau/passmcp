@@ -31,6 +31,11 @@ The `2026-07-28` revision removed the session.
 | Liveness | `ping` | `ping` removed; `server/discover` |
 | Server discovery | `initialize` result | `server/discover`, a MUST |
 
+The handshake revisions passmcp speaks are `2025-11-25`, `2025-06-18`,
+`2025-03-26` and `2024-11-05`. The last predates Streamable HTTP and the
+session header; [the phases](phases.md#older-revisions) say what a server
+on it is graded on.
+
 The point of it is that a server becomes an ordinary stateless HTTP
 service. Two requests can land on two instances behind a round-robin load
 balancer and neither needs to know about the other.

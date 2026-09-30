@@ -170,6 +170,24 @@ func TestDiscoverOverridesAndStepPreconditions(t *testing.T) {
 	}
 }
 
+// TestConnectAcceptsTheOldestRevision is version negotiation as the
+// specification defines it: passmcp offers its newest revision and a server
+// that only speaks 2024-11-05 answers with that. passmcp can speak it, so
+// the handshake completes and the version is recorded rather than the
+// connection refused.
+func TestConnectAcceptsTheOldestRevision(t *testing.T) {
+	f := newFakeStack(t)
+	f.protocolVer = "2024-11-05"
+	c, _ := New(Config{Endpoint: f.srv.URL + "/mcp", HTTPClient: f.srv.Client()})
+	res, err := c.Connect(context.Background())
+	if err != nil {
+		t.Fatalf("a server on 2024-11-05 was refused: %v", err)
+	}
+	if res.Initialize.ProtocolVersion != "2024-11-05" || c.Transport().ProtocolVersion() != "2024-11-05" {
+		t.Errorf("negotiated %q, transport recorded %q", res.Initialize.ProtocolVersion, c.Transport().ProtocolVersion())
+	}
+}
+
 func TestConnectErrorPaths(t *testing.T) {
 	f := newFakeStack(t)
 	f.requireAuth = true

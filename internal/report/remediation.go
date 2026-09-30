@@ -51,6 +51,30 @@ type Remediation struct {
 // remediations is keyed by check id. Families are keyed by their literal
 // prefix with the trailing dot, matching probe.DocFamilies.
 var remediations = map[string]Remediation{
+	"handshake.protocol_version": {
+		Means: "The server answered `initialize` with 2024-11-05, the first " +
+			"published revision of MCP. Version negotiation allows that, so " +
+			"passmcp carries on, but the revision has none of what later ones " +
+			"added: tool annotations and Streamable HTTP (2025-03-26), and " +
+			"structured tool output and elicitation (2025-06-18). With no " +
+			"`readOnlyHint`, no client can tell a lookup from a deletion, so a " +
+			"cautious one, passmcp included, calls nothing.",
+		Steps: []Step{
+			{"Move to a current revision",
+				"Answer `initialize` with the version the client offered when you " +
+					"support it. 2025-06-18 or later gives you everything listed " +
+					"above."},
+			{"Annotate every tool",
+				"Once on 2025-03-26 or later, declare `readOnlyHint: true` on each " +
+					"tool that only reads, and `destructiveHint: false` on each that " +
+					"changes state without destroying anything. That is what lets a " +
+					"client call them without asking."},
+		},
+		Note: "Most SDKs negotiate the newest revision they know, so a server " +
+			"answering 2024-11-05 is usually one built on an old SDK release; " +
+			"updating the package is most of the work.",
+	},
+
 	"handshake.protocol_era": {
 		Means: "MCP has two generations in the field. The older one opens with an " +
 			"`initialize` request, and the server answers with an `Mcp-Session-Id` " +
@@ -1018,7 +1042,16 @@ var remediations = map[string]Remediation{
 				"Even unauthenticated, the answer should be an HTTP-level refusal " +
 					"with a challenge — not a connection error, a redirect to a login " +
 					"page, or an HTML error document."},
+			{"Replace HTTP+SSE with Streamable HTTP",
+				"When the finding says the server speaks the 2024-11-05 HTTP+SSE " +
+					"transport, the POST was refused because that transport takes " +
+					"messages at a second URL it announces in an `endpoint` event. " +
+					"Streamable HTTP replaced it in 2025-03-26: one endpoint that " +
+					"accepts POST. Current SDKs provide it, and most can keep the old " +
+					"SSE and POST endpoints alongside it for older clients."},
 		},
+		Note: "A server that can also run as a program can be checked over stdio " +
+			"in the meantime: `passmcp check --stdio -- <command>`.",
 	},
 
 	"discovery.challenge": {

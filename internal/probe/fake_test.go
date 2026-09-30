@@ -121,6 +121,10 @@ type quirks struct {
 	wrongAudience         string
 	wrongAudienceAccepted bool
 	wrongAudienceStatus   int
+	// legacy2024 and sseTransport are the 2024-11-05 revision over
+	// Streamable HTTP and over its own HTTP+SSE transport (legacy_test.go).
+	legacy2024   bool
+	sseTransport string
 }
 
 // fakeServer is a protected MCP server with its own authorization server,
@@ -250,7 +254,7 @@ func newFakeServer(t *testing.T) *fakeServer {
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	})
-	mux.HandleFunc("/mcp", f.handle)
+	mux.HandleFunc("/mcp", f.route)
 	return f
 }
 
@@ -344,7 +348,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(406)
 		return
 	}
-	if v := r.Header.Get(transport.HeaderProtocolVersion); v != "" && v != "2025-11-25" && v != f.q.protocolVersion && !f.q.lenientVersion {
+	if v := r.Header.Get(transport.HeaderProtocolVersion); v != "" && v != "2025-11-25" && v != f.version() && !f.q.lenientVersion {
 		w.WriteHeader(400)
 		return
 	}
@@ -397,11 +401,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			f.mu.Unlock()
 			w.Header().Set(transport.HeaderSessionID, sid)
 		}
-		pv := "2025-11-25"
-		if f.q.protocolVersion != "" {
-			pv = f.q.protocolVersion
-		}
-		res := map[string]any{"protocolVersion": pv, "capabilities": map[string]any{"tools": map[string]any{}, "resources": map[string]any{}, "prompts": map[string]any{}},
+		res := map[string]any{"protocolVersion": f.version(), "capabilities": map[string]any{"tools": map[string]any{}, "resources": map[string]any{}, "prompts": map[string]any{}},
 			"serverInfo": map[string]any{"name": "fake", "version": "1.0"}, "instructions": "Use wisely."}
 		if f.q.noCapabilities {
 			res["capabilities"] = map[string]any{}
@@ -455,7 +455,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		case "empty":
 			tools = nil
 		}
-		reply(map[string]any{"tools": tools})
+		reply(map[string]any{"tools": f.revisionTools(tools)})
 	case "tools/call":
 		var p struct {
 			Name string         `json:"name"`
@@ -522,13 +522,13 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			if f.q.toolOutput != "" {
 				text = f.q.toolOutput
 			}
-			reply(map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "structuredContent": map[string]any{"iso": "2026-01-01T00:00:00Z"}})
+			reply(f.revisionResult(map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "structuredContent": map[string]any{"iso": "2026-01-01T00:00:00Z"}}))
 		case "search":
 			if _, ok := p.Args["q"]; !ok {
 				reply(map[string]any{"isError": true, "content": []map[string]any{{"type": "text", "text": "q required"}}})
 				return
 			}
-			reply(map[string]any{"content": []map[string]any{{"type": "text", "text": "ok"}}, "structuredContent": map[string]any{"hits": "not-an-array"}})
+			reply(f.revisionResult(map[string]any{"content": []map[string]any{{"type": "text", "text": "ok"}}, "structuredContent": map[string]any{"hits": "not-an-array"}}))
 		case "lax", "shortdesc", "nodesc":
 			reply(map[string]any{"content": []map[string]any{{"type": "text", "text": "whatever"}}})
 		case "delete_all":

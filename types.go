@@ -16,7 +16,14 @@ import "encoding/json"
 // SupportedProtocolVersions lists the protocol versions this client can
 // speak, newest first. The first entry is offered on initialize; a server
 // may answer with any listed version.
-var SupportedProtocolVersions = []string{"2025-11-25", "2025-06-18", "2025-03-26"}
+//
+// 2024-11-05 is accepted because the specification's version negotiation
+// lets a server answer with the revision it speaks, and many stdio servers
+// still speak it. It predates tool annotations, structured tool output and
+// elicitation, and its HTTP binding was the HTTP+SSE transport rather than
+// Streamable HTTP; a caller that depends on any of those reads
+// InitializeResult.ProtocolVersion.
+var SupportedProtocolVersions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"}
 
 // Implementation identifies a client or server.
 type Implementation struct {

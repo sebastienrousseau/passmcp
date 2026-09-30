@@ -444,3 +444,36 @@ func (s *Session) livenessName() string {
 	m, _ := s.liveness()
 	return m
 }
+
+// unexpectedFirstContact is the first-contact verdict for any other status,
+// and blocks the run with the reason.
+func unexpectedFirstContact(ctx context.Context, s *Session, c *check, raw *transport.RawResult) Finding {
+	// A server on the current revision rejects a handshake-era
+	// initialize because the method is gone, not because the operator
+	// got anything wrong. Reporting "unexpected HTTP 400" would blame
+	// the server for passmcp's own limit, so ask it directly.
+	if disc, ok := statelessBareProbe(ctx, s); ok {
+		name := ""
+		if disc != nil && disc.ServerInfo.Name != "" {
+			name = " (" + disc.ServerInfo.Name + " " + disc.ServerInfo.Version + ")"
+		}
+		s.Era = &passmcp.Negotiation{Era: passmcp.EraStateless, Version: passmcp.StatelessVersions[0], Discovered: disc,
+			Reason: "it answered a stateless request after refusing a handshake-era initialize"}
+		f := c.fail(Critical,
+			"the server speaks "+passmcp.StatelessVersions[0]+name+", the stateless revision that removed initialize",
+			"nothing is wrong with this server. passmcp's diagnostic still opens with the handshake-era initialize, so it cannot complete a run against a stateless-only server yet: the transport speaks the revision but the nine-phase pipeline has not been moved onto it")
+		s.blocked = "the server speaks " + passmcp.StatelessVersions[0] + ", which passmcp cannot yet run a full diagnostic against"
+		return f
+	}
+	// A 4xx to the POST is also how the 2024-11-05 HTTP+SSE transport
+	// answers, and the specification's way to tell is a GET. Only asked on
+	// a path that was already going to stop the run.
+	if raw.Status/100 == 4 {
+		if endpoint, ok := sseEndpoint(ctx, s); ok {
+			return legacySSEFinding(s, c, raw.Status, endpoint)
+		}
+	}
+	f := c.fail(Critical, fmt.Sprintf("unexpected HTTP %d: %s", raw.Status, truncate(string(raw.Body), 200)), "answer 200 for an open server or 401 for a protected one")
+	s.blocked = fmt.Sprintf("first contact returned HTTP %d", raw.Status)
+	return f
+}

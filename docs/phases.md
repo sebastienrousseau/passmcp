@@ -48,7 +48,7 @@ what is observed.
 
 | Finding | Checks |
 |---|---|
-| `discovery.first_contact` | 200 means open; 401 means protected; 403 or anything else is a deviation |
+| `discovery.first_contact` | 200 means open; 401 means protected; 403 or anything else is a deviation. A 4xx followed by a `GET` whose first event is `endpoint` is named as the 2024-11-05 HTTP+SSE transport ([below](#older-revisions)) |
 | `discovery.creds_unused` | warns when credentials were supplied to an open server |
 | `discovery.challenge` | a `WWW-Authenticate: Bearer` challenge with `resource_metadata` |
 | `discovery.prm` | RFC 9728 protected-resource metadata: the hint, then the path-aware and root well-known locations |
@@ -75,11 +75,44 @@ what is observed.
 | Finding | Checks |
 |---|---|
 | `handshake.initialize` | initialize succeeds with the credentials |
-| `handshake.protocol_version` | the negotiated version |
+| `handshake.protocol_version` | the negotiated version: the newest passes, `2025-06-18` and `2025-03-26` are information, `2024-11-05` is a warning ([below](#older-revisions)) |
 | `handshake.server_info` | name and version populated |
 | `handshake.capabilities` | tools, resources, prompts, logging declared |
 | `handshake.instructions` | server instructions present |
 | `handshake.session` | an `Mcp-Session-Id` was issued (stateless servers are noted, not penalised) |
+
+### Older revisions
+
+passmcp offers the newest handshake revision it speaks, `2025-11-25`, and
+accepts any of `2025-06-18`, `2025-03-26` and `2024-11-05` in answer, as the
+specification's version negotiation allows. A server on an older revision
+is graded rather than refused, and a check about a field its revision does
+not have is skipped with the revision named, rather than passed on the
+absence or failed for it:
+
+| Introduced in | What | Checks skipped on an earlier revision |
+|---|---|---|
+| `2025-03-26` | tool annotations | `catalog.tools.annotations`, `catalog.tools.annotation_honesty`, `catalog.tools.idempotency` |
+| `2025-06-18` | structured tool output (`outputSchema`, `structuredContent`) | `catalog.tools.output_schema`, and `execution.content` unless a call returned an empty result, which is a violation on any revision |
+
+`2024-11-05` is a warning on `handshake.protocol_version` rather than
+information, because what it lacks is what a cautious client acts on. It
+predates tool annotations, so nothing separates a read-only tool from a
+destructive one, and the execution phase invokes no tool under the default
+policy ([ADR-0004](adr/0004-read-only-by-default.md)): `execution.tools` is
+skipped and says so. `--allow-mutations` does not change that, because it
+adds only tools that declare `destructiveHint: false`; `--allow-destructive`
+does, and belongs only where the tools are known to be safe to call.
+
+Over a pipe, that is the whole difference. Over HTTP there is a second
+one: the transport of `2024-11-05` was HTTP+SSE, which Streamable HTTP
+replaced in `2025-03-26` and which passmcp does not implement. A server
+that answers a Streamable HTTP `POST` and negotiates `2024-11-05` is run
+like any other. A server that refuses the `POST` with a 4xx and opens an
+event stream on `GET` whose first event is `endpoint` is on the old
+transport: `discovery.first_contact` fails and names it, and the run stops
+there. If the server can also run as a program, `passmcp check --stdio`
+checks it.
 
 ## protocol: Protocol conformance
 

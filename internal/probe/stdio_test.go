@@ -163,11 +163,11 @@ func fakeStdioServer(mode string) {
 		var result string
 		switch req.Method {
 		case "initialize":
-			result = `{"protocolVersion":"2025-11-25","serverInfo":{"name":"fixture","version":"1.0.0"},"capabilities":{"tools":{}},"instructions":"A fixture."}`
+			result = stdioInitResult(mode)
 		case "ping":
 			result = `{}`
 		case "tools/list":
-			result = `{"tools":[{"name":"look","description":"Look something up by its identifier and return what is stored.","annotations":{"readOnlyHint":true},"inputSchema":{"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}}]}`
+			result = stdioToolsResult(mode)
 		case "tools/call":
 			// A well-behaved server refuses a tool it does not have, which
 			// is what protocol.unknown_tool asks about. A fixture that
