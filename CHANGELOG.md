@@ -34,6 +34,33 @@ project announces that a change felt big.
   with the direct requirements in `go.mod`.
 - The README shows the OpenSSF Best Practices badge, and
   `CONTRIBUTING.md` describes how pull requests are reviewed.
+- **Complexity ceilings at the portfolio's values.** Functions are held
+  to cyclomatic complexity 10, cognitive complexity 15 and 60 lines, and
+  files to 500 lines. The 104 older functions and files over a ceiling
+  are listed in `.complexity-baseline`, which `make lint` and CI enforce
+  and which may only shrink: a new offender, a worse one, or an
+  improvement the file does not record fails the build.
+- **`FuzzHeaderValue`** fuzzes the MCP parameter header encoder: every
+  encoded value is a legal header value and decodes to its input. It
+  runs with the other targets in `make fuzz` (#25).
+- **The README's Troubleshooting messages are checked.** `make
+  readme-check` fails when a message the table quotes no longer appears
+  in the source. Two rows now quote the text passmcp prints: `the server
+  rejected the resource indicator` and `unknown setting` (#26).
+
+### Changed
+
+- The Markdown report's headings, table headers and labels come from a
+  message catalogue in `internal/report`, the groundwork for a report in
+  another language. The output is byte for byte what it was (#24).
+- **Every tool CI runs is pinned.** `gorelease` and `govulncheck` are
+  pinned in `tools/go.mod`, which Dependabot watches; `make tools`
+  builds them and `make vulncheck` runs the scan. `gorelease` was
+  `@latest`. goreleaser is pinned at v2.18.2 instead of `~> v2`.
+  `DEVELOPMENT.md` lists every pin and how it is bumped.
+- One codespell configuration, `.codespellrc`, is read by CI and
+  pre-commit alike, and it no longer allows a variant spelling of
+  "unparsable" that two comments used.
 
 ### Fixed
 
