@@ -14,7 +14,7 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [Unreleased]
+## [0.0.4] — 2026-09-30
 
 ### Added
 
@@ -50,6 +50,8 @@ project announces that a change felt big.
 
 ### Changed
 
+- **passmcp requires passmcp-reporting v0.0.4**, the family's release;
+  its API, schemas and predicate are unchanged.
 - **A reply that is not JSON names its content type** ("got text/html;
   likely a login, SSO or firewall page, or the wrong path") instead of a
   JSON decode error.
