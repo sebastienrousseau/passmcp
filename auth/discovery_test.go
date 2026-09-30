@@ -87,7 +87,7 @@ func TestDiscoverServerPathAware(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
-	d := &Discoverer{Client: srv.Client()}
+	d := &Discoverer{Client: srv.Client(), Policy: URLPolicy{Resolver: fixedResolver("93.184.216.34")}}
 	md, err := d.DiscoverServer(context.Background(), srv.URL+"/tenant1")
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestDiscoverServerRequiresTheIssuerItAskedFor(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	d := &Discoverer{Client: srv.Client()}
+	d := &Discoverer{Client: srv.Client(), Policy: URLPolicy{Resolver: fixedResolver("93.184.216.34")}}
 	want := srv.URL + "/tenant1"
 	for name, got := range map[string]string{
 		"another issuer": "https://evil.example/tenant1",

@@ -62,36 +62,68 @@ func (p URLPolicy) Validate(ctx context.Context, kind, raw string) error {
 	if u.Host == "" {
 		return deny("not absolute")
 	}
-	scheme := strings.ToLower(u.Scheme)
-	host := u.Hostname()
-	loopback := isLoopbackHost(host)
-	switch scheme {
-	case "https":
-	case "http":
-		if !p.AllowHTTP && !loopback {
-			return deny("must use https; a token or client secret sent here would cross the network in the clear")
-		}
-	default:
-		return deny("scheme " + scheme + " is not http(s)")
-	}
-	if u.Fragment != "" {
-		return deny("must not carry a fragment")
+	loopback := isLoopbackHost(u.Hostname())
+	if reason := p.schemeProblem(u, loopback); reason != "" {
+		return deny(reason)
 	}
 	if p.AllowPrivate || loopback {
 		return nil
 	}
+	if reason := p.addressProblem(ctx, u.Hostname()); reason != "" {
+		return deny(reason)
+	}
+	return nil
+}
+
+// schemeProblem says why u's scheme or fragment is unacceptable, or "".
+func (p URLPolicy) schemeProblem(u *url.URL, loopback bool) string {
+	switch scheme := strings.ToLower(u.Scheme); scheme {
+	case "https":
+	case "http":
+		if !p.AllowHTTP && !loopback {
+			return "must use https; a token or client secret sent here would cross the network in the clear"
+		}
+	default:
+		return "scheme " + scheme + " is not http(s)"
+	}
+	if u.Fragment != "" {
+		return "must not carry a fragment"
+	}
+	return ""
+}
+
+// addressProblem resolves host and says why its addresses make it
+// unacceptable, or "" when every one is public.
+//
+// A name that does not resolve, or resolves to nothing, is refused: the
+// policy cannot say a host is public without knowing where it is, and a
+// check that passes whatever it could not see is not a check. The dial-time
+// guard (DialContext) would refuse the connection too, but Validate is what
+// every discovered URL passes through before any request is built, and it
+// should not depend on a second layer to be right.
+//
+// The one exception is a run behind a proxy from the environment. There
+// the proxy resolves names and the local resolver may know none of them,
+// so a failed local lookup says nothing about the host; the connection
+// goes to the proxy, which the dial-time guard trusts as the operator's
+// choice. A name that does resolve locally is still checked.
+func (p URLPolicy) addressProblem(ctx context.Context, host string) string {
 	ips, err := p.resolve(ctx, host)
+	if err == nil && len(ips) == 0 {
+		err = fmt.Errorf("no addresses")
+	}
 	if err != nil {
-		// A name that does not resolve is not a policy failure; the fetch
-		// will fail on its own and say so more clearly than this could.
-		return nil //nolint:nilerr // deliberate: resolution failure is not a refusal
+		if len(envProxyHosts()) > 0 {
+			return ""
+		}
+		return "does not resolve (" + err.Error() + "); a discovered endpoint must resolve to a public address before passmcp will contact it"
 	}
 	for _, ip := range ips {
 		if !isPublicIP(ip) {
-			return deny(fmt.Sprintf("resolves to the non-public address %s; discovered endpoints must not point inside the network passmcp runs in (pass --insecure-allow-private-hosts if this is deliberate)", ip))
+			return fmt.Sprintf("resolves to the non-public address %s; discovered endpoints must not point inside the network passmcp runs in (pass --insecure-allow-private-hosts if this is deliberate)", ip)
 		}
 	}
-	return nil
+	return ""
 }
 
 // DialFunc makes a network connection, as net.Dialer.DialContext does.

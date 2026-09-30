@@ -75,6 +75,11 @@ project announces that a change felt big.
   (RFC 8414 §3.3): `discovery.as` fails as critical, the run stops before
   a credential is sent, and the library returns
   `auth.IssuerMismatchError`.
+- **A discovered endpoint that does not resolve is refused.**
+  `auth.URLPolicy.Validate` used to pass a URL whose host name failed to
+  resolve and leave it to the dial-time check; it now refuses it, and an
+  empty answer too. Behind a proxy from the environment, where the proxy
+  resolves names, a failed local lookup is still not a refusal.
 
 ### Fixed
 

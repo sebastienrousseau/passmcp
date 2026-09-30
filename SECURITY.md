@@ -104,8 +104,12 @@ is worse than one that omits them.
   address inside the network passmcp is running in (cloud metadata included).
   Loopback is exempt so local development needs no flags; the strict check
   is relaxed only by `--insecure-allow-http-auth` or
-  `--insecure-allow-private-hosts`. Every entry in `authorization_servers`
-  is checked, not only the first. Verified by `auth/policy_test.go`.
+  `--insecure-allow-private-hosts`. A name that does not resolve, or
+  resolves to nothing, is refused rather than passed on; behind a proxy
+  named in the environment the proxy does the resolving, so there a failed
+  local lookup is not a refusal, and the connection goes only to the
+  proxy. Every entry in `authorization_servers` is checked, not only the
+  first. Verified by `auth/policy_test.go`.
 - **Protected-resource metadata must identify the endpoint it describes**
   (RFC 9728), and the authorization response must carry the expected `iss`
   (RFC 9207). Both are refusals, not warnings; `--allow-resource-mismatch`

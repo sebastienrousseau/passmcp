@@ -321,7 +321,14 @@ Every access is checked, every time, not once per run.
   `URLPolicy.DialContext`, which dials only the addresses it checked, so
   a DNS answer that changes between the two is still caught
   (`TestDialContextRefusesAnyNonPublicAnswer`,
-  `TestAnAuthorizationServerThatRebindsIsNeverReached`).
+  `TestAnAuthorizationServerThatRebindsIsNeverReached`). Each layer fails
+  closed on its own: `Validate` refuses a name that does not resolve
+  rather than leaving it to the dial
+  (`TestURLPolicyFailsClosedWhenANameDoesNotResolve`). The exception is a
+  run behind a proxy from the environment, where the proxy resolves names
+  and the connection goes only to it
+  (`TestURLPolicyDefersToAProxyThatResolves`); passmcp cannot see which
+  address the proxy then reaches.
 - Every web shell request is checked for the per-run token and for its
   origin (`TestGuards`).
 

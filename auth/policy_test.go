@@ -74,10 +74,50 @@ func TestURLPolicyEscapeHatches(t *testing.T) {
 	if err := lax.Validate(context.Background(), "token endpoint", "http://internal.corp/token"); err != nil {
 		t.Errorf("an opted-in private host must be allowed: %v", err)
 	}
-	// A name that does not resolve is left to the fetch to report.
-	unres := URLPolicy{Resolver: func(context.Context, string) ([]net.IP, error) { return nil, errors.New("nxdomain") }}
-	if err := unres.Validate(context.Background(), "token endpoint", "https://nope.example/token"); err != nil {
-		t.Errorf("an unresolvable name is not a policy failure: %v", err)
+}
+
+// TestURLPolicyFailsClosedWhenANameDoesNotResolve: Validate cannot say a
+// host is public without its addresses, so a lookup that fails, or that
+// answers with nothing, is a refusal rather than a pass left for the
+// dial-time guard to catch.
+func TestURLPolicyFailsClosedWhenANameDoesNotResolve(t *testing.T) {
+	for _, proxy := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"} {
+		t.Setenv(proxy, "")
+	}
+	for name, resolver := range map[string]func(context.Context, string) ([]net.IP, error){
+		"lookup error": func(context.Context, string) ([]net.IP, error) { return nil, errors.New("nxdomain") },
+		"empty answer": func(context.Context, string) ([]net.IP, error) { return nil, nil },
+	} {
+		p := URLPolicy{Resolver: resolver}
+		err := p.Validate(context.Background(), "token endpoint", "https://nope.example/token")
+		var pe *PolicyError
+		if !errors.As(err, &pe) || !strings.Contains(pe.Reason, "resolve") {
+			t.Errorf("%s: an unresolvable name must be refused, got %v", name, err)
+		}
+	}
+	// The escape hatch still covers it: with private hosts allowed there
+	// is nothing to resolve for.
+	lax := URLPolicy{AllowPrivate: true, Resolver: func(context.Context, string) ([]net.IP, error) { return nil, errors.New("nxdomain") }}
+	if err := lax.Validate(context.Background(), "token endpoint", "https://nope.example/token"); err != nil {
+		t.Errorf("--insecure-allow-private-hosts resolves nothing: %v", err)
+	}
+}
+
+// TestURLPolicyDefersToAProxyThatResolves: behind an HTTP proxy the
+// operator named, names are resolved by the proxy and the local resolver
+// may know none of them. Refusing there would break every proxied run, and
+// the connection goes to the proxy, which the dial-time guard trusts as the
+// operator's choice. It is the one case the policy cannot see into.
+func TestURLPolicyDefersToAProxyThatResolves(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://proxy.corp.example:3128")
+	p := URLPolicy{Resolver: func(context.Context, string) ([]net.IP, error) { return nil, errors.New("nxdomain") }}
+	if err := p.Validate(context.Background(), "token endpoint", "https://as.example/token"); err != nil {
+		t.Errorf("a proxied run must not need local resolution: %v", err)
+	}
+	// A name that resolves is still checked, proxy or not.
+	internal := URLPolicy{Resolver: fixedResolver("10.0.0.5")}
+	if err := internal.Validate(context.Background(), "token endpoint", "https://as.example/token"); err == nil {
+		t.Error("a name resolving to a private address must be refused behind a proxy too")
 	}
 }
 
