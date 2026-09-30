@@ -26,7 +26,7 @@ func TestACLProblemRefusesAStoreAnotherAccountCanRead(t *testing.T) {
 		"no list":                   {"O:BAG:SY", "no access control list"},
 		"NULL list":                 {"D:NO_ACCESS_CONTROL", "no access control list"},
 		"Everyone may read":         {"D:P(A;;FA;;;" + testSelf + ")(A;;FR;;;WD)", "S-1-1-0"},
-		"Users inherit read":        {"D:AI(A;;FA;;;" + testSelf + ")(A;ID;0x1200a9;;;BU)", "S-1-5-32-545"},
+		"Users inherit read":        {"D:AI(A;;FA;;;" + testSelf + ")(A;ID;0x1200a9;;;S-1-5-32-545)", "S-1-5-32-545"},
 		"Authenticated Users write": {"D:(A;;FW;;;AU)", "S-1-5-11"},
 		"another user":              {"D:(A;;FA;;;S-1-5-21-1-2-3-1002)", "1002"},
 		"another may re-grant":      {"D:(A;;WD;;;S-1-5-21-9)", "S-1-5-21-9"},

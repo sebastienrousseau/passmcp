@@ -74,7 +74,7 @@ var sddlRights = map[string]uint32{
 // kept as written, which no trusted SID matches.
 var sddlAliases = map[string]string{
 	"SY": sidLocalSystem, "BA": sidAdministrators, "WD": "S-1-1-0", "AU": "S-1-5-11",
-	"BU": "S-1-5-32-545", "BG": "S-1-5-32-546", "AN": "S-1-5-7", "IU": "S-1-5-4",
+	"BG": "S-1-5-32-546", "AN": "S-1-5-7", "IU": "S-1-5-4",
 	"NU": "S-1-5-2", "SU": "S-1-5-6", "LS": "S-1-5-19", "NS": "S-1-5-20",
 	"CO": "S-1-3-0", "CG": "S-1-3-1", "OW": "S-1-3-4", "RC": "S-1-5-12",
 }
