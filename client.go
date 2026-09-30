@@ -880,6 +880,7 @@ func (c *Client) ListToolsWithHints(ctx context.Context) ([]Tool, CacheHints, er
 	var all []Tool
 	var hints CacheHints
 	cursor := ""
+	pg := pager{method: "tools/list"}
 	for first := true; ; first = false {
 		var page listToolsResult
 		if err := c.call(ctx, "tools/list", listToolsParams{Cursor: cursor}, &page); err != nil {
@@ -891,6 +892,9 @@ func (c *Client) ListToolsWithHints(ctx context.Context) ([]Tool, CacheHints, er
 		all = append(all, page.Tools...)
 		if page.NextCursor == "" || page.NextCursor == cursor {
 			return all, hints, nil
+		}
+		if err := pg.next(page.NextCursor); err != nil {
+			return nil, CacheHints{}, err
 		}
 		cursor = page.NextCursor
 	}

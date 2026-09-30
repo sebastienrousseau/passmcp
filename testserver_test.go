@@ -32,6 +32,7 @@ type fakeStack struct {
 	noChallenge    bool   // 401 without a WWW-Authenticate header
 	protocolVer    string // protocol version to negotiate (default 2025-11-25)
 	noRegistration bool   // omit registration_endpoint from AS metadata
+	cursorCycle    bool   // tools/list cursors run page2 -> page3 -> page2, forever
 }
 
 func newFakeStack(t *testing.T) *fakeStack {
@@ -149,9 +150,14 @@ func (f *fakeStack) handleMCP(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		var p listToolsParams
 		json.Unmarshal(req.Params, &p)
-		if p.Cursor == "" {
+		switch {
+		case p.Cursor == "":
 			reply(listToolsResult{Tools: f.tools[:2], NextCursor: "page2"})
-		} else {
+		case f.cursorCycle && p.Cursor == "page2":
+			reply(listToolsResult{Tools: f.tools[2:3], NextCursor: "page3"})
+		case f.cursorCycle:
+			reply(listToolsResult{Tools: f.tools[3:], NextCursor: "page2"})
+		default:
 			reply(listToolsResult{Tools: f.tools[2:]})
 		}
 	case "tools/call":

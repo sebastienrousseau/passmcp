@@ -23,6 +23,12 @@ project announces that a change felt big.
 
 ### Fixed
 
+- **Paging a list stops on a cursor cycle.** `tools/list`,
+  `resources/list`, `resources/templates/list` and `prompts/list` stopped
+  only when a server repeated the cursor it was just given, so cursors
+  that looped over two or more pages kept passmcp paging until the call
+  timed out. A revisited cursor, or a list longer than 1,000 pages, now
+  fails with `ErrPaginationCycle`, naming the method.
 - **`passmcp login` checks the RFC 9207 issuer on the redirect.** It read
   only `code` and `state`, so a redirect naming another authorization
   server, the mix-up attack, was accepted and its token stored, and a
