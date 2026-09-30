@@ -1241,8 +1241,9 @@ Added fields, new flags with inert defaults, new findings, and new refusals
 are **not** breaking.
 
 **Deprecation window.** A deprecated flag keeps working for at least one
-minor release after the release that announces it, and warns on stderr —
-never on stdout, which carries the selected output format.
+release after the release that announces it (pre-1.0 every release moves
+the patch digit, so that is the next patch release), and warns on
+stderr — never on stdout, which carries the selected output format.
 
 ---
 
