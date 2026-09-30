@@ -81,6 +81,7 @@ var derivedChecks = map[string]string{
 	"stdio.stdout_clean":     "the server process's stdout, read for the whole run",
 	"stdio.clean_exit":       "the server process's exit, observed at close",
 	"stdio.no_zombie":        "the server process group, observed at close",
+	"fs.credential_probe":    "the access times of the decoys planted for the run",
 	"fs.canary_exfiltrated":  "the decoys planted for the run and every exchange recorded",
 	"egress.hosts":           "the connections the egress proxy recorded",
 	"egress.undeclared_host": "the connections the egress proxy recorded",

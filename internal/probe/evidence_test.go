@@ -86,3 +86,15 @@ func TestDerivedChecksAreRealChecks(t *testing.T) {
 		t.Error("a family prefix matched an id outside the family")
 	}
 }
+
+// The canary checks rest on the planted decoys, not on a request, so
+// their passes are derived. fs.credential_probe only passes on a
+// filesystem that records access times, which the darwin runs never
+// reach; this pins it on every platform.
+func TestCanaryPassesAreDerived(t *testing.T) {
+	for _, id := range []string{"fs.credential_probe", "fs.canary_exfiltrated"} {
+		if unevidenced(Finding{ID: id, Status: Pass}) {
+			t.Errorf("%s: a pass without request evidence is demoted, but its evidence is the decoys", id)
+		}
+	}
+}
