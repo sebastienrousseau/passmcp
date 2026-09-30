@@ -14,6 +14,38 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Added
+
+- **`ROADMAP.md`**: the maintainer's current intent for the next twelve
+  months and the recorded non-goals, each linked to its decision record.
+- **The security model argues its design.** `docs/security-model.md`
+  shows how each of Saltzer and Schroeder's design principles is applied
+  and how the CWEs that apply to passmcp are countered, with the code and
+  the test behind each.
+- **Reproducible builds are verified.** A rebuild of v0.0.4 for
+  linux/amd64 matches the released binary bit for bit;
+  `docs/packaging.md` gives the commands to repeat the check.
+- **`make sbom-check`**, also run in CI, fails when `SBOM.md` disagrees
+  with the direct requirements in `go.mod`.
+- The README shows the OpenSSF Best Practices badge, and
+  `CONTRIBUTING.md` describes how pull requests are reviewed.
+
+### Fixed
+
+- **The coverage badge is checked after it is published.** The edge
+  cache in front of the badge's host kept serving a 404, so the badge
+  showed no figure. The Coverage Badge workflow now purges that URL when
+  a purge token is configured, and reads the badge back.
+- `SBOM.md` lists `github.com/charmbracelet/x/term` and the current
+  `go.yaml.in/yaml/v3` version.
+- The README's FAQ no longer says passmcp cannot test stdio servers, and
+  its deprecation window is one release, matching the patch-only
+  versioning.
+- `MAINTAINERS.md` and `GOVERNANCE.md` describe the repository as owned
+  by a personal GitHub account, which it is, not an organisation.
+
 ## [0.0.4] — 2026-09-30
 
 ### Added
