@@ -126,7 +126,7 @@ to it.
 |---|---|
 | `<pkg>/<pkg>_test.go` | The package's main suite |
 | `testserver_test.go`, `internal/probe/fake_test.go` | Fake MCP and authorization servers under `httptest`, with knobs for the failure modes each phase must observe |
-| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`); run for a fixed duration per push by `scripts/fuzz.sh` |
+| `*_fuzz_test.go` | Fuzz targets: `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` (`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`), `FuzzSchemaValid` (`internal/probe`); run for a fixed duration per push by `scripts/fuzz.sh` |
 | `cmd/*_test.go` | Flag validation, credential resolution and config precedence |
 
 Three properties the suite deliberately enforces:

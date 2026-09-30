@@ -1674,6 +1674,33 @@ var remediations = map[string]Remediation{
 		},
 	},
 
+	"catalog.tools.schema_valid": {
+		Means: "A tool's `inputSchema` or `outputSchema` is not valid JSON Schema " +
+			"2020-12 in a part a client reads: a `type` that is not one of the " +
+			"seven JSON types, a `required` that is not a list of names, a " +
+			"`properties` entry that is not a schema, or a `$ref` that points at " +
+			"nothing. A client builds and checks arguments from these schemas; " +
+			"one it cannot read is a tool it cannot call correctly, and many " +
+			"SDKs drop the tool rather than guess.",
+		Steps: []Step{
+			{"Go to the pointer the finding names",
+				"Each entry reads `tool field#/json/pointer: problem`. The pointer " +
+					"is relative to that schema's root, so `#/properties/q/type` is " +
+					"the `type` of the `q` property."},
+			{"Generate schemas rather than write them by hand",
+				"A schema derived from the handler's own parameter types (zod, " +
+					"pydantic, a Go struct) cannot drift into an invalid shape. " +
+					"Validate the published catalogue against the 2020-12 " +
+					"meta-schema in your own tests."},
+			{"Declare every required property",
+				"A name in `required` that `properties` does not declare is valid " +
+					"JSON Schema, and a client generating arguments has no type for " +
+					"it. Declare it, or drop it from `required`."},
+		},
+		Note: "Unknown keywords are only noted: JSON Schema ignores them, and " +
+			"so does every client passmcp knows of.",
+	},
+
 	"catalog.resources.uris": {
 		Means: "A resource URI is relative. A client has nothing to resolve it " +
 			"against — the resource list is not a web page and there is no base.",

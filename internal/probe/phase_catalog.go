@@ -64,7 +64,9 @@ func phaseCatalog(ctx context.Context, s *Session) []Finding {
 func catalogTools(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) []Finding {
 	var out []Finding
 	c := s.check("catalog.tools.list", "tools/list")
+	from := s.Opts.Recorder.Count()
 	tools, cacheHints, err := s.Client.ListToolsWithHints(pctx("tools/list"))
+	s.toolsListRef = reqRef(from, s.Opts.Recorder.Count())
 	switch {
 	case err != nil && caps.Tools != nil:
 		out = append(out, c.fail(Critical, "capability advertised but listing failed: "+err.Error(), "implement tools/list"))
@@ -127,6 +129,7 @@ func findToolGaps(tools []passmcp.Tool) toolGaps {
 func auditTools(s *Session, tools []passmcp.Tool, cacheHints passmcp.CacheHints) []Finding {
 	g := findToolGaps(tools)
 	out := toolShapeFindings(s, g)
+	out = append(out, checkSchemaValidity(s, tools))
 	// Whether the annotations exist, and then whether they are true.
 	// The second is the one passmcp has a stake in: it invokes what
 	// readOnlyHint: true claims is safe.

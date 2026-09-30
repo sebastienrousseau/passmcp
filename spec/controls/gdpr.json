@@ -193,6 +193,9 @@
     "catalog.tools.output_schema": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },
+    "catalog.tools.schema_valid": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
     "catalog.tools.title": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },

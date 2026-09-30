@@ -70,7 +70,7 @@ type quirks struct {
 	holdStream        bool // with getStream: keep the stream open and idle until the client leaves
 	bogusSessionOK    bool
 	lenientVersion    bool
-	catalog           string // "", "dupes", "bad", "empty", "nocap", "relative"
+	catalog           string // "", "dupes", "bad", "empty", "nocap", "relative", "noschema"
 	resourcesFail     bool
 	readFail          bool
 	resourcesEmpty    bool
@@ -419,7 +419,6 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 	rpcErr := func(code int, msg string) {
 		f.writeReply(w, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"error":{"code":%d,"message":%q}}`, replyID(), code, msg))
 	}
-	yes, no := true, false
 	switch req.Method {
 	case "initialize":
 		if !f.q.stateless {
@@ -472,28 +471,7 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			rpcErr(-32603, "tools broken")
 			return
 		}
-		tools := []map[string]any{
-			{"name": "get_time", "description": "Returns the current time in ISO 8601 format", "inputSchema": map[string]any{"type": "object"}, "outputSchema": map[string]any{"type": "object", "required": []string{"iso"}, "properties": map[string]any{"iso": map[string]any{"type": "string"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
-			{"name": "search", "description": "Search documents by query string", "inputSchema": map[string]any{"type": "object", "required": []string{"q"}, "properties": map[string]any{"q": map[string]any{"type": "string"}}}, "outputSchema": map[string]any{"type": "object", "required": []string{"hits"}, "properties": map[string]any{"hits": map[string]any{"type": "array"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
-			{"name": "lax", "description": "Accepts anything without validation", "inputSchema": map[string]any{"type": "object", "required": []string{"x"}, "properties": map[string]any{"x": map[string]any{"type": "string"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
-		}
-		if !f.q.readOnlyOnly {
-			tools = append(tools, map[string]any{"name": "delete_all", "description": "Deletes every document permanently", "inputSchema": map[string]any{"type": "object"}})
-		}
-		tools = append(tools, f.q.extraTools...)
-		switch f.q.catalog {
-		case "dupes":
-			tools = append(tools, map[string]any{"name": "get_time", "description": "Duplicate name for the same thing", "inputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": yes}})
-		case "bad":
-			tools = []map[string]any{
-				{"name": "nodesc", "inputSchema": map[string]any{"type": "string"}, "annotations": map[string]any{"readOnlyHint": yes}},
-				{"name": "shortdesc", "description": "tiny", "inputSchema": map[string]any{"properties": map[string]any{}}, "outputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": yes}, "title": "T"},
-				{"name": "brokenschema", "description": "Has an unparsable input schema", "inputSchema": "not-json-object", "annotations": map[string]any{"readOnlyHint": no, "destructiveHint": no}},
-			}
-		case "empty":
-			tools = nil
-		}
-		reply(map[string]any{"tools": f.revisionTools(tools)})
+		reply(map[string]any{"tools": f.revisionTools(f.toolCatalog())})
 	case "tools/call":
 		var p struct {
 			Name string         `json:"name"`
@@ -660,4 +638,34 @@ func (f *fakeServer) writeReply(w http.ResponseWriter, msg string) {
 		w.Header().Set("Content-Type", "application/json")
 	}
 	_, _ = w.Write([]byte(msg))
+}
+
+// toolCatalog is what tools/list answers, shaped by the catalogue knobs.
+func (f *fakeServer) toolCatalog() []map[string]any {
+	yes, no := true, false
+	tools := []map[string]any{
+		{"name": "get_time", "description": "Returns the current time in ISO 8601 format", "inputSchema": map[string]any{"type": "object"}, "outputSchema": map[string]any{"type": "object", "required": []string{"iso"}, "properties": map[string]any{"iso": map[string]any{"type": "string"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
+		{"name": "search", "description": "Search documents by query string", "inputSchema": map[string]any{"type": "object", "required": []string{"q"}, "properties": map[string]any{"q": map[string]any{"type": "string"}}}, "outputSchema": map[string]any{"type": "object", "required": []string{"hits"}, "properties": map[string]any{"hits": map[string]any{"type": "array"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
+		{"name": "lax", "description": "Accepts anything without validation", "inputSchema": map[string]any{"type": "object", "required": []string{"x"}, "properties": map[string]any{"x": map[string]any{"type": "string"}}}, "annotations": map[string]any{"readOnlyHint": yes}},
+	}
+	if !f.q.readOnlyOnly {
+		tools = append(tools, map[string]any{"name": "delete_all", "description": "Deletes every document permanently", "inputSchema": map[string]any{"type": "object"}})
+	}
+	tools = append(tools, f.q.extraTools...)
+	switch f.q.catalog {
+	case "dupes":
+		tools = append(tools, map[string]any{"name": "get_time", "description": "Duplicate name for the same thing", "inputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": yes}})
+	case "bad":
+		tools = []map[string]any{
+			{"name": "nodesc", "inputSchema": map[string]any{"type": "string"}, "annotations": map[string]any{"readOnlyHint": yes}},
+			{"name": "shortdesc", "description": "tiny", "inputSchema": map[string]any{"properties": map[string]any{}}, "outputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": yes}, "title": "T"},
+			{"name": "brokenschema", "description": "Has an unparsable input schema", "inputSchema": "not-json-object", "annotations": map[string]any{"readOnlyHint": no, "destructiveHint": no}},
+		}
+	case "empty":
+		tools = nil
+	case "noschema":
+		// A catalogue with nothing for a schema check to read.
+		tools = []map[string]any{{"name": "bare", "description": "A tool that declares no schema at all", "annotations": map[string]any{"readOnlyHint": yes}}}
+	}
+	return tools
 }

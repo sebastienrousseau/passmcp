@@ -151,6 +151,7 @@ Lists everything; invokes nothing.
 | `catalog.tools.unique` | tool names are unique |
 | `catalog.tools.descriptions` | every tool has a description of at least 20 characters |
 | `catalog.tools.input_schema` | `inputSchema` describes an object |
+| `catalog.tools.schema_valid` | every `inputSchema` and `outputSchema` is structurally valid JSON Schema 2020-12 where a client reads it: `type` names JSON types, `required` is a list of strings, `properties` holds schemas, local `$ref`s resolve. Structure that is not allowed fails; a required name `properties` does not declare, or an unknown `$schema` dialect, warns; unknown keywords are noted. Each entry names the tool and the JSON pointer, and the finding cites the `tools/list` request |
 | `catalog.tools.annotations` | tools declare `readOnlyHint`/`destructiveHint`; unannotated tools are treated as destructive |
 | `catalog.tools.idempotency` | information: which state-changing tools declare `idempotentHint`, and which leave it at the specification's default of "not safe to repeat"; a read-only tool declaring it is not idempotent is a warning |
 | `catalog.tools.output_schema` | tools declare `outputSchema` |
