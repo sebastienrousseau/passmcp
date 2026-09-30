@@ -119,6 +119,11 @@ project announces that a change felt big.
 
 ### Fixed
 
+- **`net.tls.cert` fails a certificate that expired less than a day
+  ago.** The days left were rounded toward zero, so one that expired
+  within the last 24 hours was reported as a minor warning ("expires in
+  0 days") rather than a critical failure. Found by the check's first
+  direct test.
 - **The coverage badge is checked after it is published.** The edge
   cache in front of the badge's host kept serving a 404, so the badge
   showed no figure. The Coverage Badge workflow now purges that URL when
