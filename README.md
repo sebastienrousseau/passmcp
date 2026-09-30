@@ -1160,6 +1160,7 @@ The four entry points, identical across every repo in the family:
 | [`SECURITY.md`](SECURITY.md) | Disclosure policy, supported versions, response SLA |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Signed-commit and DCO policy, PR guidelines, the local test recipe |
 | [`CHANGELOG.md`](CHANGELOG.md) | Per-release notes following Keep a Changelog 1.1.0 |
+| [`ROADMAP.md`](ROADMAP.md) | The next twelve months: what passmcp intends to do, and what it will not |
 | [`SUPPORT.md`](SUPPORT.md) | Where to ask, and what to expect |
 
 Once installed, `man passmcp` works offline, and every subcommand has its own
