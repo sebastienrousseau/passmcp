@@ -51,3 +51,58 @@ func TestResourceReadURI(t *testing.T) {
 	f.q.resourcesEmpty = true
 	expect(t, throughExecution(t, f), "execution.resources.uri", Skip, "no resource read returned contents")
 }
+
+func TestPromptValidation(t *testing.T) {
+	// The fake refuses a render without its required argument with
+	// -32602, and the pass cites the request that showed it.
+	f := newFakeServer(t)
+	f.acceptAnyToken = true
+	s, fs := run(t, f, &creds.Credentials{Mode: creds.ModeBearer, Token: "tok-1234"}, func(o *Options) {
+		o.Only = []string{"net", "discovery", "auth", "handshake", "catalog", "execution"}
+	})
+	expect(t, fs, "execution.prompts.validation", Pass, "1 prompt")
+	expect(t, fs, "execution.prompts", Pass, "1 ok")
+	if len(fs["execution.prompts.validation"].Evidence) == 0 {
+		t.Error("a pass must cite the request that showed it")
+	}
+	if len(s.PromptResults) != 1 || s.PromptResults[0].NegativeTest != "rejected (JSON-RPC -32602)" {
+		t.Errorf("prompt results = %+v", s.PromptResults)
+	}
+
+	// Rendering anyway is the defect.
+	f = newFakeServer(t)
+	f.q.promptLenient = true
+	fs = throughExecution(t, f)
+	expect(t, fs, "execution.prompts.validation", Fail, "summarise (missing doc)")
+	if got := fs["execution.prompts.validation"]; got.Severity != Minor || len(got.Evidence) == 0 {
+		t.Errorf("want a cited minor failure: %+v", got)
+	}
+
+	// A refusal with another code is a refusal a client cannot classify.
+	f = newFakeServer(t)
+	f.q.promptMissingCode = -32603
+	expect(t, throughExecution(t, f), "execution.prompts.validation", Warn, "JSON-RPC -32603")
+
+	// A refusal that is not JSON-RPC at all.
+	f = newFakeServer(t)
+	f.q.promptMissingCode = 500
+	expect(t, throughExecution(t, f), "execution.prompts.validation", Warn, "HTTP status 500")
+
+	// A server that refuses the full render too says nothing about the
+	// missing argument by refusing this one, so no request is made.
+	f = newFakeServer(t)
+	f.q.promptsFail = true
+	f.acceptAnyToken = true
+	s, fs = run(t, f, &creds.Credentials{Mode: creds.ModeBearer, Token: "tok-1234"}, func(o *Options) {
+		o.Only = []string{"net", "discovery", "auth", "handshake", "catalog", "execution"}
+	})
+	expect(t, fs, "execution.prompts.validation", Skip, "rendered with it")
+	if s.PromptResults[0].NegativeTest != "" {
+		t.Errorf("no negative render expected: %+v", s.PromptResults[0])
+	}
+
+	// Nothing required, nothing to omit.
+	f = newFakeServer(t)
+	f.q.promptOptional = true
+	expect(t, throughExecution(t, f), "execution.prompts.validation", Skip, "declares a required argument")
+}

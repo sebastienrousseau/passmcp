@@ -201,6 +201,7 @@ is not something a maintainer can act on and `…<U+202E>nothing…` is.
 | `execution.resources` | up to `--max-resources` resources read; failures and empty reads reported |
 | `execution.resources.uri` | each of those reads that returned contents filed at least one item under the URI requested, and every item has a `uri`; a mismatch warns, citing the read. No extra request: it judges the reads above |
 | `execution.prompts` | up to `--max-prompts` prompts rendered with placeholder arguments |
+| `execution.prompts.validation` | each of those prompts that declares a required argument, and rendered with it, is rendered once more with its first required argument omitted, and must be refused with JSON-RPC -32602. Rendering anything fails; another code, or no JSON-RPC answer, warns. Rendering is read-only, so no policy applies; skipped when no prompt declares a required argument |
 
 ## performance: Latency and concurrency
 

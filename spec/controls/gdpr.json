@@ -305,6 +305,9 @@
     "execution.prompts": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },
+    "execution.prompts.validation": {
+      "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
+    },
     "execution.resources": {
       "none": "catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control"
     },

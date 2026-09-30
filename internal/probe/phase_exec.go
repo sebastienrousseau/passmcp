@@ -62,6 +62,8 @@ type PromptResult struct {
 	OK       bool   `json:"ok"`
 	Error    string `json:"error,omitempty"`
 	Messages int    `json:"messages,omitempty"`
+	// NegativeTest is what happened when a required argument was omitted.
+	NegativeTest string `json:"negative_test,omitempty"`
 }
 
 // phaseExecution invokes what the policy allows and validates content.
@@ -425,21 +427,32 @@ func (e *execRun) getPrompts() (out []Finding, aborted bool) {
 	}
 	limit := min(n, s.Opts.MaxPrompts)
 	var t readTally
+	var neg promptNegatives
 	for _, p := range s.Prompts[:limit] {
 		if err := e.limiter.Wait(e.ctx); err != nil {
 			return nil, true
 		}
-		s.PromptResults = append(s.PromptResults, e.getPrompt(p, &t))
+		pr := e.getPrompt(p, &t)
+		// Negative test: omit a required argument and expect -32602.
+		if e.negativeRender(p, &pr, &neg) {
+			return nil, true
+		}
+		s.PromptResults = append(s.PromptResults, pr)
 	}
 	c := s.check("execution.prompts", "Prompt rendering")
 	detail := fmt.Sprintf("%d of %d rendered: %d ok, %d failed, %d empty", limit, n, t.ok, t.failed, t.empty)
+	return []Finding{promptRenderVerdict(c, t, detail), promptValidationFinding(s, neg, limit)}, false
+}
+
+// promptRenderVerdict is the execution.prompts verdict on the renders.
+func promptRenderVerdict(c *check, t readTally, detail string) Finding {
 	switch {
 	case t.failed > 0:
-		return []Finding{c.fail(Major, detail, "prompts/get should succeed with the required arguments")}, false
+		return c.fail(Major, detail, "prompts/get should succeed with the required arguments")
 	case t.empty > 0:
-		return []Finding{c.warn(detail, "a prompt with no messages is unusable")}, false
+		return c.warn(detail, "a prompt with no messages is unusable")
 	default:
-		return []Finding{c.pass(detail)}, false
+		return c.pass(detail)
 	}
 }
 

@@ -191,6 +191,15 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 	case "prompts/list":
 		reply(map[string]any{"prompts": []map[string]any{{"name": "summarise", "description": "Summarise a doc", "arguments": []map[string]any{{"name": "doc", "description": "the doc", "required": true}}}}})
 	case "prompts/get":
+		// A correct server refuses a render missing a required argument.
+		var p struct {
+			Args map[string]string `json:"arguments"`
+		}
+		_ = json.Unmarshal(req.Params, &p)
+		if _, ok := p.Args["doc"]; !ok {
+			rpcErr(-32602, "missing required argument: doc")
+			return
+		}
 		reply(map[string]any{"messages": []map[string]any{{"role": "user", "content": map[string]any{"type": "text", "text": "Summarise"}}}})
 	default:
 		rpcErr(-32601, "method not found")

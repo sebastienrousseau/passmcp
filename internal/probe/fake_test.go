@@ -76,7 +76,16 @@ type quirks struct {
 	resourcesEmpty    bool
 	// readURI is the uri resources/read files its contents under: "" echoes
 	// the URI requested, as a correct server does; "-" omits the field.
-	readURI           string
+	readURI string
+	// By default prompts/get refuses a render without the prompt's
+	// required argument with -32602, as a correct server does.
+	// promptLenient renders it anyway; promptMissingCode refuses with that
+	// JSON-RPC code instead, or with that HTTP status when positive; and
+	// promptOptional makes the argument optional, so there is nothing to
+	// omit.
+	promptLenient     bool
+	promptMissingCode int
+	promptOptional    bool
 	templatesFail     bool
 	promptsFail       bool
 	promptsEmpty      bool
@@ -595,17 +604,17 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		if f.q.catalog == "relative" {
 			desc, argDesc = "", ""
 		}
-		reply(map[string]any{"prompts": []map[string]any{{"name": "summarise", "description": desc, "arguments": []map[string]any{{"name": "doc", "description": argDesc, "required": true}}}}})
+		reply(map[string]any{"prompts": []map[string]any{{"name": "summarise", "description": desc, "arguments": []map[string]any{{"name": "doc", "description": argDesc, "required": !f.q.promptOptional}}}}})
 	case "prompts/get":
-		if f.q.promptsFail {
-			rpcErr(-32602, "bad prompt")
-			return
+		res, code := f.renderPrompt(req.Params)
+		switch {
+		case code > 0:
+			w.WriteHeader(code)
+		case code < 0:
+			rpcErr(code, "bad prompt")
+		default:
+			reply(res)
 		}
-		if f.q.promptsEmpty {
-			reply(map[string]any{"messages": []map[string]any{}})
-			return
-		}
-		reply(map[string]any{"messages": []map[string]any{{"role": "user", "content": map[string]any{"type": "text", "text": "Summarise"}}}})
 	default:
 		switch {
 		case f.q.unknownMethodOK:
@@ -687,4 +696,26 @@ func (f *fakeServer) readContents(params json.RawMessage) map[string]any {
 		item["uri"] = f.q.readURI
 	}
 	return map[string]any{"contents": []map[string]any{item}}
+}
+
+// renderPrompt is what prompts/get answers, shaped by the knobs: a result,
+// or a refusal code (negative for JSON-RPC, positive for an HTTP status).
+func (f *fakeServer) renderPrompt(params json.RawMessage) (map[string]any, int) {
+	var p struct {
+		Args map[string]string `json:"arguments"`
+	}
+	_ = json.Unmarshal(params, &p)
+	_, hasDoc := p.Args["doc"]
+	switch {
+	case f.q.promptsFail:
+		return nil, -32602
+	case !hasDoc && !f.q.promptOptional && !f.q.promptLenient:
+		if f.q.promptMissingCode != 0 {
+			return nil, f.q.promptMissingCode
+		}
+		return nil, -32602
+	case f.q.promptsEmpty:
+		return map[string]any{"messages": []map[string]any{}}, 0
+	}
+	return map[string]any{"messages": []map[string]any{{"role": "user", "content": map[string]any{"type": "text", "text": "Summarise"}}}}, 0
 }

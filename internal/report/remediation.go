@@ -1811,6 +1811,29 @@ var remediations = map[string]Remediation{
 		},
 	},
 
+	"execution.prompts.validation": {
+		Means: "A prompt that declares a required argument was rendered without " +
+			"it, or refused with something other than JSON-RPC `-32602` " +
+			"(Invalid params), which is the error the specification names for a " +
+			"missing required argument. A prompt rendered without its input " +
+			"hands the model a template with a hole in it; a refusal a client " +
+			"cannot classify cannot be turned into a request for the missing " +
+			"value.",
+		Steps: []Step{
+			{"Check arguments before rendering",
+				"Compare `params.arguments` in `prompts/get` with the prompt's " +
+					"declared `arguments`, and stop before rendering when one marked " +
+					"`required` is absent."},
+			{"Refuse with -32602",
+				"Return a JSON-RPC error with code `-32602` and a message naming " +
+					"the missing argument, not an HTTP error and not a server-error " +
+					"code. The finding cites the request, and the per-prompt result " +
+					"records what came back."},
+		},
+		Note: "Most SDKs validate prompt arguments for you when the prompt is " +
+			"registered with its argument list rather than parsed by hand.",
+	},
+
 	// --- performance -------------------------------------------------------
 
 	"performance.ping": {

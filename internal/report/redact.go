@@ -105,6 +105,7 @@ func maskPromptResults(in []probe.PromptResult, red *telemetry.Redactor) []probe
 	out := append([]probe.PromptResult(nil), in...)
 	for i := range out {
 		out[i].Error = red.String(out[i].Error)
+		out[i].NegativeTest = red.String(out[i].NegativeTest)
 	}
 	return out
 }
