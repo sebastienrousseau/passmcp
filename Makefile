@@ -13,7 +13,7 @@ export CGO_ENABLED = 0
 COVER_MIN ?= 85
 BRANCH_MIN ?= 80
 
-.PHONY: tools vulncheck spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
+.PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
         fuzz sbom sbom-check coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
         ecosystem ecosystem-verify commitlint ssg-check readme-check demo verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
@@ -240,8 +240,14 @@ vulncheck: tools
 vet:
 	go vet ./...
 
+# The complexity linters run through scripts/complexity, which holds them to
+# the committed baseline of older offenders (.golangci.yml explains why).
 lint:
-	golangci-lint run ./...
+	golangci-lint run --disable gocyclo,gocognit,funlen ./...
+	go run ./scripts/complexity
+
+complexity:
+	go run ./scripts/complexity
 
 format:
 	gofmt -l -w .
@@ -289,7 +295,7 @@ clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).

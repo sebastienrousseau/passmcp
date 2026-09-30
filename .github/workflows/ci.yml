@@ -179,7 +179,18 @@ jobs:
           GOTOOLCHAIN: auto
         with:
           version: v2.13.2
-          args: ./...
+          # The complexity linters run in the next step, against the
+          # baseline of older offenders; .golangci.yml explains why.
+          args: --disable gocyclo,gocognit,funlen ./...
+
+      # The action put golangci-lint on PATH; this runs it again with only
+      # the complexity linters and fails on anything new or worse than
+      # .complexity-baseline, or on an improvement the baseline has not
+      # recorded.
+      - name: Complexity against the baseline
+        env:
+          GOTOOLCHAIN: auto
+        run: make complexity
 
   vulncheck:
     name: Vulnerability Scan

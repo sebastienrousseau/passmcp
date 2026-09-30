@@ -26,6 +26,14 @@ linters:
     # and a verdict nobody can hold in their head is where a wrong pass
     # hides. maintidx folds Halstead volume, cyclomatic complexity and
     # length into one maintainability index.
+    #
+    # gocyclo, gocognit and funlen are set to the portfolio ceilings below
+    # (10, 15, 60 lines). Code older than those ceilings exceeds them in
+    # places, so `make lint` and CI run golangci-lint with these three
+    # disabled and then scripts/complexity, which runs only them and
+    # compares the result with .complexity-baseline: nothing new over a
+    # ceiling, nothing recorded there gets worse, and the file only
+    # shrinks. An editor running this file directly shows every offender.
     - gocyclo
     - gocognit
     - nestif
@@ -33,13 +41,13 @@ linters:
     - maintidx
   settings:
     gocyclo:
-      min-complexity: 15
+      min-complexity: 10
     gocognit:
-      min-complexity: 20
+      min-complexity: 15
     nestif:
       min-complexity: 5
     funlen:
-      lines: 80
+      lines: 60
       statements: 50
     maintidx:
       under: 20

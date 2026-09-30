@@ -15,6 +15,7 @@ bug in this file — please report it.
 - [Everyday tasks](#everyday-tasks)
 - [Reproducing every CI gate](#reproducing-every-ci-gate)
 - [Coverage](#coverage)
+- [Complexity](#complexity)
 - [Test layout](#test-layout)
 - [Trying it against a real server](#trying-it-against-a-real-server)
 - [Generated artefacts](#generated-artefacts)
@@ -95,7 +96,7 @@ is the cross-platform matrix.
 |---|---|
 | Build and test | `go build ./... && make test` |
 | Race and shuffled tests | `make test-race` |
-| Lint | `make lint` |
+| Lint (and complexity against the baseline) | `make lint` (complexity alone: `make complexity`) |
 | Vulnerability scan | `make vulncheck` |
 | Licence headers (SPDX) | `make spdx-check` |
 | SBOM drift | `make sbom-check` |
@@ -108,7 +109,7 @@ is the cross-platform matrix.
 | Manpage rendering | `make docs && groff -man -Tutf8 -ww build/man/passmcp.1 >/dev/null` |
 | Docs lint (markdown, spelling, links) | `pre-commit run --all-files` |
 
-Coverage has its own section below.
+Coverage and complexity have their own sections below.
 
 To check a release without publishing anything:
 
@@ -165,6 +166,32 @@ constraints, so the script runs on a temporary copy of the tracked tree
 with the files the host build ignores removed. Only the host platform's
 files are measured, and a run takes several minutes, so it is not a
 pull-request gate. Results land in `build/branchcover-<mode>/`.
+
+## Complexity
+
+Every function outside the tests is held to cyclomatic complexity 10,
+cognitive complexity 15 and 60 lines, and every non-test Go file to 500
+lines. The function ceilings are the `gocyclo`, `gocognit` and `funlen`
+settings in `.golangci.yml`; the file ceiling is set in
+`scripts/complexity`, because golangci-lint has no file-length linter.
+
+Code written before the ceilings were lowered exceeds them in places.
+Those functions and files are listed, with the value each had, in
+`.complexity-baseline`, and `scripts/complexity` holds the tree to it.
+`make lint` and CI's Lint job run golangci-lint with the three complexity
+linters disabled and then the script, which fails when:
+
+- something over a ceiling is not in the baseline;
+- a value in the baseline got worse;
+- a value in the baseline improved, or its function or file came under the
+  ceiling, and the baseline was not updated to match.
+
+The last rule is what makes the baseline shrink. After making an offender
+smaller, run `go run ./scripts/complexity -update` and commit the result;
+`-update` refuses while anything is new or worse, so it can only record an
+improvement. There is no way to add an entry other than editing the file,
+and no `//nolint` directive stands in for one. Offenders are reduced
+worst-first, one reviewed change at a time.
 
 ## Test layout
 
