@@ -919,9 +919,7 @@
       ]
     },
     "protocol.missing_session": {
-      "controls": [
-        "A.8.26"
-      ]
+      "none": "protocol conformance: the specification says a server SHOULD refuse a request without its session id, and one that serves it shows no access control was bypassed, so no control in this framework is evidenced"
     },
     "protocol.mrtr": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"

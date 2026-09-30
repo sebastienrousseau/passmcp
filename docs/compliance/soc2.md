@@ -105,7 +105,9 @@ builds a dated evidence bundle from attestations over an audit period.
 | `catalog.tools.idempotency` | CC6.3 |
 | `catalog.tools.input_schema` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.list` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `catalog.tools.order` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.output_schema` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `catalog.tools.schema_valid` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.title` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.unique` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.toxic_combination` | CC6.7 |
@@ -133,7 +135,9 @@ builds a dated evidence bundle from attestations over an audit period.
 | `execution.payload_size` | A1.1 |
 | `execution.policy` | None: records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls |
 | `execution.prompts` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `execution.prompts.validation` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `execution.resources` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `execution.resources.uri` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `execution.tools` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `execution.validation` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `fs.canary_exfiltrated` | CC6.7 |
@@ -160,13 +164,16 @@ builds a dated evidence bundle from attestations over an audit period.
 | `performance.warmup` | A1.1 |
 | `protocol.accept_header` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.bogus_session` | CC6.1 |
+| `protocol.content_type` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.deprecated_features` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.extensions` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.get_stream` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.id_echo` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.invalid_params` | CC7.1 |
 | `protocol.malformed_json` | CC7.1 |
+| `protocol.missing_session` | None: protocol conformance: the specification says a server SHOULD refuse a request without its session id, and one that serves it shows no access control was bypassed, so no control in this framework is evidenced |
 | `protocol.mrtr` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
+| `protocol.notification_ack` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.origin` | CC6.6 |
 | `protocol.ping` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.routing_headers` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |

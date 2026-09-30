@@ -75,7 +75,9 @@ builds a dated evidence bundle from attestations over an audit period.
 | `catalog.tools.idempotency` | Art. 25 |
 | `catalog.tools.input_schema` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.list` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `catalog.tools.order` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.output_schema` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `catalog.tools.schema_valid` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.title` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.tools.unique` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `catalog.toxic_combination` | Art. 32 |
@@ -103,7 +105,9 @@ builds a dated evidence bundle from attestations over an audit period.
 | `execution.payload_size` | None: no data protection obligation is evidenced by this check |
 | `execution.policy` | None: records how passmcp ran (its configuration, mode or the credentials it was given), which says nothing about the server's controls |
 | `execution.prompts` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `execution.prompts.validation` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `execution.resources` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
+| `execution.resources.uri` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `execution.tools` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `execution.validation` | None: catalogue or response quality: it affects how well an agent can use the server, not a security or privacy control |
 | `fs.canary_exfiltrated` | Art. 32 |
@@ -130,13 +134,16 @@ builds a dated evidence bundle from attestations over an audit period.
 | `performance.warmup` | None: no data protection obligation is evidenced by this check |
 | `protocol.accept_header` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.bogus_session` | None: no data protection obligation is evidenced by this check |
+| `protocol.content_type` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.deprecated_features` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.extensions` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.get_stream` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.id_echo` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.invalid_params` | None: no data protection obligation is evidenced by this check |
 | `protocol.malformed_json` | None: no data protection obligation is evidenced by this check |
+| `protocol.missing_session` | None: no data protection obligation is evidenced by this check |
 | `protocol.mrtr` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
+| `protocol.notification_ack` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.origin` | Art. 32 |
 | `protocol.ping` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.routing_headers` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
