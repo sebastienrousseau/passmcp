@@ -145,7 +145,7 @@ measured, so there is no verdict about the server to report.
 
 - On stdout after the report, for `--output text` and `--output md`.
 - On stderr for every other format, because a gate verdict appended to JSON
-  or SARIF would make the document unparseable, and the one reader who needs
+  or SARIF would make the document unparsable, and the one reader who needs
   it there is a CI log.
 - As `policy.json` in `--report-dir`, beside the evidence it judged. Separate
   from `report.json` on purpose: a report is about the server, and this is

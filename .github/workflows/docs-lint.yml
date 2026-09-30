@@ -64,12 +64,13 @@ jobs:
 
       - name: codespell
         uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
+        # .codespellrc is the one configuration, shared with pre-commit.
+        # skip is set empty on purpose: the action's default, ./.git, would
+        # otherwise be passed on the command line and replace the file's
+        # skip list rather than add to it.
         with:
-          skip: ./.git,./public,./go.sum,./dist,./build,./testdata,./*/testdata
-          # intoto - the in-toto attestation format, spelled correctly
-          # unparseable - accepted variant spelling used throughout
-          # re-use - the official title of ISO/IEC 27001:2022 A.7.14
-          ignore_words_list: intoto,unparseable,re-use
+          config: .codespellrc
+          skip: ''
 
   links:
     name: Link Check

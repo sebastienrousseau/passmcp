@@ -34,8 +34,8 @@ repos:
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
+      # Configured by .codespellrc, which the Docs Lint workflow reads too.
       - id: codespell
-        args: [--ignore-words-list=intoto,unparseable,ndjson]
         exclude: ^(go\.sum$|.*\.har$|.*\.svg$)
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
