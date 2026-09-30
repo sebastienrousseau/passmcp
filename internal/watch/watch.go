@@ -96,6 +96,13 @@ type Options struct {
 	Sink Sink
 	// Now is the clock, for tests.
 	Now func() time.Time
+
+	// clock times a pulse; nil means time.Now, whose monotonic reading
+	// is what makes the latency immune to wall-clock steps. Tests
+	// substitute a clock whose ticks they control: a pulse to a loopback
+	// server can finish inside one tick of a coarse clock, such as
+	// Windows' 15.6 ms, and would then measure zero.
+	clock func() time.Time
 }
 
 // Result is what a watch run concluded.
@@ -155,6 +162,9 @@ func (o *Options) normalise() error {
 	if o.Now == nil {
 		o.Now = func() time.Time { return time.Now().UTC() }
 	}
+	if o.clock == nil {
+		o.clock = time.Now
+	}
 	return nil
 }
 
@@ -174,9 +184,9 @@ type watcher struct {
 // request, so it cannot turn the watcher into the load generator
 // MinInterval exists to prevent.
 func (w *watcher) step(ctx context.Context) bool {
-	t0 := time.Now()
+	t0 := w.opts.clock()
 	snap, changes, err := pulse(ctx, w.opts)
-	latency := time.Since(t0)
+	latency := w.opts.clock().Sub(t0)
 	if err != nil && ctx.Err() != nil {
 		w.settle()
 		return false
