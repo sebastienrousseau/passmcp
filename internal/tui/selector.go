@@ -155,9 +155,6 @@ func (m *selectorModel) renderCustomTable() string {
 	return sb.String()
 }
 
-// slashCommands are the in-session commands the filter line accepts.
-var slashCommands = []string{"/exit", "/quit", "/help", "/all", "/none", "/sort"}
-
 // Update handles one Bubble Tea message; keys the selector does not
 // consume go to the embedded table, which owns cursor movement.
 func (m *selectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -180,14 +177,6 @@ func (m *selectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleFetched installs the tool list, selecting by default every tool
 // the safety policy would run anyway.
-// shownError is a listing error as the selector draws it. Its text often
-// quotes the server, so it is cleaned of terminal control sequences; the
-// error it wraps is still there for errors.Is and errors.As.
-type shownError struct{ err error }
-
-func (e shownError) Error() string { return termsafe.String(e.err.Error()) }
-func (e shownError) Unwrap() error { return e.err }
-
 func (m *selectorModel) handleFetched(msg fetchedItemsMsg) (tea.Model, tea.Cmd) {
 	m.loading = false
 	if msg.err != nil {
@@ -326,18 +315,6 @@ func (m *selectorModel) setFilteredSelection(selected bool) (tea.Model, tea.Cmd,
 	}
 	m.updateTableRows()
 	return m, nil, true
-}
-
-func completeSlashCommand(filter string) (string, bool) {
-	if !strings.HasPrefix(filter, "/") {
-		return "", false
-	}
-	for _, cmd := range slashCommands {
-		if len(cmd) > len(filter) && strings.HasPrefix(cmd, filter) {
-			return cmd, true
-		}
-	}
-	return "", false
 }
 
 // View renders the logo, the search or command prompt, the tool table or

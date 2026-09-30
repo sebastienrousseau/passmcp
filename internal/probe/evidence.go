@@ -110,6 +110,19 @@ func unevidenced(f Finding) bool {
 	return !derived
 }
 
+// enforceEvidence records a pass that has no evidence, and is not a
+// derived check, as info (ADR-0002; see evidence.go).
+func enforceEvidence(f Finding) Finding {
+	if !unevidenced(f) {
+		return f
+	}
+	f.Status, f.Detail = Info, f.Detail+unevidencedNote
+	if onUnevidenced != nil {
+		onUnevidenced(f)
+	}
+	return f
+}
+
 // unevidencedNote is appended to the detail of a pass recorded as info.
 const unevidencedNote = " (recorded as info: the check made no request and cited no evidence, ADR-0002)"
 
