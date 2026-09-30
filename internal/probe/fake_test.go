@@ -125,6 +125,24 @@ type quirks struct {
 	// Streamable HTTP and over its own HTTP+SSE transport (legacy_test.go).
 	legacy2024   bool
 	sseTransport string
+	// notifyStatus answers notifications/initialized with this status
+	// instead of 202, and notifyBody writes a body after the header has been
+	// flushed, so it arrives chunked with no Content-Length to go by.
+	notifyStatus int
+	notifyBody   string
+	// replyContentType labels every JSON-RPC reply with this media type
+	// instead of application/json; "-" sends no Content-Type at all.
+	// sseReplies sends each reply as a one-event stream instead.
+	replyContentType string
+	sseReplies       bool
+	// loginPage answers every POST with an HTML sign-in page, as an SSO
+	// proxy or a WAF in front of the server does.
+	loginPage bool
+	// sessionOptional serves a request that carries no Mcp-Session-Id,
+	// and hands out a session id nobody registered while doing it.
+	// missingSessionStatus refuses one with this status instead of 400.
+	sessionOptional      bool
+	missingSessionStatus int
 }
 
 // fakeServer is a protected MCP server with its own authorization server,
@@ -344,6 +362,11 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(405)
 		return
 	}
+	if f.q.loginPage {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<!doctype html><html><body><form>Sign in</form></body></html>"))
+		return
+	}
 	if r.Header.Get("Accept") == "" && !f.q.lenientAccept {
 		w.WriteHeader(406)
 		return
@@ -370,8 +393,15 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if sid == "" && req.Method != "initialize" && !f.q.stateless {
-		w.WriteHeader(400)
-		return
+		if !f.q.sessionOptional {
+			st := f.q.missingSessionStatus
+			if st == 0 {
+				st = http.StatusBadRequest
+			}
+			w.WriteHeader(st)
+			return
+		}
+		w.Header().Set(transport.HeaderSessionID, "sess-unregistered")
 	}
 	replyID := func() int64 {
 		if req.ID == nil {
@@ -384,12 +414,10 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	reply := func(v any) {
 		b, _ := json.Marshal(v)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"result":%s}`, replyID(), b)
+		f.writeReply(w, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"result":%s}`, replyID(), b))
 	}
 	rpcErr := func(code int, msg string) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"error":{"code":%d,"message":%q}}`, replyID(), code, msg)
+		f.writeReply(w, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"error":{"code":%d,"message":%q}}`, replyID(), code, msg))
 	}
 	yes, no := true, false
 	switch req.Method {
@@ -414,7 +442,17 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(res)
 	case "notifications/initialized":
-		w.WriteHeader(202)
+		st := f.q.notifyStatus
+		if st == 0 {
+			st = http.StatusAccepted
+		}
+		w.WriteHeader(st)
+		if f.q.notifyBody != "" {
+			if fl, ok := w.(http.Flusher); ok {
+				fl.Flush()
+			}
+			_, _ = w.Write([]byte(f.q.notifyBody))
+		}
 	case "ping":
 		if f.q.pingFail {
 			rpcErr(-32000, "ping broken")
@@ -603,4 +641,23 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			rpcErr(-32601, "method not found")
 		}
 	}
+}
+
+// writeReply writes one JSON-RPC message as the reply to a request, with
+// the content type and framing the quirks ask for.
+func (f *fakeServer) writeReply(w http.ResponseWriter, msg string) {
+	switch {
+	case f.q.sseReplies:
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprintf(w, "event: message\ndata: %s\n\n", msg)
+		return
+	case f.q.replyContentType == "-":
+		// A nil value is how net/http is told not to sniff one.
+		w.Header()["Content-Type"] = nil
+	case f.q.replyContentType != "":
+		w.Header().Set("Content-Type", f.q.replyContentType)
+	default:
+		w.Header().Set("Content-Type", "application/json")
+	}
+	_, _ = w.Write([]byte(msg))
 }

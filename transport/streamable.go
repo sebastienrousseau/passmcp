@@ -275,10 +275,58 @@ func (s *Streamable) statusOutcome(resp *http.Response, d Dialect) (done bool, _
 	return false, nil
 }
 
+// ContentTypeError is returned when the reply to a request is neither
+// application/json nor text/event-stream and its body is not a JSON-RPC
+// response either. It names what arrived instead, because the decoder's
+// own complaint ("invalid character '<'") says nothing about the usual
+// cause: a sign-in page, an SSO or firewall interstitial, or a path that
+// is not the MCP endpoint.
+//
+// A body that does decode is read whatever its label, so a server that
+// mislabels valid JSON still works through this client.
+type ContentTypeError struct {
+	// ContentType is the reply's media type, lowercased and without
+	// parameters, or the raw header when it does not parse. Empty when
+	// the reply carried none.
+	ContentType string
+	// Err is the decode error the body produced.
+	Err error
+}
+
+func (e *ContentTypeError) Error() string {
+	return "transport: reply is not JSON-RPC: expected application/json or text/event-stream, " + e.Got()
+}
+
+// Got names what arrived instead of JSON-RPC and, where the media type
+// says, what it most likely is.
+func (e *ContentTypeError) Got() string {
+	switch e.ContentType {
+	case "":
+		return "got no Content-Type"
+	case "text/html", "application/xhtml+xml":
+		return "got " + e.ContentType + "; likely a login, SSO or firewall page, or the wrong path"
+	default:
+		return "got " + e.ContentType
+	}
+}
+
+// Unwrap exposes the decode error.
+func (e *ContentTypeError) Unwrap() error { return e.Err }
+
+// mediaType is a Content-Type header's media type, or the header itself
+// when it does not parse, so a malformed label is still named.
+func mediaType(header string) string {
+	ct, _, err := mime.ParseMediaType(header)
+	if err != nil {
+		return strings.TrimSpace(header)
+	}
+	return ct
+}
+
 // decodeResponse reads the response to request id from an SSE stream or a
 // JSON body, as the content type says.
 func decodeResponse(resp *http.Response, id int64) (*Response, error) {
-	ct, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	ct := mediaType(resp.Header.Get("Content-Type"))
 	switch ct {
 	case "text/event-stream":
 		return readSSEResponse(resp.Body, id)
@@ -286,6 +334,9 @@ func decodeResponse(resp *http.Response, id int64) (*Response, error) {
 		var out Response
 		dec := json.NewDecoder(io.LimitReader(resp.Body, MaxResponseBytes))
 		if err := dec.Decode(&out); err != nil {
+			if ct != "application/json" {
+				return nil, &ContentTypeError{ContentType: ct, Err: err}
+			}
 			return nil, fmt.Errorf("transport: decode response: %w", err)
 		}
 		return &out, nil
