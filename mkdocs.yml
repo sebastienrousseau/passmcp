@@ -46,10 +46,6 @@ theme:
 extra_css:
   - assets/brand.css
 
-repo_url: https://github.com/sebastienrousseau/passmcp
-repo_name: sebastienrousseau/passmcp
-edit_uri: edit/main/docs/
-
 markdown_extensions:
   - admonition
   - tables

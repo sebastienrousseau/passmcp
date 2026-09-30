@@ -13,11 +13,21 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # Licence texts, generated output and test fixtures are kept byte
+      # for byte: a whitespace fix would make them differ from their
+      # source, and some fixtures are streams of JSON documents, not one.
       - id: end-of-file-fixer
+        exclude: &verbatim ^(LICENSE|LICENSES/.*|internal/web/dist/.*|.*/testdata/.*)$
       - id: trailing-whitespace
+        exclude: *verbatim
+        # Two trailing spaces are a Markdown line break (the README's FAQ).
+        args: [--markdown-linebreak-ext=md]
       - id: check-merge-conflict
+      # Kubernetes examples hold several documents in one file.
       - id: check-yaml
+        args: [--allow-multiple-documents]
       - id: check-json
+        exclude: *verbatim
       - id: mixed-line-ending
         args: [--fix=lf]
 
