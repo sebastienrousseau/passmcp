@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -86,6 +87,10 @@ type quirks struct {
 	promptLenient     bool
 	promptMissingCode int
 	promptOptional    bool
+	// toolOrder varies tools/list between calls: "shuffle" reverses every
+	// second answer, "grow" adds a tool to every second answer, and
+	// "failsecond" fails every listing after the first.
+	toolOrder         string
 	templatesFail     bool
 	promptsFail       bool
 	promptsEmpty      bool
@@ -174,6 +179,7 @@ type fakeServer struct {
 	slowTool       time.Duration
 	rateLimitAfter int
 	burst          atomic.Int32
+	toolLists      atomic.Int32 // tools/list requests answered
 	q              quirks
 }
 
@@ -479,11 +485,12 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(map[string]any{})
 	case "tools/list":
-		if f.q.toolsFail {
+		tools, ok := f.listTools()
+		if !ok {
 			rpcErr(-32603, "tools broken")
 			return
 		}
-		reply(map[string]any{"tools": f.revisionTools(f.toolCatalog())})
+		reply(map[string]any{"tools": f.revisionTools(tools)})
 	case "tools/call":
 		var p struct {
 			Name string         `json:"name"`
@@ -676,6 +683,26 @@ func (f *fakeServer) toolCatalog() []map[string]any {
 		tools = []map[string]any{{"name": "bare", "description": "A tool that declares no schema at all", "annotations": map[string]any{"readOnlyHint": yes}}}
 	}
 	return tools
+}
+
+// listTools is what one tools/list answers, varied between calls by the
+// toolOrder knob; ok is false for a listing that fails.
+func (f *fakeServer) listTools() (tools []map[string]any, ok bool) {
+	n := f.toolLists.Add(1)
+	if f.q.toolsFail || (f.q.toolOrder == "failsecond" && n > 1) {
+		return nil, false
+	}
+	tools = f.toolCatalog()
+	if n%2 == 1 {
+		return tools, true
+	}
+	switch f.q.toolOrder {
+	case "shuffle":
+		slices.Reverse(tools)
+	case "grow":
+		tools = append(tools, map[string]any{"name": "late_arrival", "description": "A tool registered between two listings", "inputSchema": map[string]any{"type": "object"}, "annotations": map[string]any{"readOnlyHint": true}})
+	}
+	return tools, true
 }
 
 // readContents is what resources/read answers, shaped by the knobs.

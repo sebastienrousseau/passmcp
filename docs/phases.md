@@ -149,6 +149,7 @@ Lists everything; invokes nothing.
 |---|---|
 | `catalog.tools.list`, `catalog.resources.list`, `catalog.prompts.list` | each list succeeds when its capability is declared, and nothing lists without one |
 | `catalog.tools.unique` | tool names are unique |
+| `catalog.tools.order` | a second `tools/list` returns the same tools in the same order, citing both listings. A reshuffle warns: the specification allows it, but a client puts tools into the model's context in list order, so it defeats prompt caching. A catalogue that changed in between is noted; fewer than two tools is skipped without a request |
 | `catalog.tools.descriptions` | every tool has a description of at least 20 characters |
 | `catalog.tools.input_schema` | `inputSchema` describes an object |
 | `catalog.tools.schema_valid` | every `inputSchema` and `outputSchema` is structurally valid JSON Schema 2020-12 where a client reads it: `type` names JSON types, `required` is a list of strings, `properties` holds schemas, local `$ref`s resolve. Structure that is not allowed fails; a required name `properties` does not declare, or an unknown `$schema` dialect, warns; unknown keywords are noted. Each entry names the tool and the JSON pointer, and the finding cites the `tools/list` request |

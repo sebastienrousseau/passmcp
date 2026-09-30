@@ -80,6 +80,7 @@ func catalogTools(pctx func(string) context.Context, s *Session, caps passmcp.Se
 	s.Tools = tools
 	if len(tools) > 0 {
 		out = append(out, auditTools(s, tools, cacheHints)...)
+		out = append(out, checkToolOrder(pctx, s, tools))
 	}
 	return out
 }

@@ -1701,6 +1701,26 @@ var remediations = map[string]Remediation{
 			"so does every client passmcp knows of.",
 	},
 
+	"catalog.tools.order": {
+		Means: "Two `tools/list` requests made one after the other returned the " +
+			"same tools in a different order. The specification does not require " +
+			"an order, but a client puts the tools into the model's context in the " +
+			"order it received them, so a server that reshuffles changes the " +
+			"prompt prefix on every connection and every prompt cache keyed on it " +
+			"misses: more latency and more cost for every agent, for no change in " +
+			"the catalogue.",
+		Steps: []Step{
+			{"Return tools in a fixed order",
+				"Sort by name, or keep registration order, before building the " +
+					"`tools/list` result. The usual cause is iterating a hash map, " +
+					"whose order a runtime randomises on purpose."},
+			{"Keep pages stable too",
+				"When the list is paginated, the same cursor should return the " +
+					"same page. The finding cites both listings, so the two orders " +
+					"can be compared in the wire log."},
+		},
+	},
+
 	"catalog.resources.uris": {
 		Means: "A resource URI is relative. A client has nothing to resolve it " +
 			"against — the resource list is not a web page and there is no base.",
