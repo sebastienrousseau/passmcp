@@ -415,7 +415,7 @@ language server, once outside it, are now inside it.
 
 | Area | Capability | Status |
 | :--- | :--- | :--- |
-| Diagnosis | Nine phases from DNS to token recovery, 131 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Diagnosis | Nine phases from DNS to token recovery, 138 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Transports | Streamable HTTP, and stdio servers run under process custody with `--stdio` | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Credentials | Bearer, API key, basic, OAuth 2.1 client credentials, user login with PKCE, dynamic and metadata-document registration | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Safety | Read-only by default; mutations and destructive tools only by explicit opt-in | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |

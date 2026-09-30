@@ -16,7 +16,7 @@
          number and the source disagree. -->
     <ul class="run-facts">
       <li><b>9</b><span>phases, in order</span></li>
-      <li><b>131</b><span>checks</span></li>
+      <li><b>138</b><span>checks</span></li>
       <li><b>Both</b><span>protocol revisions, detected</span></li>
       <li><b>0</b><span>bytes uploaded</span></li>
     </ul>
@@ -36,9 +36,11 @@
             <input id="endpoint" name="endpoint" type="url" inputmode="url" autocomplete="url"
                    placeholder="https://mcp.example.com/mcp" required
                    aria-describedby="endpoint-help" />
-            <p id="endpoint-help" class="field-help">The Streamable HTTP URL. Five of the 131 checks
-               apply only to a server that is a program rather than a URL; run those from the
-               command line with <code>passmcp check --stdio -- &lt;command&gt;</code>.</p>
+            <p id="endpoint-help" class="field-help">The Streamable HTTP URL. The checks that watch the
+               server process itself (its stdio behaviour, where it connects, the files it
+               touches and what its binary is built from) need a server that is a program rather
+               than a URL; run those from the command line with
+               <code>passmcp check --stdio -- &lt;command&gt;</code>.</p>
           </div>
 
           <div class="field">
