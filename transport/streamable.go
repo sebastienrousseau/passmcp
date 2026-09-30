@@ -52,6 +52,10 @@ const (
 	MaxStreamEvents = 10000
 )
 
+// maxAckBytes caps how much of an acknowledgement's body is read. The
+// transport requires none; this is only enough to see that one was sent.
+const maxAckBytes = 64 << 10
+
 // ErrStreamTooLarge is returned when an SSE stream exceeds MaxStreamBytes
 // or MaxStreamEvents without producing the response.
 var ErrStreamTooLarge = errors.New("transport: event stream exceeded its limit without answering")
@@ -258,7 +262,11 @@ func (s *Streamable) statusOutcome(resp *http.Response, d Dialect) (done bool, _
 		s.Reset()
 		return true, ErrSessionExpired
 	case resp.StatusCode == http.StatusAccepted, resp.StatusCode == http.StatusNoContent:
-		// Notifications and responses are acknowledged with no body.
+		// Notifications and responses are acknowledged with no body. Read
+		// whatever came anyway, bounded, so the exchange's recorded size is
+		// what the server sent rather than what the client chose to look
+		// at, and the connection can be reused.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxAckBytes))
 		return true, nil
 	case resp.StatusCode < 200 || resp.StatusCode >= 300:
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))

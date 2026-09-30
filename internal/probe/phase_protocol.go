@@ -192,7 +192,7 @@ func phaseProtocol(ctx context.Context, s *Session) []Finding {
 	out = append(out, probeVersionHeader(s, tr, pctx, live, liveParams))
 
 	out = append(out, checkOrigin(pctx("foreign origin"), s, tr, live, liveParams))
-	return out
+	return append(out, checkReplies(s, tr, pctx, live, liveParams)...)
 }
 
 // rawProbe sends one hand-built message through rawExchange under its own

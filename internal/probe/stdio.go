@@ -313,6 +313,8 @@ var httpOnlyChecks = []struct{ id, title, why string }{
 		"the protocol version travels in an HTTP header on this revision; over a pipe it travels in the body, which the dialect already builds"},
 	{"protocol.origin", "A foreign Origin is rejected",
 		"Origin is a browser's HTTP header, and DNS rebinding reaches an HTTP listener; a pipe has neither"},
+	{"protocol.notification_ack", "notifications/initialized is acknowledged with 202",
+		"202 Accepted is the HTTP binding's acknowledgement; over a pipe a notification is a line that draws no reply at all"},
 }
 
 // skipHTTPOnly names every conformance check that cannot be made over a

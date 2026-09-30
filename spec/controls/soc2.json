@@ -613,6 +613,9 @@
     "protocol.mrtr": {
       "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
     },
+    "protocol.notification_ack": {
+      "none": "protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires"
+    },
     "protocol.origin": {
       "controls": [
         "CC6.6"

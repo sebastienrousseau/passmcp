@@ -337,6 +337,7 @@ func TestStdioNamesTheChecksItCannotMake(t *testing.T) {
 	for _, id := range []string{
 		"protocol.accept_header", "protocol.get_stream",
 		"protocol.bogus_session", "protocol.version_header", "protocol.origin",
+		"protocol.notification_ack",
 		"handshake.session",
 	} {
 		f, ok := fs[id]

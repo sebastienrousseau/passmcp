@@ -137,6 +137,7 @@ MCP specification require.
 | `protocol.tasks.undeclared` | no task is returned to a call that did not declare the extension |
 | `protocol.tasks.lifecycle` | a task created by calling a read-only tool is retrievable at once, carries the required fields, reaches a terminal state within 30 seconds and keeps it; passmcp cancels any task it does not see finish |
 | `protocol.origin` | a request from a foreign `Origin` is refused, as the transport requires against DNS rebinding; failing on loopback or a private address, a warning on a public host |
+| `protocol.notification_ack` | the `notifications/initialized` the handshake sent was answered `202 Accepted` with no body, as the transport requires; judged from that recorded exchange, with no extra request. Skipped on `2026-07-28`, which has no handshake |
 
 ## catalog: Tool, resource and prompt catalog
 

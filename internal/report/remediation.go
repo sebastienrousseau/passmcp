@@ -1559,6 +1559,25 @@ var remediations = map[string]Remediation{
 			"attacker cannot, which a public server is not.",
 	},
 
+	"protocol.notification_ack": {
+		Means: "The server answered the `notifications/initialized` that " +
+			"completes the handshake with something other than `202 Accepted` " +
+			"and an empty body. A notification has no id, so there is no " +
+			"response a client could match a body to; the Streamable HTTP " +
+			"transport requires the bare acknowledgement, and a client that " +
+			"reads what comes back is owed exactly that.",
+		Steps: []Step{
+			{"Answer an accepted notification with 202 and nothing else",
+				"No JSON-RPC envelope, no `{}` and no event stream. A `200` or a " +
+					"`204` is not the status the transport names."},
+			{"Refuse only what you cannot accept, with a 4xx",
+				"If the notification is rejected, the handshake is not complete " +
+					"and the client has to be told so with an error status."},
+		},
+		Note: "Judged from the acknowledgement the handshake already received; " +
+			"passmcp sends no extra notification to test this.",
+	},
+
 	// --- catalog -----------------------------------------------------------
 
 	"catalog.tools.list": {
