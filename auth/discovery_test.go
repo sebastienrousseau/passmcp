@@ -9,8 +9,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPRMCandidates(t *testing.T) {
@@ -140,6 +142,35 @@ func TestDiscoverServerRequiresTheIssuerItAskedFor(t *testing.T) {
 	issuer = want
 	if md, err := d.DiscoverServer(context.Background(), want); err != nil || md.Issuer != want {
 		t.Errorf("matching issuer refused: %v", err)
+	}
+}
+
+// TestNilClientsAreBounded: a Discoverer or Registrar built without a
+// client, and a token request made with none, used http.DefaultClient,
+// which waits for ever on an authorization server that never answers.
+func TestNilClientsAreBounded(t *testing.T) {
+	for name, c := range map[string]*http.Client{
+		"discoverer": (&Discoverer{}).httpClient(),
+		"registrar":  (&Registrar{}).httpClient(),
+	} {
+		if c == http.DefaultClient || c.Timeout != DefaultTimeout {
+			t.Errorf("%s default client has timeout %s", name, c.Timeout)
+		}
+	}
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-done:
+		}
+	}))
+	defer srv.Close()
+	defer close(done)
+	saved := defaultClient.Timeout
+	defaultClient.Timeout = 50 * time.Millisecond
+	defer func() { defaultClient.Timeout = saved }()
+	if _, err := tokenRequest(context.Background(), nil, Endpoint{TokenURL: srv.URL}, Credentials{ClientID: "c"}, url.Values{}); err == nil {
+		t.Error("a token request to a silent server returned without error")
 	}
 }
 

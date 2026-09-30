@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // ProtectedResourceMetadata is the RFC 9728 document served by the MCP
@@ -66,9 +67,20 @@ type Discoverer struct {
 	Policy URLPolicy
 }
 
+// DefaultTimeout bounds each metadata, registration and token request this
+// package makes when the caller supplied no *http.Client. Each is a small
+// JSON document, so a bound on the whole exchange is the right one.
+const DefaultTimeout = 30 * time.Second
+
+// defaultClient is used in place of a nil *http.Client. It is not
+// http.DefaultClient, which has no timeout: an authorization server that
+// accepts the connection and never answers would hold the caller for
+// ever.
+var defaultClient = &http.Client{Timeout: DefaultTimeout}
+
 func (d *Discoverer) httpClient() *http.Client {
 	if d.Client == nil {
-		return http.DefaultClient
+		return defaultClient
 	}
 	return d.Client
 }

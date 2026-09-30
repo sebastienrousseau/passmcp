@@ -82,6 +82,14 @@ project announces that a change felt big.
   (RFC 8414 §3.3): `discovery.as` fails as critical, the run stops before
   a credential is sent, and the library returns
   `auth.IssuerMismatchError`.
+- **The library no longer waits for ever on a silent server.** A
+  `passmcp.Client` built without an `HTTPClient`, or with one that sets
+  no `Timeout`, abandons a request that has no context deadline after
+  `Config.Timeout` (default 60 s, negative for none) without progress;
+  an event stream that keeps delivering is not cut.
+  `transport.New(endpoint, nil)` does the same (`transport.IdleTimeout`),
+  and `auth` uses a client with a 30 s timeout in place of a nil one.
+  The CLI already set timeouts and is unchanged.
 - **A discovered endpoint that does not resolve is refused.**
   `auth.URLPolicy.Validate` used to pass a URL whose host name failed to
   resolve and leave it to the dial-time check; it now refuses it, and an

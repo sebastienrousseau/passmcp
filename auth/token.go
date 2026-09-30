@@ -100,7 +100,7 @@ type Credentials struct {
 // tokenRequest posts an x-www-form-urlencoded grant to the token endpoint.
 func tokenRequest(ctx context.Context, hc *http.Client, ep Endpoint, creds Credentials, form url.Values) (*Token, error) {
 	if hc == nil {
-		hc = http.DefaultClient
+		hc = defaultClient
 	}
 	method := tokenAuthMethod(ep, creds)
 	addFormClientAuth(form, method, creds)

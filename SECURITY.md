@@ -140,6 +140,15 @@ is worse than one that omits them.
   `transport.MaxResponseBytes`, `MaxStreamBytes` and `MaxStreamEvents`;
   generated arguments are bounded by clamped schema limits; and the
   telemetry recording is bounded by `telemetry.Recorder.MaxEvents`.
+- **A server that stops answering cannot hold a caller for ever.** The
+  CLI sets a timeout on every client it builds. A library caller who
+  supplies no `HTTPClient`, or one without a `Timeout`, and no context
+  deadline gets `passmcp.Config.Timeout` (default 60 s) as an idle bound:
+  a request is abandoned after that long without progress, waiting for
+  the response or between reads of it, so an event stream that keeps
+  delivering is never cut. `auth` uses a 30 s client in place of a nil
+  one. Verified by `TestDefaultClientDoesNotWaitForeverOnASilentServer`
+  and `transport/idle_test.go`.
 - **Server text cannot drive the operator's terminal.** Tool names,
   descriptions, error text and content are cleaned of ANSI escape
   sequences and C0/C1 control characters by `internal/termsafe` before

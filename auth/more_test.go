@@ -65,8 +65,8 @@ func TestRegistrarPaths(t *testing.T) {
 	if _, err := r.Register(ctx, &ServerMetadata{RegistrationEndpoint: "::bad"}, RegistrationOptions{}); err == nil {
 		t.Error("bad endpoint url must error")
 	}
-	if (&Registrar{}).httpClient() != http.DefaultClient {
-		t.Error("nil client defaults")
+	if (&Registrar{}).httpClient() != defaultClient {
+		t.Error("nil client defaults to the bounded client")
 	}
 	if truncate([]byte("abc"), 5) != "abc" {
 		t.Error("truncate short")
@@ -294,8 +294,8 @@ func TestDiscoveryEdges(t *testing.T) {
 		t.Errorf("root issuer candidates = %v", c)
 	}
 	d := &Discoverer{}
-	if d.httpClient() != http.DefaultClient {
-		t.Error("nil client defaults")
+	if d.httpClient() != defaultClient {
+		t.Error("nil client defaults to the bounded client")
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
