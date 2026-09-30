@@ -153,117 +153,150 @@ authorization server, open the consent URL in your browser, receive the
 redirect on a loopback port, and save the tokens (0600) to the store so
 ` + "`passmcp check --auth authorization-code`" + ` can use them.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		endpoint, err := resolveEndpoint(args)
-		if err != nil {
-			return err
-		}
-		authMode = string(creds.ModeAuthorizationCode)
-		cr, err := buildCreds()
-		if err != nil {
-			return err
-		}
-		rec := telemetry.New()
-		for _, s := range cr.Secrets() {
-			rec.Redactor.Add(s)
-		}
-		cfg := passmcp.Config{Endpoint: endpoint, HTTPClient: &http.Client{Timeout: 60 * time.Second, Transport: rec.Wrap(auth.URLPolicy{}.EndpointTransport(endpoint))}, ClientInfo: passmcp.Implementation{Name: "passmcp", Version: Version}}
-		cr.Apply(&cfg)
-		client, err := passmcp.New(cfg)
-		if err != nil {
-			return err
-		}
-		res, err := client.Connect(cmdContext(cmd))
-		if err != nil {
-			return err
-		}
-		if res.Status == passmcp.StatusConnected {
-			fmt.Fprintln(os.Stderr, "server did not require authorization; nothing to store")
-			return nil
-		}
-		port := redirectPort
-		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-		if err != nil {
-			return fmt.Errorf("listen on redirect port %d: %w", port, err)
-		}
-		type cb struct{ code, state, iss, errText string }
-		ch := make(chan cb, 1)
-		srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			q := r.URL.Query()
-			// iss (RFC 9207) names the authorization server that answered;
-			// CompleteAuthorizationFrom refuses one that is not the issuer the
-			// code was requested from, which is what stops a mix-up attack.
-			result := cb{code: q.Get("code"), state: q.Get("state"), iss: q.Get("iss")}
-			msg := "Authorization complete. You can close this window."
-			if e := q.Get("error"); e != "" {
-				result = cb{errText: e + ": " + q.Get("error_description")}
-				msg = "Authorization failed. You can close this window."
-			}
-			// Flush the page to the browser before waking the command, which
-			// will shut the server down as soon as it has the code.
-			_, _ = fmt.Fprintln(w, msg)
-			if fl, ok := w.(http.Flusher); ok {
-				fl.Flush()
-			}
-			ch <- result
-		}),
-			// This listens on the operator's machine for as long as the
-			// browser flow takes. Without header and read timeouts a single
-			// stalled connection holds it open indefinitely.
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       10 * time.Second,
-			WriteTimeout:      10 * time.Second,
-			IdleTimeout:       30 * time.Second,
-		}
-		go func() { _ = srv.Serve(ln) }()
-		defer func() {
-			sctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			_ = srv.Shutdown(sctx) // graceful: lets the callback handler finish its response
-		}()
-		fmt.Fprintf(os.Stderr, "\nOpen this URL to authorize:\n\n  %s\n\nwaiting for the redirect on %s ...\n", res.AuthorizationURL, ln.Addr())
-		var r cb
-		select {
-		case <-cmdContext(cmd).Done():
-			return cmdContext(cmd).Err()
-		case r = <-ch:
-		}
-		if r.errText != "" {
-			return errors.New("authorization server returned " + r.errText)
-		}
-		done, err := client.CompleteAuthorizationFrom(cmdContext(cmd), r.code, r.state, r.iss)
-		if err != nil {
-			return err
-		}
-		cur := currentToken(client)
-		if cur == nil {
-			return errors.New("no token after authorization")
-		}
-		st := creds.StoredToken{Endpoint: endpoint, AccessToken: cur.AccessToken, RefreshToken: cur.RefreshToken, TokenType: cur.TokenType, Scope: cur.Scope, Expiry: cur.Expiry}
-		if d := done.Discovery; d != nil {
-			st.TokenURL, st.Resource = d.Server.TokenEndpoint, d.Resource
-			st.Issuer = d.Server.Issuer
-			if d.Registration != nil {
-				st.ClientID, st.ClientSecret = d.Registration.ClientID, d.Registration.ClientSecret
-			}
-		}
-		store := &creds.Store{}
-		if err := store.Put(st); err != nil {
-			return err
-		}
-		// Say where the secret actually went: "stored in tokens.json" would
-		// be wrong when the OS keychain holds it, and an operator auditing
-		// their machine needs to know which.
-		switch backend := store.Backend(); backend {
-		case "file":
-			fmt.Fprintf(os.Stderr, "authorized as a user of %s; token stored in %s (mode 0600)\n", done.Initialize.ServerInfo.Name, creds.DefaultStorePath())
-			fmt.Fprintf(os.Stderr, "note: no OS keyring was available, so the refresh token is on disk in the clear\n")
-		default:
-			fmt.Fprintf(os.Stderr, "authorized as a user of %s; secrets stored in the %s keyring, the rest in %s\n", done.Initialize.ServerInfo.Name, backend, creds.DefaultStorePath())
-		}
-		diag.Infof("run: passmcp check %s --auth authorization-code", endpoint)
+	RunE: runLogin,
+}
+
+// runLogin runs the authorization-code flow and stores what it got.
+func runLogin(cmd *cobra.Command, args []string) error {
+	endpoint, err := resolveEndpoint(args)
+	if err != nil {
+		return err
+	}
+	authMode = string(creds.ModeAuthorizationCode)
+	cr, err := buildCreds()
+	if err != nil {
+		return err
+	}
+	client, err := loginClient(endpoint, cr)
+	if err != nil {
+		return err
+	}
+	res, err := client.Connect(cmdContext(cmd))
+	if err != nil {
+		return err
+	}
+	if res.Status == passmcp.StatusConnected {
+		fmt.Fprintln(os.Stderr, "server did not require authorization; nothing to store")
 		return nil
-	},
+	}
+	r, err := awaitCallback(cmdContext(cmd), redirectPort, res.AuthorizationURL)
+	if err != nil {
+		return err
+	}
+	if r.errText != "" {
+		return errors.New("authorization server returned " + r.errText)
+	}
+	done, err := client.CompleteAuthorizationFrom(cmdContext(cmd), r.code, r.state, r.iss)
+	if err != nil {
+		return err
+	}
+	if err := storeLogin(endpoint, client, done); err != nil {
+		return err
+	}
+	diag.Infof("run: passmcp check %s --auth authorization-code", endpoint)
+	return nil
+}
+
+// loginClient builds the client a login runs through, with every secret
+// the operator supplied registered with its recorder.
+func loginClient(endpoint string, cr *creds.Credentials) (*passmcp.Client, error) {
+	rec := telemetry.New()
+	for _, s := range cr.Secrets() {
+		rec.Redactor.Add(s)
+	}
+	cfg := passmcp.Config{Endpoint: endpoint, HTTPClient: &http.Client{Timeout: 60 * time.Second, Transport: rec.Wrap(auth.URLPolicy{}.EndpointTransport(endpoint))}, ClientInfo: passmcp.Implementation{Name: "passmcp", Version: Version}}
+	cr.Apply(&cfg)
+	return passmcp.New(cfg)
+}
+
+// loginCallback is what the authorization server sent back.
+type loginCallback struct{ code, state, iss, errText string }
+
+// callbackHandler answers the browser's redirect and hands its parameters
+// to ch.
+func callbackHandler(ch chan<- loginCallback) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		// iss (RFC 9207) names the authorization server that answered;
+		// CompleteAuthorizationFrom refuses one that is not the issuer the
+		// code was requested from, which is what stops a mix-up attack.
+		result := loginCallback{code: q.Get("code"), state: q.Get("state"), iss: q.Get("iss")}
+		msg := "Authorization complete. You can close this window."
+		if e := q.Get("error"); e != "" {
+			result = loginCallback{errText: e + ": " + q.Get("error_description")}
+			msg = "Authorization failed. You can close this window."
+		}
+		// Flush the page to the browser before waking the command, which
+		// will shut the server down as soon as it has the code.
+		_, _ = fmt.Fprintln(w, msg)
+		if fl, ok := w.(http.Flusher); ok {
+			fl.Flush()
+		}
+		ch <- result
+	})
+}
+
+// awaitCallback listens on the loopback redirect port, prints the URL to
+// open, and waits for the browser to come back.
+func awaitCallback(ctx context.Context, port int, authURL string) (loginCallback, error) {
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return loginCallback{}, fmt.Errorf("listen on redirect port %d: %w", port, err)
+	}
+	ch := make(chan loginCallback, 1)
+	srv := &http.Server{Handler: callbackHandler(ch),
+		// This listens on the operator's machine for as long as the
+		// browser flow takes. Without header and read timeouts a single
+		// stalled connection holds it open indefinitely.
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+	}
+	go func() { _ = srv.Serve(ln) }()
+	defer func() {
+		sctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(sctx) // graceful: lets the callback handler finish its response
+	}()
+	fmt.Fprintf(os.Stderr, "\nOpen this URL to authorize:\n\n  %s\n\nwaiting for the redirect on %s ...\n", authURL, ln.Addr())
+	select {
+	case <-ctx.Done():
+		return loginCallback{}, ctx.Err()
+	case r := <-ch:
+		return r, nil
+	}
+}
+
+// storeLogin saves the token a login obtained and says where it went.
+func storeLogin(endpoint string, client *passmcp.Client, done *passmcp.ConnectResult) error {
+	cur := currentToken(client)
+	if cur == nil {
+		return errors.New("no token after authorization")
+	}
+	st := creds.StoredToken{Endpoint: endpoint, AccessToken: cur.AccessToken, RefreshToken: cur.RefreshToken, TokenType: cur.TokenType, Scope: cur.Scope, Expiry: cur.Expiry}
+	if d := done.Discovery; d != nil {
+		st.TokenURL, st.Resource = d.Server.TokenEndpoint, d.Resource
+		st.Issuer = d.Server.Issuer
+		if d.Registration != nil {
+			st.ClientID, st.ClientSecret = d.Registration.ClientID, d.Registration.ClientSecret
+		}
+	}
+	store := &creds.Store{}
+	if err := store.Put(st); err != nil {
+		return err
+	}
+	// Say where the secret actually went: "stored in tokens.json" would
+	// be wrong when the OS keychain holds it, and an operator auditing
+	// their machine needs to know which.
+	switch backend := store.Backend(); backend {
+	case "file":
+		fmt.Fprintf(os.Stderr, "authorized as a user of %s; token stored in %s (mode 0600)\n", done.Initialize.ServerInfo.Name, creds.DefaultStorePath())
+		fmt.Fprintf(os.Stderr, "note: no OS keyring was available, so the refresh token is on disk in the clear\n")
+	default:
+		fmt.Fprintf(os.Stderr, "authorized as a user of %s; secrets stored in the %s keyring, the rest in %s\n", done.Initialize.ServerInfo.Name, backend, creds.DefaultStorePath())
+	}
+	return nil
 }
 
 var versionCmd = &cobra.Command{
