@@ -5,7 +5,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -163,7 +162,7 @@ func connectForChoices(ctx context.Context, client *passmcp.Client, spec RunSpec
 			return err
 		}
 		if st == nil {
-			return fmt.Errorf("no stored token for %s; run `passmcp login %s`", spec.Target.Endpoint, spec.Target.Endpoint)
+			return &LoginRequiredError{Message: fmt.Sprintf("no stored token for %s; run `passmcp login %s`", spec.Target.Endpoint, spec.Target.Endpoint)}
 		}
 		_, err = client.Resume(ctx, st.Source(creds.HTTP{C: client.HTTPClient()}))
 		return err
@@ -173,10 +172,24 @@ func connectForChoices(ctx context.Context, client *passmcp.Client, spec RunSpec
 		return err
 	}
 	if res.Status != passmcp.StatusConnected {
-		return errors.New("server requires a user login; run `passmcp login` first")
+		return &LoginRequiredError{Message: "server requires a user login; run `passmcp login` first"}
 	}
 	return nil
 }
+
+// LoginRequiredError is returned when a connection needs a user's
+// authorization that the operator has not given yet: no stored token, or
+// a server that answered with an authorization URL.
+//
+// A type rather than a string so a caller can tell "sign in first" from a
+// server that is down, which is the difference between an operator's
+// to-do and an outage (internal/watch counts them apart).
+type LoginRequiredError struct {
+	// Message says what to do about it.
+	Message string
+}
+
+func (e *LoginRequiredError) Error() string { return e.Message }
 
 // toolChoices classifies a catalogue for a selector. Shared by both
 // transports, so what a selector offers cannot depend on how the server

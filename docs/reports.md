@@ -654,6 +654,33 @@ pull, and a gate that conflated them would be one people switch off.
 `--output ndjson` emits one event per line for a log pipeline, and
 `--approve` promotes what the watch saw once somebody has read it.
 
+### Availability and latency
+
+Every pulse is timed and its outcome classed, which costs no extra
+request: the watcher measures the pulse it was already taking, and
+`--interval` still refuses anything under 30 seconds, so measuring a
+server never turns into load on it.
+
+| Field | On | Meaning |
+|---|---|---|
+| `latency_ms` | every pulse | connect to catalogue listed, in milliseconds |
+| `status` | every pulse | `ok`, `protocol_error`, `transport_error`, `auth_error` or `timeout` |
+| `error_kind` | failed pulses | narrower: `connection_refused`, `dns`, `tls`, `http_503`, `http_401`, `jsonrpc_-32601`, `login_required`, `deadline`, … |
+
+A drifted catalogue is still an answered pulse: availability is about
+whether the server responded, drift about what it said. When the watch
+ends (Ctrl-C, or after the single pulse of `--once`) it prints a summary:
+pulses answered and the success rate, nearest-rank p50/p95/p99 latency over
+the answered pulses (the most recent 100,000), the worst run of consecutive
+failures, and the failures by error kind. An interrupted pulse, cut short
+by Ctrl-C, is not counted as a failure.
+
+| `--output` | What stdout carries |
+|---|---|
+| `text` | one line per pulse with its latency, then the summary |
+| `ndjson` | one event per pulse, then a final `{"kind":"summary","summary":{…}}` line |
+| `json` | one document when the watch ends: `target`, `events` (the last 1,000) and `summary` |
+
 Severity is by kind rather than by count — the same ladder `--baseline`
 uses. A `readOnlyHint` becoming true after approval is critical; a new
 optional property is noise.
