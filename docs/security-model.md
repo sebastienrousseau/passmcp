@@ -152,11 +152,13 @@ every action is SHA-pinned per OpenSSF Scorecard `Pinned-Dependencies`.
 ### C6. The parsing boundaries are fuzzed
 
 **Argument.** Every byte of a `WWW-Authenticate` header, an SSE stream or a
-tool's JSON Schema comes from the server under test. The parsers for
-each are fuzz targets run on every push.
+tool's JSON Schema comes from the server under test, and so do the tool
+names and arguments passmcp encodes into MCP parameter headers. The
+parsers for each, and that encoder, are fuzz targets run on every push.
 
-**Evidence.** `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE`
-(`transport`), `FuzzValidate` and `FuzzArguments` (`diagnostics`),
+**Evidence.** `FuzzParseWWWAuthenticate` (`auth`), `FuzzReadSSE` and
+`FuzzHeaderValue` (`transport`), `FuzzValidate` and `FuzzArguments`
+(`diagnostics`),
 `FuzzSchemaValid` (`internal/probe`) and `FuzzParse`
 (`internal/clientconf`), driven by `scripts/fuzz.sh` and
 `.github/workflows/fuzz.yml`.
@@ -380,7 +382,7 @@ countermeasure and the evidence for it.
 | **CWE-522** Insufficiently protected credentials in transit | OAuth endpoints must be HTTPS unless `--insecure-allow-http-auth`; plain HTTP to a non-loopback MCP endpoint is a critical finding | `auth.URLPolicy`; `phaseNet` in `internal/probe/phase_net.go` |
 | **CWE-295** Improper certificate validation | TLS uses Go's standard verification everywhere; nothing outside tests sets `InsecureSkipVerify`; a failed handshake stops the run, and an expired certificate is critical | `tlsFindings`, `certWindowFinding`; `TestCertificateFailureIsReportedAgainstA824WithItsRequest` |
 | **CWE-400**, **CWE-770** Uncontrolled resource consumption | Response bodies capped (32 MiB, and 1 MiB for OAuth documents), SSE streams capped in bytes and events, schema recursion bounded at depth 64, pagination stops on a cursor cycle, telemetry bounded in events and body size, requests throttled to `--rps`, `watch` pulses no faster than every 30 s | `transport.MaxResponseBytes`, `MaxStreamEvents`, `diagnostics.MaxSchemaDepth`, `Recorder.BodyCap`; `TestResponseBodyIsBounded`, `TestStreamEventsAreBounded`, `TestValidateDepthIsBounded`, `TestRecursiveRefTerminates`, `TestListToolsStopsOnACursorCycle`, `TestRecorderIsBounded`, `TestProbeSurvivesHostileServers`, `TestRunRefusesAnImpoliteInterval` |
-| **CWE-20** Improper input validation | Every server-sent structure is parsed defensively, and the parsers of server bytes are fuzzed: `WWW-Authenticate`, SSE, JSON Schema, client configuration; run specifications are validated before a run; fleet names are restricted to a safe pattern | `engine.RunSpec.Validate`; `FuzzParseWWWAuthenticate`, `FuzzReadSSE`, `FuzzValidate`, `FuzzSchemaValid`, `FuzzParse`, `FuzzRunSpecJSON`; `TestValidate`, `TestParseRefusesInlineSecretsAndMistakes` |
+| **CWE-20** Improper input validation | Every server-sent structure is parsed defensively, and the parsers of server bytes are fuzzed: `WWW-Authenticate`, SSE, JSON Schema, client configuration; run specifications are validated before a run; fleet names are restricted to a safe pattern | `engine.RunSpec.Validate`; `FuzzParseWWWAuthenticate`, `FuzzReadSSE`, `FuzzHeaderValue`, `FuzzValidate`, `FuzzSchemaValid`, `FuzzParse`, `FuzzRunSpecJSON`; `TestValidate`, `TestParseRefusesInlineSecretsAndMistakes` |
 | **CWE-117** Improper output neutralization for logs | A finding's detail is collapsed to one line before it is recorded, so server text cannot forge a line in the text report or a log; structured logs are JSON-encoded; Markdown table cells are escaped; the HTML report is rendered through `html/template` and fuzzed; hidden bidi and zero-width characters are shown as code points in poisoning excerpts | `oneLine` and `truncate` in `internal/probe`, `esc` in `internal/report/render_md.go`, `diagnostics.visible`; `FuzzHTMLEscaping`, `TestHTMLEscapesHostileCatalog`, `TestScanTextFindsHiddenCharacters` |
 | **CWE-78**, **CWE-88** OS command and argument injection | No shell is ever invoked; a stdio server is executed as named with its arguments as given; keyring keys are encoded before they reach a helper; the web shell cannot start a program unless `--allow-stdio` is passed | `transport/stdio.go`, `internal/creds/keyring.go`; `TestKeyNeverEscapesTheCommand`, `TestAHostileKeyCannotReachTheShell`, `TestBrowserCannotStartAProgram` |
 | **CWE-352**, **CWE-346** Cross-site request forgery and origin validation | `passmcp login` binds its redirect listener to `127.0.0.1`, checks `state` in constant time, always uses PKCE S256 and refuses a server that advertises PKCE methods without it, and checks the RFC 9207 `iss`; the web shell requires its per-run token and a same-origin request | `auth.NewPKCE`, `auth.NewState`, `checkIssuer` in `client.go`; `TestLoginWrongState`, `TestLoginRejectsMixUpIssuer`, `TestAuthorizationCodeFlow`, `TestGuards`, `TestRemoteBindRefused` |

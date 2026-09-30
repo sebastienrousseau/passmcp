@@ -182,10 +182,11 @@ is worse than one that omits them.
 - **`govulncheck`, `gosec` and `staticcheck` run on every pull request**
   (`.github/workflows/security.yml`, `.github/workflows/ci.yml`).
 - **The parsing boundaries are fuzzed** (`.github/workflows/fuzz.yml`):
-  `FuzzParseWWWAuthenticate` in `auth`, `FuzzReadSSE` in `transport`,
-  `FuzzValidate` and `FuzzArguments` in `diagnostics`. Every byte of a
-  `WWW-Authenticate` header, an SSE stream or a tool schema comes from
-  the server under test.
+  `FuzzParseWWWAuthenticate` in `auth`, `FuzzReadSSE` and
+  `FuzzHeaderValue` in `transport`, `FuzzValidate` and `FuzzArguments`
+  in `diagnostics`. Every byte of a `WWW-Authenticate` header, an SSE
+  stream or a tool schema comes from the server under test, and so do
+  the names passmcp encodes into parameter headers.
 - **Tests run with the race detector and randomised ordering**
   (`make test-race`).
 - **Commits are cryptographically signed and carry a DCO trailer.**

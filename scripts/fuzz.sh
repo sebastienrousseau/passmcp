@@ -13,6 +13,7 @@ FUZZTIME="${FUZZTIME:-20s}"
 targets=(
   "./auth FuzzParseWWWAuthenticate"
   "./transport FuzzReadSSE"
+  "./transport FuzzHeaderValue"
   "./diagnostics FuzzValidate"
   "./diagnostics FuzzArguments"
   "./internal/clientconf FuzzParse"
