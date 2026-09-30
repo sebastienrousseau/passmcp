@@ -36,8 +36,9 @@ func TestStoreRefusesWorldReadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// The rest of this test widens the mode and expects the store to
 		// refuse it. Windows has no mode to widen — chmod there only
-		// toggles the read-only attribute — so the refusal cannot be
-		// provoked, and insecureMode is a no-op by design.
+		// toggles the read-only attribute — so the same refusal is
+		// provoked through the access-control list instead, in
+		// TestStoreRefusesAnACLThatGrantsEveryone (perm_windows_test.go).
 		return
 	}
 

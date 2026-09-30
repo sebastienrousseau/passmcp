@@ -17,9 +17,11 @@ import (
 // child from passmcp's console so a Ctrl-C at an interactive run does not go
 // to both — but it gives no way to signal the tree and no way to ask
 // whether anything is left in it. The mechanism that does is a Job Object,
-// and reaching it means golang.org/x/sys/windows, which is an indirect
-// dependency today and would become a direct one for a single platform's
-// single check.
+// and reaching it means golang.org/x/sys/windows. The module requires it
+// (internal/creds reads the token store's access-control list with it),
+// but this is a library package, and the library packages import only
+// the standard library; that is not worth giving up for a single
+// platform's single check.
 //
 // So this platform sets what it can, kills the process it knows about, and
 // reports the rest as unsupported. The check that reads this records a

@@ -36,9 +36,10 @@ type StoredToken struct {
 // Store is the on-disk token store, one entry per endpoint.
 //
 // Entries hold refresh tokens and, for dynamically registered clients,
-// client secrets. The file is created 0600 and a store that is readable by
-// anyone else is refused rather than used: a long-lived refresh token is
-// worth as much as a password.
+// client secrets. The file is created 0600 (on Windows, with an
+// access-control list granting only the current user) and a store that
+// anyone else can read is refused rather than used: a long-lived refresh
+// token is worth as much as a password.
 type Store struct {
 	Path string
 	// Keyring, when non-nil, holds the secret fields; the JSON file then
@@ -151,10 +152,18 @@ func (s *Store) purge(endpoint string) {
 // ErrInsecurePermissions reports a token store other users can read.
 type ErrInsecurePermissions struct {
 	Path string
+	// Mode is the file's mode, on Unix, where the mode is the check.
 	Mode os.FileMode
+	// Reason says what is wrong when the check is not a mode, as on
+	// Windows, where it is the file's access-control list.
+	Reason string
 }
 
 func (e *ErrInsecurePermissions) Error() string {
+	if e.Reason != "" {
+		return fmt.Sprintf("token store %s %s; it holds refresh tokens and must be readable only by you "+
+			"(icacls \"%s\" /inheritance:r /grant:r \"%%USERNAME%%:F\", or delete it and run passmcp login again)", e.Path, e.Reason, e.Path)
+	}
 	return fmt.Sprintf("token store %s is mode %#o; it holds refresh tokens and must not be readable by other users (chmod 600 %s)", e.Path, e.Mode.Perm(), e.Path)
 }
 
@@ -185,8 +194,9 @@ func (s *Store) load() (map[string]StoredToken, error) {
 		return map[string]StoredToken{}, nil
 	case err != nil:
 		return nil, err
-	case insecureMode(info.Mode()):
-		return nil, &ErrInsecurePermissions{Path: p, Mode: info.Mode()}
+	}
+	if err := checkStoreAccess(p, info); err != nil {
+		return nil, err
 	}
 	b, err := os.ReadFile(p) // #nosec G304 -- the path is the operator's own store
 	if errors.Is(err, os.ErrNotExist) {
@@ -271,7 +281,7 @@ func (s *Store) save(all map[string]StoredToken) error {
 		_ = f.Close()
 		_ = os.Remove(tmp) // no-op once the rename succeeded
 	}()
-	if err := f.Chmod(0o600); err != nil {
+	if err := restrictFile(f); err != nil {
 		return err
 	}
 	if _, err := f.Write(b); err != nil {

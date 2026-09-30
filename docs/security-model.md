@@ -89,7 +89,9 @@ credential (flag, environment variable, profile, store), never its value.
   access token appears.
 - `internal/creds/creds_test.go` asserts `Describe()` leaks no secret.
 - The token store is written `0600` in a `0700` directory, atomically
-  (`internal/creds/store.go`).
+  (`internal/creds/store.go`); on Windows it is written with an
+  access-control list that grants only the current user
+  (`internal/creds/perm_windows.go`).
 
 ### C2. Unauthenticated probes are actually unauthenticated
 
@@ -305,7 +307,11 @@ guard is the strict one, and an unknown case is refused.
   (`TestAllowlistNilIsClosed`,
   [ADR-0005](adr/0005-public-mode-is-the-same-binary.md)).
 - **The token store.** On Unix a store readable by group or others is
-  refused rather than read (`TestStoreRefusesWorldReadableFile`).
+  refused rather than read (`TestStoreRefusesWorldReadableFile`). On
+  Windows a store whose access-control list lets another account read or
+  change it, that has no list, or whose list cannot be read is refused
+  (`TestACLProblemRefusesAStoreAnotherAccountCanRead`,
+  `TestStoreRefusesAnACLThatGrantsEveryone`).
 
 ### Complete mediation
 
@@ -402,7 +408,7 @@ countermeasure and the evidence for it.
 | Weakness | How passmcp counters it | Evidence |
 |---|---|---|
 | **CWE-918** Server-side request forgery: a server steering passmcp's requests | URLs a server advertises (resource metadata, authorization servers, token, authorization and registration endpoints, an A2A `jku`) must be HTTPS and resolve to public addresses; the check is repeated at dial time against DNS rebinding; credentials never follow a redirect off the allowed origins | `auth.URLPolicy`, `auth.OriginSet`, `auth.CheckRedirect`; `TestValidateMetadataChecksEveryEndpoint`, `TestDialContextConnectsToTheAddressesItChecked`, `TestAnAuthorizationServerThatRebindsIsNeverReached`, `TestCheckRedirect` |
-| **CWE-200**, **CWE-532** Exposure of credentials, including in logs | Structural redaction at the one recorder, of every registered secret and every token seen mid-run; credential sources, never values, in banners; `explain --curl` emits placeholders; keyring secrets never reach a command line; the token store is `0600` in a `0700` directory | Claim C1; `TestFullRunClientCredentials`, `TestSecretsNeverSerialise`, `FuzzCredentialRedaction`, `TestCurlNeverCarriesASecret`, `TestKeychainSetKeepsSecretOutOfArgv`, `TestReportMasksReflectedSecrets` |
+| **CWE-200**, **CWE-532** Exposure of credentials, including in logs | Structural redaction at the one recorder, of every registered secret and every token seen mid-run; credential sources, never values, in banners; `explain --curl` emits placeholders; keyring secrets never reach a command line; the token store is `0600` in a `0700` directory, and on Windows carries an access-control list for the current user only | Claim C1; `TestFullRunClientCredentials`, `TestSecretsNeverSerialise`, `FuzzCredentialRedaction`, `TestCurlNeverCarriesASecret`, `TestKeychainSetKeepsSecretOutOfArgv`, `TestReportMasksReflectedSecrets` |
 | **CWE-522** Insufficiently protected credentials in transit | OAuth endpoints must be HTTPS unless `--insecure-allow-http-auth`; plain HTTP to a non-loopback MCP endpoint is a critical finding | `auth.URLPolicy`; `phaseNet` in `internal/probe/phase_net.go` |
 | **CWE-295** Improper certificate validation | TLS uses Go's standard verification everywhere; nothing outside tests sets `InsecureSkipVerify`; a failed handshake stops the run, and an expired certificate is critical | `tlsFindings`, `certWindowFinding`; `TestCertificateFailureIsReportedAgainstA824WithItsRequest` |
 | **CWE-400**, **CWE-770** Uncontrolled resource consumption | Response bodies capped (32 MiB, and 1 MiB for OAuth documents), SSE streams capped in bytes and events, schema recursion bounded at depth 64, pagination stops on a cursor cycle, telemetry bounded in events and body size, requests throttled to `--rps`, which is itself capped at 100 with `--concurrency` capped at 64, `watch` pulses no faster than every 30 s, a library client without a timeout of its own abandons a request after 60 s without progress | `transport.MaxResponseBytes`, `MaxStreamEvents`, `diagnostics.MaxSchemaDepth`, `Recorder.BodyCap`, `engine.ValidatePace`, `transport.IdleTimeout`; `TestValidateBoundsThePace`, `TestDefaultClientDoesNotWaitForeverOnASilentServer`, `TestIdleTimeoutKeepsAStreamThatMakesProgress`, `TestResponseBodyIsBounded`, `TestStreamEventsAreBounded`, `TestValidateDepthIsBounded`, `TestRecursiveRefTerminates`, `TestListToolsStopsOnACursorCycle`, `TestRecorderIsBounded`, `TestProbeSurvivesHostileServers`, `TestRunRefusesAnImpoliteInterval` |

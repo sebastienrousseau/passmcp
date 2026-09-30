@@ -114,7 +114,7 @@ the new code. Never reach a branch by pointing a test at a live server.
 - Do not couple a structure or documentation cleanup to a behaviour
   change. They review differently and the cleanup is what gets dropped.
 - Do not add a dependency without saying why in the commit. The module
-  has ten direct dependencies and a hand-maintained `SBOM.md` that CI
+  has eleven direct dependencies and a hand-maintained `SBOM.md` that CI
   checks against `go.mod`; a new one is not free.
 - Do not add a CI gate that does not currently pass. A red gate on
   arrival teaches everyone to ignore it.

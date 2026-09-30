@@ -1200,8 +1200,8 @@ page (`man passmcp-check`).
 - **Where do the secrets go?**  
   Nowhere. They are registered with the redactor before the first request
   and masked in every event, body and report. The token store is written
-  with mode 0600, and a store that is readable by anyone else is refused
-  rather than read.
+  with mode 0600 (on Windows, an access-control list for you alone), and
+  a store that is readable by anyone else is refused rather than read.
 - **Can a server under test steal my token?**  
   Not by asking for it. Credentials are bound to the origin you named, so a
   redirect pointing somewhere else is refused rather than followed, and the

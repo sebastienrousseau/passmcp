@@ -90,6 +90,14 @@ project announces that a change felt big.
   `transport.New(endpoint, nil)` does the same (`transport.IdleTimeout`),
   and `auth` uses a client with a 30 s timeout in place of a nil one.
   The CLI already set timeouts and is unchanged.
+- **The token store is checked on Windows too.** Windows has no mode
+  bits, so the Unix `0600` check never applied there. The store is now
+  written with a protected access-control list granting only the current
+  user, and one that lets another account (other than SYSTEM and the
+  local Administrators) read or change it, has no list, or whose list
+  cannot be read is refused, with the `icacls` command that fixes it.
+  This makes `golang.org/x/sys` a direct requirement; it was already in
+  the Windows binary.
 - **A discovered endpoint that does not resolve is refused.**
   `auth.URLPolicy.Validate` used to pass a URL whose host name failed to
   resolve and leave it to the dial-time check; it now refuses it, and an

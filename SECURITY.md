@@ -81,9 +81,15 @@ is worse than one that omits them.
   atomically via a temporary file and rename, for both `Put` and `Delete`.
   A store whose mode has widened to group- or world-readable is refused
   rather than read: it holds refresh tokens and client secrets, which are
-  password-equivalent. Concurrent writes are serialised so two logins
-  cannot drop one another's token. Verified by
-  `internal/creds/store_hardening_test.go`.
+  password-equivalent. On Windows, which has no mode bits, the file is
+  written with a protected access-control list that grants only the
+  current user, and a store whose list lets any other account (other than
+  SYSTEM and the local Administrators) read or change it, that has no
+  list, or whose list cannot be read, is refused. Concurrent writes are
+  serialised so two logins cannot drop one another's token. Verified by
+  `internal/creds/store_hardening_test.go`,
+  `internal/creds/perm_acl_test.go` on every platform, and
+  `internal/creds/perm_windows_test.go` on Windows.
 - **Credentials are bound to the origin the operator named.** An
   `http.RoundTripper` runs below `http.Client`'s redirect handling, so one
   that attaches a credential unconditionally re-attaches it on every hop of
