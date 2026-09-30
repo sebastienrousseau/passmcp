@@ -54,7 +54,7 @@ func TestSchemaDocFindsStructuralErrors(t *testing.T) {
 		{`"object"`, "", schemaInvalid, "a string"},
 		{`[1]`, "", schemaInvalid, "an array"},
 		{`{bad`, "", schemaInvalid, "not JSON"},
-		{`{"type":"strin"}`, "/type", schemaInvalid, `"strin"`},
+		{`{"type":"text"}`, "/type", schemaInvalid, `"text"`},
 		{`{"type":5}`, "/type", schemaInvalid, "a number"},
 		{`{"type":["string",1]}`, "/type/1", schemaInvalid, "a number"},
 		{`{"type":["string","string"]}`, "/type/1", schemaInvalid, "repeats"},
@@ -65,7 +65,7 @@ func TestSchemaDocFindsStructuralErrors(t *testing.T) {
 		{`{"type":"object","required":["b"]}`, "/required/0", schemaWarn, `"b"`},
 		{`{"properties":[]}`, "/properties", schemaInvalid, "object"},
 		{`{"properties":{"a":"string"}}`, "/properties/a", schemaInvalid, "a string"},
-		{`{"properties":{"a":{"type":"strng"}}}`, "/properties/a/type", schemaInvalid, `"strng"`},
+		{`{"properties":{"a":{"type":"varchar"}}}`, "/properties/a/type", schemaInvalid, `"varchar"`},
 		{`{"properties":{"a/b":{"type":7}}}`, "/properties/a~1b/type", schemaInvalid, "a number"},
 		{`{"properties":{"a":{"$ref":"#/$defs/missing"}}}`, "/properties/a/$ref", schemaInvalid, "does not resolve"},
 		{`{"required":["a"],"properties":{"a":{"$ref":"#/required"}}}`, "/properties/a/$ref", schemaInvalid, "an array"},
@@ -80,7 +80,7 @@ func TestSchemaDocFindsStructuralErrors(t *testing.T) {
 		{`{"x-internal":true}`, "/x-internal", schemaInfo, "unknown keyword"},
 		{`{"items":"x"}`, "/items", schemaInvalid, "a string"},
 		{`{"items":[{"type":"string"}]}`, "/items", schemaWarn, "prefixItems"},
-		{`{"items":[{"type":"strng"}]}`, "/items/0/type", schemaInvalid, `"strng"`},
+		{`{"items":[{"type":"varchar"}]}`, "/items/0/type", schemaInvalid, `"varchar"`},
 		{`{"allOf":{}}`, "/allOf", schemaInvalid, "array"},
 		{`{"allOf":[]}`, "/allOf", schemaInvalid, "empty"},
 		{`{"oneOf":[3]}`, "/oneOf/0", schemaInvalid, "a number"},
@@ -172,7 +172,7 @@ func TestCatalogSchemaValid(t *testing.T) {
 	// Structure a client cannot read fails, naming the tool and pointer.
 	f := newFakeServer(t)
 	f.q.extraTools = []map[string]any{
-		schemaTool("typo", map[string]any{"type": "object", "properties": map[string]any{"q": map[string]any{"type": "strng"}}}),
+		schemaTool("typo", map[string]any{"type": "object", "properties": map[string]any{"q": map[string]any{"type": "varchar"}}}),
 		schemaTool("dangling", map[string]any{"type": "object", "properties": map[string]any{"q": map[string]any{"$ref": "#/$defs/gone"}}}),
 	}
 	fs = catalogOnly(t, f)
