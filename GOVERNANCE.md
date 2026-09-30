@@ -58,16 +58,16 @@ succession procedure — voluntary hand-off, community fork after
 ≥ 6 months of unresponsiveness, and emergency compromise response —
 is documented in [MAINTAINERS.md](MAINTAINERS.md). Key facts, in short:
 
-- **Repository ownership**: The `sebastienrousseau/passmcp` repository lives
-  under the `sebastienrousseau` GitHub organisation, administered by the
-  Maintainer. Any user may fork under GPL-3.0 without further permission.
+- **Repository ownership**: The `sebastienrousseau/passmcp` repository is
+  owned by the Maintainer's personal GitHub account, not an organisation.
+  Any user may fork under GPL-3.0 without further permission.
 - **Release signing**: Release tags are signed with the Maintainer's SSH
   key, and every release artefact is additionally keyless-signed with
   cosign and carries a SLSA provenance attestation — those two remain
   publicly verifiable against Rekor even if the SSH key is later rotated.
-  The current fingerprint is recorded in
+  Where the current key is published is recorded in
   [MAINTAINERS.md](MAINTAINERS.md) §"External services and accounts".
-- **External services**: A full catalogue (GitHub organisation, Actions,
+- **External services**: A full catalogue (GitHub repository, Actions,
   ghcr.io, Homebrew tap, AUR, Sigstore) lives in
   [MAINTAINERS.md](MAINTAINERS.md), each row noting the configuration file
   a successor must edit.

@@ -226,7 +226,7 @@ response. Mitigations:
   release-signing key is published; a successor can publish a new key
   and users can reason about the transition.
 - **Documented external services**: `MAINTAINERS.md` catalogues every
-  external account (organisation, ghcr.io, Homebrew tap, AUR) so
+  external account (GitHub repository, ghcr.io, Homebrew tap, AUR) so
   continuity is auditable rather than tribal.
 - **Fork-and-continue is explicit**: GPL-3.0 licensing + the six-month
   unresponsive-maintainer clause in `GOVERNANCE.md` normalise the
