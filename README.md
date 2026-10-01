@@ -108,7 +108,7 @@ The flake ships the binary with its manpages and shell completions, and
 ### Go toolchain
 
 ```bash
-go install satellion.com/passmcp/cmd/passmcp@v0.0.4
+go install satellion.com/passmcp/cmd/passmcp@v0.0.5
 ```
 
 Installs into `$(go env GOPATH)/bin` (or `$GOBIN` when set). A binary
@@ -358,7 +358,7 @@ The full picture is in [the manual](https://satellion.com/passmcp/docs/stdio/).
 
 <!-- BEGIN generated readme family table — run `make ecosystem`; do not edit by hand -->
 
-Every component is released at **0.0.4** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
+Every component is released at **0.0.5** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
 
 | Component | Purpose | Use case |
 | :--- | :--- | :--- |

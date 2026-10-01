@@ -66,5 +66,5 @@ golang.org/x/sys v0.48.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
 golang.org/x/text v0.42.0 h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=
 golang.org/x/text v0.42.0/go.mod h1:ojzP1Z+2QtioaF8DTtO8K5q7JWVVYwZKenzujK0Zd0E=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
-satellion.com/passmcp-reporting v0.0.4 h1:V9TVzFY51OjiSzVoSqFfTgc7ZrN4HV7kaftFt34wQ/8=
-satellion.com/passmcp-reporting v0.0.4/go.mod h1:5wBh+LUOqkdEcnWvrFQefKfwDySRqzXCSBh4RMEaJTA=
+satellion.com/passmcp-reporting v0.0.5 h1:1EzCt0AelWf7b3q6jPZ9wOEOUp8wG2NZS19XSdx3PlQ=
+satellion.com/passmcp-reporting v0.0.5/go.mod h1:5wBh+LUOqkdEcnWvrFQefKfwDySRqzXCSBh4RMEaJTA=

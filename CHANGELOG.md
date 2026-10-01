@@ -14,7 +14,7 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [Unreleased]
+## [0.0.5] — 2026-10-01
 
 ### Added
 
@@ -50,6 +50,8 @@ project announces that a change felt big.
 
 ### Changed
 
+- **passmcp requires passmcp-reporting v0.0.5**, the family's release;
+  what its verifier accepts is unchanged.
 - The Markdown report's headings, table headers and labels come from a
   message catalogue in `internal/report`, the groundwork for a report in
   another language. The output is byte for byte what it was (#24).
