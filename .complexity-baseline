@@ -85,7 +85,6 @@ cyclomatic 12 transport/dialect.go (*Stateless).PrepareBody
 cyclomatic 12 transport/headervalue.go headerSafe
 cyclomatic 11 transport/raw.go (*Streamable).setRawHeaders
 cyclomatic 13 transport/stdio.go (*Stdio).Call
-file-lines 942 client.go -
 file-lines 529 cmd/attest.go -
 file-lines 517 cmd/flags.go -
 file-lines 511 internal/discover/probe.go -
