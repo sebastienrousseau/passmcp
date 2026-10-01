@@ -14,6 +14,16 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Changed
+
+- **Dependabot bumps are no longer auto-merged into main.** The
+  workflow that enabled auto-merge on low-risk Dependabot pull requests
+  let them land on main directly, around the release branch. It now
+  comments on each one with the open `feat/vX.Y.Z` branch to carry it
+  into, and merges nothing.
+
 ## [0.0.5] — 2026-10-01
 
 ### Added
