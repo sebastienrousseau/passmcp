@@ -103,18 +103,7 @@ func From(r *report.Report) (*Statement, error) {
 		return nil, fmt.Errorf("attest: no report")
 	}
 
-	t := Target{
-		Transport: transportOf(r),
-		Endpoint:  r.Target.Endpoint,
-	}
-	if r.Server != nil {
-		t.Server = &ServerIdentity{
-			Name:     r.Server.Name,
-			Version:  r.Server.Version,
-			Protocol: r.Server.Protocol,
-		}
-	}
-
+	t := targetOf(r)
 	ev := Evaluation{
 		SubjectKind: SubjectKindDescriptor,
 		Target:      t,
@@ -137,39 +126,8 @@ func From(r *report.Report) (*Statement, error) {
 			Pass: r.Counts.Pass, Warn: r.Counts.Warn, Fail: r.Counts.Fail,
 			Skip: r.Counts.Skip, Info: r.Counts.Info,
 		},
-	}
-
-	for _, p := range r.Phases {
-		for _, f := range p.Findings {
-			ev.Verdicts = append(ev.Verdicts, Verdict{
-				ID:       f.ID,
-				Phase:    phaseOf(f, p),
-				Status:   string(f.Status),
-				Severity: string(f.Severity),
-				Evidence: f.Evidence,
-				Doc:      f.DocURL,
-			})
-		}
-	}
-	// Sorted by id, so two statements about the same run are byte-identical
-	// and a diff between two runs is a diff about the server.
-	sort.SliceStable(ev.Verdicts, func(i, j int) bool { return ev.Verdicts[i].ID < ev.Verdicts[j].ID })
-
-	// The score travels only when a category was actually assessed. A run
-	// that reached nothing has no rating, and publishing 0/100 for it would
-	// read as a verdict rather than an absence.
-	if r.Score.Assessed > 0 {
-		s := &Score{
-			Total: r.Score.Total, Grade: r.Score.Grade,
-			Assessed: r.Score.Assessed, Of: r.Score.Of,
-			By: map[string]float64{},
-		}
-		for _, c := range r.Score.Categories {
-			if c.Assessed {
-				s.By[c.Name] = c.Score
-			}
-		}
-		ev.Score = s
+		Verdicts: verdictsOf(r),
+		Score:    scoreOf(r),
 	}
 
 	st := &Statement{
@@ -182,6 +140,66 @@ func From(r *report.Report) (*Statement, error) {
 		return nil, err
 	}
 	return st, nil
+}
+
+// targetOf describes what was judged: the transport, the endpoint, and
+// the server's own account of itself when it gave one.
+func targetOf(r *report.Report) Target {
+	t := Target{
+		Transport: transportOf(r),
+		Endpoint:  r.Target.Endpoint,
+	}
+	if r.Server != nil {
+		t.Server = &ServerIdentity{
+			Name:     r.Server.Name,
+			Version:  r.Server.Version,
+			Protocol: r.Server.Protocol,
+		}
+	}
+	return t
+}
+
+// verdictsOf lists the verdict for every finding in the report.
+func verdictsOf(r *report.Report) []Verdict {
+	var out []Verdict
+	for _, p := range r.Phases {
+		for _, f := range p.Findings {
+			out = append(out, Verdict{
+				ID:       f.ID,
+				Phase:    phaseOf(f, p),
+				Status:   string(f.Status),
+				Severity: string(f.Severity),
+				Evidence: f.Evidence,
+				Doc:      f.DocURL,
+			})
+		}
+	}
+	// Sorted by id, so two statements about the same run are byte-identical
+	// and a diff between two runs is a diff about the server.
+	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// scoreOf is the score the statement carries, or nil.
+//
+// The score travels only when a category was actually assessed. A run
+// that reached nothing has no rating, and publishing 0/100 for it would
+// read as a verdict rather than an absence.
+func scoreOf(r *report.Report) *Score {
+	if r.Score.Assessed <= 0 {
+		return nil
+	}
+	s := &Score{
+		Total: r.Score.Total, Grade: r.Score.Grade,
+		Assessed: r.Score.Assessed, Of: r.Score.Of,
+		By: map[string]float64{},
+	}
+	for _, c := range r.Score.Categories {
+		if c.Assessed {
+			s.By[c.Name] = c.Score
+		}
+	}
+	return s
 }
 
 // transportOf derives the transport from the report.

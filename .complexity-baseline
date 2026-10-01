@@ -60,8 +60,6 @@ cyclomatic 11 internal/ocsf/send.go (Sender).Send
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender
 cyclomatic 13 internal/probe/attacks.go privateReader
-cyclomatic 15 internal/probe/auth_exposure.go checkUnauthenticatedTools
-cyclomatic 15 internal/probe/dpop.go checkDPoP
 cyclomatic 13 internal/probe/era.go (listToolsShape).differsFrom
 cyclomatic 11 internal/probe/phase_protocol.go probeGetStream
 cyclomatic 13 internal/probe/phase_protocol.go probeMalformedJSON
@@ -75,7 +73,6 @@ cyclomatic 11 internal/report/render_text.go writeDetailFinding
 cyclomatic 12 internal/supply/lock_toml.go (*tomlReader).line
 cyclomatic 11 internal/telemetry/recorder.go (*roundTripper).RoundTrip
 cyclomatic 13 internal/tui/run.go (*RunModel).stepLine
-cyclomatic 15 internal/tui/selector.go (*selectorModel).executeSlashCommand
 cyclomatic 12 internal/web/server.go (*Server).admit
 cyclomatic 11 internal/web/server.go New
 cyclomatic 11 internal/witness/witness.go (*Watcher).sample
@@ -85,7 +82,6 @@ cyclomatic 12 transport/dialect.go (*Stateless).PrepareBody
 cyclomatic 12 transport/headervalue.go headerSafe
 cyclomatic 11 transport/raw.go (*Streamable).setRawHeaders
 cyclomatic 13 transport/stdio.go (*Stdio).Call
-file-lines 942 client.go -
 file-lines 529 cmd/attest.go -
 file-lines 517 cmd/flags.go -
 file-lines 511 internal/discover/probe.go -
@@ -95,13 +91,10 @@ file-lines 520 internal/probe/phase_auth.go -
 file-lines 512 internal/probe/phase_exec.go -
 file-lines 581 internal/probe/phase_protocol.go -
 file-lines 813 internal/probe/probe.go -
-file-lines 2132 internal/report/remediation.go -
 file-lines 556 internal/report/render_text.go -
 file-lines 520 internal/supply/osv.go -
 file-lines 742 internal/telemetry/recorder.go -
 file-lines 662 internal/web/server.go -
 file-lines 615 scripts/checkinventory/main.go -
-file-lines 1205 transport/stdio.go -
-lines 78 internal/attest/predicate.go From
 lines 62 internal/engine/run.go probeOptions
 lines 64 transport/stdio.go StartStdio

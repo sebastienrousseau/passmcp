@@ -102,6 +102,25 @@ func TestRemediationKeysAreRealChecks(t *testing.T) {
 	}
 }
 
+// TestRemediationGroupsDoNotOverlap: the guidance lives in one table per
+// area, merged at init. A check id filed in two of them would have one
+// entry silently replace the other, where a single map literal refused to
+// compile.
+func TestRemediationGroupsDoNotOverlap(t *testing.T) {
+	seen := map[string]int{}
+	for i, g := range remediationGroups {
+		for id := range g {
+			if j, ok := seen[id]; ok {
+				t.Errorf("check %q has guidance in groups %d and %d", id, j, i)
+			}
+			seen[id] = i
+		}
+	}
+	if len(seen) != len(remediations) {
+		t.Errorf("groups hold %d ids, merged table %d", len(seen), len(remediations))
+	}
+}
+
 // TestRemediationsAreUsable: an entry that explains without saying what to
 // change is the thing this file exists to replace.
 func TestRemediationsAreUsable(t *testing.T) {
