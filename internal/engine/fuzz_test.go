@@ -104,16 +104,25 @@ func FuzzCredentialRedaction(f *testing.F) {
 			t.Fatalf("a spec must always encode: %v", err)
 		}
 		out := string(b)
+		// A value that already appears in the same spec without any
+		// credentials (say "ases", inside the key "phases") is structure,
+		// not a leak.
+		bare := spec
+		bare.Creds = CredSpec{}
+		structure, err := json.Marshal(bare)
+		if err != nil {
+			t.Fatalf("a spec must always encode: %v", err)
+		}
 		for name, secretVal := range map[string]string{"token": token, "client secret": secret, "basic": basic, "header value": hdrVal} {
-			if len(secretVal) < 4 {
-				continue // too short to distinguish from incidental text
+			if len(secretVal) < 4 || strings.Contains(string(structure), secretVal) {
+				continue // too short, or indistinguishable from the spec's own text
 			}
 			if strings.Contains(out, secretVal) {
 				t.Errorf("a serialised spec leaked the %s: %q in %s", name, secretVal, out)
 			}
 		}
 		// And String, which goes into logs.
-		if len(token) >= 4 && strings.Contains(spec.String(), token) {
+		if len(token) >= 4 && !strings.Contains(bare.String(), token) && strings.Contains(spec.String(), token) {
 			t.Errorf("String leaked the token: %q", spec.String())
 		}
 	})

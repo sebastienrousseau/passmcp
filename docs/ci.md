@@ -58,7 +58,7 @@ jobs:
           go-version: "1.26"
 
       - name: Install passmcp
-        run: go install satellion.com/passmcp/cmd/passmcp@v0.0.4
+        run: go install satellion.com/passmcp/cmd/passmcp@v0.0.5
 
       - name: Diagnose
         env:
@@ -210,7 +210,7 @@ mcp-diagnostic:
   image: golang:1.26
   timeout: 10m
   script:
-    - go install satellion.com/passmcp/cmd/passmcp@v0.0.4
+    - go install satellion.com/passmcp/cmd/passmcp@v0.0.5
     - passmcp check "$MCP_ENDPOINT" --token-env MCP_TOKEN
         --report-dir passmcp-report --no-color
   artifacts:
@@ -282,7 +282,7 @@ purpose. A new release can add a check, and a gate that moves by itself
 turns a new check into a red build nobody changed anything to cause:
 
 ```bash
-go install satellion.com/passmcp/cmd/passmcp@v0.0.4
+go install satellion.com/passmcp/cmd/passmcp@v0.0.5
 ```
 
 The report records what ran, under `passmcp.version`, so an archived
