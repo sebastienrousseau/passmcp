@@ -110,24 +110,42 @@ func (s *Session) listToolsUnauthenticated(ctx context.Context) (*unauthenticate
 func checkUnauthenticatedTools(ctx context.Context, s *Session) Finding {
 	c := s.check("auth.unauthenticated_tools", "Tools reachable without credentials")
 
-	if s.overStdio() {
-		return c.skip("a child process has no credentials to omit: whoever can run the command can call its tools")
-	}
-	if s.Bare == nil || !s.Reached {
-		return c.skip("the server was never reached without credentials")
+	if reason := unauthenticatedToolsSkip(s); reason != "" {
+		return c.skip(reason)
 	}
 
 	listing, err := s.listToolsUnauthenticated(ctx)
 	if err != nil {
 		return c.info("could not ask without credentials: " + truncate(err.Error(), 120))
 	}
+	if f, done := judgeUnservedCatalogue(c, listing); done {
+		return f
+	}
+	return judgeExposedTools(c, s, listing.Tools)
+}
 
+// unauthenticatedToolsSkip is why the check cannot be made, or "" when it
+// can.
+func unauthenticatedToolsSkip(s *Session) string {
+	if s.overStdio() {
+		return "a child process has no credentials to omit: whoever can run the command can call its tools"
+	}
+	if s.Bare == nil || !s.Reached {
+		return "the server was never reached without credentials"
+	}
+	return ""
+}
+
+// judgeUnservedCatalogue settles every reply that did not hand over a
+// readable, non-empty catalogue; done is false when there are tools to
+// judge.
+func judgeUnservedCatalogue(c *check, listing *unauthenticatedListing) (f Finding, done bool) {
 	switch listing.Status {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return c.pass(fmt.Sprintf("HTTP %d: the catalogue is not served without credentials", listing.Status))
+		return c.pass(fmt.Sprintf("HTTP %d: the catalogue is not served without credentials", listing.Status)), true
 	}
 	if listing.Status != http.StatusOK {
-		return c.info(fmt.Sprintf("HTTP %d to an unauthenticated tools/list", listing.Status))
+		return c.info(fmt.Sprintf("HTTP %d to an unauthenticated tools/list", listing.Status)), true
 	}
 	switch {
 	case listing.Unreadable:
@@ -135,13 +153,18 @@ func checkUnauthenticatedTools(ctx context.Context, s *Session) Finding {
 		// caller and passmcp could not read it, which is a smaller finding
 		// than an exposed catalogue and a larger one than a refusal.
 		return c.warn("an unauthenticated tools/list was answered with a body that is not a tool list",
-			"the endpoint answers an unauthenticated request; whether it exposes tools could not be determined from the reply")
+			"the endpoint answers an unauthenticated request; whether it exposes tools could not be determined from the reply"), true
 	case len(listing.Tools) == 0:
-		return c.pass("an unauthenticated tools/list returned no tools")
+		return c.pass("an unauthenticated tools/list returned no tools"), true
 	}
+	return Finding{}, false
+}
 
+// judgeExposedTools grades a catalogue served to a caller with no
+// credentials by what its tools can change.
+func judgeExposedTools(c *check, s *Session, tools []passmcp.Tool) Finding {
 	var mutating, readOnly []string
-	for _, t := range listing.Tools {
+	for _, t := range tools {
 		if t.IsReadOnly() {
 			readOnly = append(readOnly, t.Name)
 			continue
@@ -152,10 +175,10 @@ func checkUnauthenticatedTools(ctx context.Context, s *Session) Finding {
 	// A server that advertised authorization and then served the catalogue
 	// anyway is a different, worse finding than one that never claimed to
 	// protect anything: somebody believes this endpoint is protected.
-	lead := fmt.Sprintf("%s callable with no credentials", plural(len(listing.Tools), "tool"))
+	lead := fmt.Sprintf("%s callable with no credentials", plural(len(tools), "tool"))
 	if s.RequiresAuth {
 		lead = fmt.Sprintf("the server answers 401 to first contact and still served %s to an unauthenticated tools/list",
-			plural(len(listing.Tools), "tool"))
+			plural(len(tools), "tool"))
 	}
 
 	if len(mutating) == 0 {

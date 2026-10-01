@@ -6,7 +6,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -400,61 +399,6 @@ func RunSelector(ctx context.Context, fetchFn FetchFunc) ([]Item, bool, error) {
 		}
 	}
 	return out, true, nil
-}
-
-func (m *selectorModel) executeSlashCommand(cmdStr string) tea.Cmd {
-	m.cmdErr = ""
-	parts := strings.Fields(strings.TrimSpace(cmdStr))
-	if len(parts) == 0 {
-		return nil
-	}
-	switch parts[0] {
-	case "/exit", "/quit":
-		m.quitting = true
-		m.confirmed = false
-		return tea.Quit
-	case "/help":
-		m.showHelp = true
-	case "/all":
-		for _, it := range m.filtered {
-			m.selected[it.Name] = true
-		}
-		m.updateTableRows()
-	case "/none":
-		for _, it := range m.filtered {
-			m.selected[it.Name] = false
-		}
-		m.updateTableRows()
-	case "/sort":
-		if len(parts) < 2 {
-			m.cmdErr = "Usage: /sort <name|kind|policy|read-only|mutating|destructive>"
-			return nil
-		}
-		field := strings.ToLower(parts[1])
-		switch field {
-		case "name":
-			sort.SliceStable(m.filtered, func(i, j int) bool { return strings.ToLower(m.filtered[i].Name) < strings.ToLower(m.filtered[j].Name) })
-		case "kind":
-			sort.SliceStable(m.filtered, func(i, j int) bool { return m.filtered[i].Kind < m.filtered[j].Kind })
-		case "policy":
-			sort.SliceStable(m.filtered, func(i, j int) bool { return m.filtered[i].Policy < m.filtered[j].Policy })
-		case "read-only", "readonly", "mutating", "destructive":
-			want := strings.ReplaceAll(field, "readonly", "read-only")
-			sort.SliceStable(m.filtered, func(i, j int) bool {
-				iK, jK := m.filtered[i].Kind == want, m.filtered[j].Kind == want
-				if iK != jK {
-					return iK
-				}
-				return strings.ToLower(m.filtered[i].Name) < strings.ToLower(m.filtered[j].Name)
-			})
-		default:
-			m.cmdErr = fmt.Sprintf("Unknown sort field: %s (choose name, kind, policy, read-only, mutating or destructive)", parts[1])
-		}
-		m.updateTableRows()
-	default:
-		m.cmdErr = fmt.Sprintf("Unknown command: %s. Type /help for help.", parts[0])
-	}
-	return nil
 }
 
 func (m *selectorModel) renderHelpPanel() string {

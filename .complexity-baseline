@@ -60,8 +60,6 @@ cyclomatic 11 internal/ocsf/send.go (Sender).Send
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender
 cyclomatic 13 internal/probe/attacks.go privateReader
-cyclomatic 15 internal/probe/auth_exposure.go checkUnauthenticatedTools
-cyclomatic 15 internal/probe/dpop.go checkDPoP
 cyclomatic 13 internal/probe/era.go (listToolsShape).differsFrom
 cyclomatic 11 internal/probe/phase_protocol.go probeGetStream
 cyclomatic 13 internal/probe/phase_protocol.go probeMalformedJSON
@@ -75,7 +73,6 @@ cyclomatic 11 internal/report/render_text.go writeDetailFinding
 cyclomatic 12 internal/supply/lock_toml.go (*tomlReader).line
 cyclomatic 11 internal/telemetry/recorder.go (*roundTripper).RoundTrip
 cyclomatic 13 internal/tui/run.go (*RunModel).stepLine
-cyclomatic 15 internal/tui/selector.go (*selectorModel).executeSlashCommand
 cyclomatic 12 internal/web/server.go (*Server).admit
 cyclomatic 11 internal/web/server.go New
 cyclomatic 11 internal/witness/witness.go (*Watcher).sample
