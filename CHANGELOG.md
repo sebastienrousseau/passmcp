@@ -82,6 +82,12 @@ project announces that a change felt big.
   `--concurrency` above 64, with an error that names the limit. Zero and
   negative rates still switch the throttle off.
 
+- **The complexity baseline shrinks from 100 offenders to 93.** The
+  three longest files (`internal/report/remediation.go`,
+  `transport/stdio.go` and `client.go`) are split by concern, and the
+  three cyclomatic-15 functions and `attest.From` come under every
+  ceiling. Behaviour is unchanged.
+
 ### Security
 
 - **Server text can no longer drive the operator's terminal.** Tool
