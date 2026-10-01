@@ -100,7 +100,6 @@ file-lines 520 internal/supply/osv.go -
 file-lines 742 internal/telemetry/recorder.go -
 file-lines 662 internal/web/server.go -
 file-lines 615 scripts/checkinventory/main.go -
-file-lines 1205 transport/stdio.go -
 lines 78 internal/attest/predicate.go From
 lines 62 internal/engine/run.go probeOptions
 lines 64 transport/stdio.go StartStdio
