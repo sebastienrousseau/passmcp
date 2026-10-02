@@ -23,6 +23,10 @@ project announces that a change felt big.
   let them land on main directly, around the release branch. It now
   comments on each one with the open `feat/vX.Y.Z` branch to carry it
   into, and merges nothing.
+- **`renderFlags` and `renderHelp` are under the complexity ceilings.**
+  The flag table of the styled help is built by smaller functions, and
+  both leave `.complexity-baseline`. The help output is byte-identical.
+  ([#28](https://github.com/sebastienrousseau/passmcp/issues/28))
 
 ## [0.0.5] — 2026-10-01
 
