@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+name: Dependabot Funnel
+
+# Dependabot opens its pull requests against main, but nothing merges into
+# main except the release pull request: every change, a dependency bump
+# included, reaches main through the active feat/vX.Y.Z branch (Branch
+# Funneling, ~/Code/AGENTS.md section 3). This workflow used to enable
+# auto-merge on low-risk bumps, which merged them straight into main. It
+# now points each Dependabot pull request at the release branch it should
+# be carried into, as a cherry-pick of its head, and merges nothing.
+#
+# pull_request_target runs with a writable token. That is only safe because
+# this workflow never checks out or executes code from the pull request.
+# Do not add a checkout step here.
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: {}
+
+jobs:
+  funnel:
+    name: Point Dependabot PR at the release branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment with the release branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          release=$(gh pr list -R "${REPO}" --base main --state open \
+            --json headRefName,url \
+            -q '[.[] | select(.headRefName | test("^feat/v[0-9]+\\.[0-9]+\\.[0-9]+$"))][0] | "\(.headRefName) \(.url)"')
+          if [ -n "${release}" ] && [ "${release}" != "null null" ]; then
+            branch=${release%% *}
+            url=${release#* }
+            body="Not merged here: carry this bump into \`${branch}\` as a cherry-pick of its head, then close this pull request with a link to ${url}."
+          else
+            body="Not merged here, and no release pull request is open. Carry this bump into the next \`feat/vX.Y.Z\` branch when it opens, then close this pull request with a link to its release pull request."
+          fi
+          gh pr comment "${PR_URL}" --body "${body}"
