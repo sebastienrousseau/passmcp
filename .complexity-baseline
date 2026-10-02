@@ -53,7 +53,6 @@ cyclomatic 12 internal/discover/sources.go stripJSONC
 cyclomatic 11 internal/egress/proxy.go (*Proxy).forward
 cyclomatic 13 internal/engine/write.go (*Result).Render
 cyclomatic 12 internal/engine/write.go (*Result).WriteDir
-cyclomatic 11 internal/enrich/anthropic.go (*Anthropic).Explain
 cyclomatic 11 internal/ocsf/send.go (Sender).Send
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender

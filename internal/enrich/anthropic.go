@@ -12,6 +12,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
+
+	"satellion.com/passmcp/transport"
 )
 
 // DefaultModel is the model asked when the operator names none.
@@ -19,6 +22,18 @@ const DefaultModel = "claude-sonnet-5"
 
 // DefaultURL is the Messages API origin.
 const DefaultURL = "https://api.anthropic.com"
+
+// DefaultIdleTimeout bounds a request made by an Anthropic with no Client:
+// how long it may wait for the answer to begin, and then between reads of
+// it. It is transport.IdleTimeout's bound, longer than
+// transport.DefaultIdleTimeout because the Messages API, asked without
+// streaming, sends nothing until the whole answer is written, and an
+// answer of up to max_tokens can take minutes. A request whose context has
+// a deadline keeps that deadline instead.
+const DefaultIdleTimeout = 10 * time.Minute
+
+// idleTimeout is DefaultIdleTimeout, shortened by tests.
+var idleTimeout = DefaultIdleTimeout
 
 // maxResponse bounds what is read back.
 const maxResponse = 1 << 20
@@ -34,9 +49,11 @@ Answer with only a JSON array of objects with the keys "id", "explanation" and "
 
 // Anthropic explains findings through the Messages API.
 type Anthropic struct {
-	URL    string
-	Key    string
-	Model  string
+	URL   string
+	Key   string
+	Model string
+	// Client sends the request, used as given. Nil is a client that
+	// abandons a request after DefaultIdleTimeout without progress.
 	Client *http.Client
 }
 
@@ -66,11 +83,7 @@ func (a *Anthropic) Explain(ctx context.Context, items []Item) ([]Explanation, e
 	req.Header.Set("content-type", "application/json")
 	req.Header.Set("x-api-key", a.Key)
 	req.Header.Set("anthropic-version", "2023-06-01")
-	c := a.Client
-	if c == nil {
-		c = http.DefaultClient
-	}
-	resp, err := c.Do(req)
+	resp, err := a.httpClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +111,18 @@ func (a *Anthropic) Explain(ctx context.Context, items []Item) ([]Explanation, e
 		}
 	}
 	return parseAnswer(text.String())
+}
+
+// httpClient is the Client, or when there is none, a client whose requests
+// are abandoned after idleTimeout without progress. It is never
+// http.DefaultClient, which has no timeout: an API that accepted the
+// connection and never answered would hold the run open for ever. A
+// caller's client is used as given.
+func (a *Anthropic) httpClient() *http.Client {
+	if a.Client != nil {
+		return a.Client
+	}
+	return &http.Client{Transport: transport.IdleTimeout(http.DefaultTransport, idleTimeout)}
 }
 
 // parseAnswer reads the JSON array out of a model's text, which may arrive
