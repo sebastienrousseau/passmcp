@@ -7,7 +7,6 @@
 # metric value file function
 cognitive 20 cmd/attest.go gate
 cognitive 18 cmd/attest.go writeVerification
-cognitive 20 cmd/help.go renderFlags
 cognitive 16 cmd/subcommands.go connectWithCreds
 cognitive 16 diagnostics/fuzz.go (*Generator).number
 cognitive 19 diagnostics/poison.go decodeReadable
@@ -36,7 +35,6 @@ cyclomatic 11 client.go (*Client).registrationOptions
 cyclomatic 14 cmd/check.go phaseSummary
 cyclomatic 14 cmd/check.go reportPhase
 cyclomatic 12 cmd/check.go runCheck
-cyclomatic 11 cmd/help.go renderHelp
 cyclomatic 13 cmd/reproduce.go reproduceCreds
 cyclomatic 12 diagnostics/fuzz.go (*Generator).value
 cyclomatic 13 diagnostics/poison.go scriptsIn
@@ -55,7 +53,6 @@ cyclomatic 12 internal/discover/sources.go stripJSONC
 cyclomatic 11 internal/egress/proxy.go (*Proxy).forward
 cyclomatic 13 internal/engine/write.go (*Result).Render
 cyclomatic 12 internal/engine/write.go (*Result).WriteDir
-cyclomatic 11 internal/enrich/anthropic.go (*Anthropic).Explain
 cyclomatic 11 internal/ocsf/send.go (Sender).Send
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender

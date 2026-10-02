@@ -23,6 +23,19 @@ project announces that a change felt big.
   let them land on main directly, around the release branch. It now
   comments on each one with the open `feat/vX.Y.Z` branch to carry it
   into, and merges nothing.
+- **`renderFlags` and `renderHelp` are under the complexity ceilings.**
+  The flag table of the styled help is built by smaller functions, and
+  both leave `.complexity-baseline`. The help output is byte-identical.
+  ([#28](https://github.com/sebastienrousseau/passmcp/issues/28))
+
+### Fixed
+
+- **`passmcp explain` no longer waits for ever on a silent model API.**
+  With no client of its own, the enrich package used
+  `http.DefaultClient`, which has no timeout. It now abandons a request
+  after 10 minutes without progress, through `transport.IdleTimeout`;
+  a context deadline or a caller's client is still used as given.
+  ([#29](https://github.com/sebastienrousseau/passmcp/issues/29))
 
 ## [0.0.5] — 2026-10-01
 
