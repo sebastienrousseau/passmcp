@@ -101,16 +101,7 @@ func renderHelp(w io.Writer, cmd *cobra.Command, width int) {
 	}
 
 	// FLAGS
-	if cmd.HasAvailableLocalFlags() {
-		p(head("FLAGS") + "\n")
-		p(renderFlags(cmd.LocalFlags(), width))
-		p("\n")
-	}
-	if cmd.HasAvailableInheritedFlags() {
-		p(head("GLOBAL FLAGS") + "\n")
-		p(renderFlags(cmd.InheritedFlags(), width))
-		p("\n")
-	}
+	helpFlags(p, head, cmd, width)
 
 	// ENVIRONMENT (root only)
 	if isRoot {
@@ -189,51 +180,94 @@ func helpCommands(p func(string), head func(string) string, cmd *cobra.Command, 
 	p("\n")
 }
 
+// helpFlags writes the command's own flags under FLAGS and the ones it
+// inherits under GLOBAL FLAGS, each section only when it has any.
+func helpFlags(p func(string), head func(string) string, cmd *cobra.Command, width int) {
+	if cmd.HasAvailableLocalFlags() {
+		p(head("FLAGS") + "\n")
+		p(renderFlags(cmd.LocalFlags(), width))
+		p("\n")
+	}
+	if cmd.HasAvailableInheritedFlags() {
+		p(head("GLOBAL FLAGS") + "\n")
+		p(renderFlags(cmd.InheritedFlags(), width))
+		p("\n")
+	}
+}
+
+// flagRow is one flag as the help lays it out: its name column and its
+// usage text.
+type flagRow struct{ name, usage string }
+
+// maxFlagNameWidth caps the name column, so one long flag does not push
+// every usage to the right; a longer name gets its usage on the lines
+// below it instead.
+const maxFlagNameWidth = 32
+
 // renderFlags lays flags out as "  -s, --long type   usage", wrapping the
 // usage under itself when the line is too long for the width.
 func renderFlags(fs *pflag.FlagSet, width int) string {
-	type row struct{ name, usage string }
-	var rows []row
+	rows, nameW := flagRows(fs)
+	var b strings.Builder
+	for _, r := range rows {
+		writeFlagRow(&b, r, nameW, width)
+	}
+	return b.String()
+}
+
+// flagRows collects the visible flags in the set's order, with the width
+// of the name column: the longest name, capped at maxFlagNameWidth.
+func flagRows(fs *pflag.FlagSet) ([]flagRow, int) {
+	var rows []flagRow
 	nameW := 0
 	fs.VisitAll(func(f *pflag.Flag) {
 		if f.Hidden {
 			return
 		}
-		name := "    --" + f.Name
-		if f.Shorthand != "" {
-			name = "-" + f.Shorthand + ", --" + f.Name
-		}
-		if t, _ := pflag.UnquoteUsage(f); t != "" {
-			name += " " + t
-		}
-		usage := f.Usage
-		if f.DefValue != "" && f.DefValue != "false" && f.DefValue != "0" && f.DefValue != "[]" {
-			usage += fmt.Sprintf(" (default %s)", f.DefValue)
-		}
-		rows = append(rows, row{name, usage})
-		if len(name) > nameW {
-			nameW = len(name)
-		}
+		r := flagRow{name: flagName(f), usage: flagUsage(f)}
+		rows = append(rows, r)
+		nameW = max(nameW, len(r.name))
 	})
-	if nameW > 32 {
-		nameW = 32
+	return rows, min(nameW, maxFlagNameWidth)
+}
+
+// flagName is "-s, --long type", or "    --long type" for a flag with no
+// shorthand, so long names line up either way.
+func flagName(f *pflag.Flag) string {
+	name := "    --" + f.Name
+	if f.Shorthand != "" {
+		name = "-" + f.Shorthand + ", --" + f.Name
 	}
-	var b strings.Builder
-	for _, r := range rows {
-		lines := wrapWords(r.usage, max(20, width-nameW-6))
-		if len(r.name) > nameW {
-			b.WriteString("  " + hFlag.Render(r.name) + "\n")
-			for _, l := range lines {
-				b.WriteString("  " + strings.Repeat(" ", nameW) + "  " + hDim.Render(l) + "\n")
-			}
-			continue
-		}
+	if t, _ := pflag.UnquoteUsage(f); t != "" {
+		name += " " + t
+	}
+	return name
+}
+
+// flagUsage is the flag's usage with its default appended, unless the
+// default is a zero value not worth printing.
+func flagUsage(f *pflag.Flag) string {
+	switch f.DefValue {
+	case "", "false", "0", "[]":
+		return f.Usage
+	}
+	return f.Usage + fmt.Sprintf(" (default %s)", f.DefValue)
+}
+
+// writeFlagRow writes one flag. Its usage starts beside the name when the
+// name fits the column, and on the next line when it does not; either way
+// the rest of the usage wraps under itself.
+func writeFlagRow(b *strings.Builder, r flagRow, nameW, width int) {
+	lines := wrapWords(r.usage, max(20, width-nameW-6))
+	if len(r.name) > nameW {
+		b.WriteString("  " + hFlag.Render(r.name) + "\n")
+	} else {
 		b.WriteString("  " + hFlag.Render(fmt.Sprintf("%-*s", nameW, r.name)) + "  " + hDim.Render(lines[0]) + "\n")
-		for _, l := range lines[1:] {
-			b.WriteString("  " + strings.Repeat(" ", nameW) + "  " + hDim.Render(l) + "\n")
-		}
+		lines = lines[1:]
 	}
-	return b.String()
+	for _, l := range lines {
+		b.WriteString("  " + strings.Repeat(" ", nameW) + "  " + hDim.Render(l) + "\n")
+	}
 }
 
 // wrapParas reflows prose paragraphs (joining hard-wrapped lines) and folds
