@@ -14,7 +14,7 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [Unreleased]
+## [0.0.6] - 2026-10-12
 
 ### Changed
 
@@ -27,6 +27,9 @@ project announces that a change felt big.
   The flag table of the styled help is built by smaller functions, and
   both leave `.complexity-baseline`. The help output is byte-identical.
   ([#28](https://github.com/sebastienrousseau/passmcp/issues/28))
+- **Bump `satellion.com/passmcp-reporting` to v0.0.6.** Incorporates SHA-512
+  subject digest verification and updated security reviews.
+- **Bump `anchore/sbom-action/download-syft` to 0.24.3.** ([#39](https://github.com/sebastienrousseau/passmcp/pull/39))
 
 ### Fixed
 
