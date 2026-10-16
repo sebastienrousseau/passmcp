@@ -71,8 +71,10 @@ runs with `--auth authorization-code` load and refresh it.
 ## What is redacted
 
 Operator-supplied secrets are registered with the redactor before the
-first request. Beyond that, `Authorization`, cookies and any header whose
-name contains key, token or secret are masked by name; `code`, `state`,
+first request, including every `--header` value whose name marks it as a
+credential. Beyond that, `Authorization`, `Proxy-Authorization`, cookies
+and any header whose name contains key, token, secret, password or auth
+are masked by name (one rule, `telemetry.SensitiveHeader`, decides both); `code`, `state`,
 `client_secret`, `refresh_token` and friends are masked in URLs and form
 bodies; and `access_token`, `refresh_token`, `client_secret`, `id_token`
 and similar keys are masked inside JSON bodies, with their values

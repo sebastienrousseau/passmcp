@@ -19,6 +19,7 @@ import (
 
 	"satellion.com/passmcp"
 	"satellion.com/passmcp/auth"
+	"satellion.com/passmcp/internal/telemetry"
 )
 
 // Mode is the credential kind.
@@ -206,8 +207,7 @@ func (c *Credentials) validateModeInputs() error {
 func (c *Credentials) Secrets() []string {
 	out := []string{c.Token, c.ClientSecret, c.BasicPassword, c.WrongAudienceToken}
 	for k, v := range c.Headers {
-		lk := strings.ToLower(k)
-		if strings.Contains(lk, "key") || strings.Contains(lk, "token") || strings.Contains(lk, "secret") || lk == "authorization" || lk == "cookie" {
+		if telemetry.SensitiveHeader(k) {
 			out = append(out, v)
 		}
 	}

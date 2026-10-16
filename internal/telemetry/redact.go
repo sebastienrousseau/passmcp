@@ -75,10 +75,26 @@ func (r *Redactor) String(s string) string {
 	return r.maskPersonalValues(s)
 }
 
+// SensitiveHeader reports whether a header's value is a credential by its
+// name alone. The recorder masks such values wherever they are printed,
+// and internal/creds registers the operator's --header values by the same
+// rule, so a server echoing one in a body is masked too.
+func SensitiveHeader(name string) bool {
+	lname := strings.ToLower(name)
+	if sensitiveHeaders[lname] {
+		return true
+	}
+	for _, part := range []string{"secret", "token", "key", "password", "passwd", "auth"} {
+		if strings.Contains(lname, part) {
+			return true
+		}
+	}
+	return false
+}
+
 // Header masks a header value by name policy, then by registered secrets.
 func (r *Redactor) Header(name, value string) string {
-	lname := strings.ToLower(name)
-	if sensitiveHeaders[lname] || strings.Contains(lname, "secret") || strings.Contains(lname, "token") || strings.Contains(lname, "key") {
+	if SensitiveHeader(name) {
 		return maskKeepScheme(value)
 	}
 	return r.String(value)
