@@ -714,7 +714,7 @@ func (r *Recorder) WriteHAR(w io.Writer, creatorVersion string) error {
 			"response":        map[string]any{"status": status, "statusText": statusText, "httpVersion": "HTTP/1.1", "headers": headers(e.ResponseHeaders), "cookies": []nv{}, "content": content, "redirectURL": "", "headersSize": -1, "bodySize": e.ResponseBytes},
 			"cache":           map[string]any{},
 			"timings":         map[string]any{"blocked": -1, "dns": ms(e.Timings.DNS), "connect": ms(e.Timings.Connect), "ssl": ms(e.Timings.TLS), "send": 0, "wait": ms(wait), "receive": float64(recv) / float64(time.Millisecond)},
-			"serverIPAddress": strings.Split(e.Remote, ":")[0],
+			"serverIPAddress": harServerIP(e.Remote),
 			"comment":         strings.TrimSpace(e.Phase + " " + e.Label),
 		})
 	}
