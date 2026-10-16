@@ -14,7 +14,7 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
-## [Unreleased]
+## [0.0.7] - 2026-10-16
 
 ### Fixed
 
@@ -65,6 +65,8 @@ project announces that a change felt big.
 
 ### Changed
 
+- **Require `satellion.com/passmcp-reporting` v0.0.7**, the family's
+  release that tags first, with `SBOM.md` updated to match.
 - **Bump `golang.org/x/sys` to v0.49.0**, with `SBOM.md` updated to
   match ([#40](https://github.com/sebastienrousseau/passmcp/pull/40)).
 - **Bump the `tools` module group**: `golang.org/x/mod` 0.42.0,
