@@ -529,8 +529,8 @@ func TestPublicSpecIsConstructed(t *testing.T) {
 // never faster or longer than the defaults.
 func TestPublicPacingIsBounded(t *testing.T) {
 	for _, c := range []struct {
-		rps, wantRPS float64
-		to, wantTo   time.Duration
+		rps, wantRPS    float64
+		to, wantTimeout time.Duration
 	}{
 		{0, engine.DefaultRPS, 0, engine.DefaultCallTimeout},
 		{-1, engine.DefaultRPS, -time.Second, engine.DefaultCallTimeout},
@@ -538,8 +538,8 @@ func TestPublicPacingIsBounded(t *testing.T) {
 		{0.5, 0.5, 5 * time.Second, 5 * time.Second},
 	} {
 		p := publicSpec(engine.RunSpec{Pacing: engine.PacingSpec{RPS: c.rps, CallTimeout: c.to}}).Pacing
-		if p.RPS != c.wantRPS || p.CallTimeout != c.wantTo {
-			t.Errorf("rps %v timeout %v: got %v %v, want %v %v", c.rps, c.to, p.RPS, p.CallTimeout, c.wantRPS, c.wantTo)
+		if p.RPS != c.wantRPS || p.CallTimeout != c.wantTimeout {
+			t.Errorf("rps %v timeout %v: got %v %v, want %v %v", c.rps, c.to, p.RPS, p.CallTimeout, c.wantRPS, c.wantTimeout)
 		}
 	}
 }
