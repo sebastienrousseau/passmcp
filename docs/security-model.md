@@ -316,7 +316,11 @@ guard is the strict one, and an unknown case is refused.
   runs is built from the endpoint, phases, report format, the policy's
   narrowing lists and bounded pacing; every other field a request sends
   is discarded (`TestPublicSpecIsConstructed`,
-  `TestPublicPacingIsBounded`).
+  `TestPublicPacingIsBounded`). At most eight runs execute at once, a
+  request over that is answered 503 with `Retry-After`, an evicted run is
+  cancelled, and stopping the server cancels every run it started
+  (`TestRunsInFlightAreBounded`, `TestEvictionCancelsTheRun`,
+  `TestShutdownCancelsRuns`).
 - **The token store.** On Unix a store readable by group or others is
   refused rather than read (`TestStoreRefusesWorldReadableFile`). On
   Windows a store whose access-control list lets another account read or

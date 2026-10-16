@@ -68,7 +68,6 @@ cyclomatic 12 internal/supply/lock_toml.go (*tomlReader).line
 cyclomatic 11 internal/telemetry/recorder.go (*roundTripper).RoundTrip
 cyclomatic 13 internal/tui/run.go (*RunModel).stepLine
 cyclomatic 11 internal/web/server.go (*Server).admit
-cyclomatic 11 internal/web/server.go New
 cyclomatic 11 internal/witness/witness.go (*Watcher).sample
 cyclomatic 11 scripts/trace/main.go mainErr
 cyclomatic 11 spec/controls/controls.go (*Mapping).Problems
@@ -88,7 +87,7 @@ file-lines 813 internal/probe/probe.go -
 file-lines 556 internal/report/render_text.go -
 file-lines 520 internal/supply/osv.go -
 file-lines 742 internal/telemetry/recorder.go -
-file-lines 646 internal/web/server.go -
+file-lines 636 internal/web/server.go -
 file-lines 615 scripts/checkinventory/main.go -
 lines 62 internal/engine/run.go probeOptions
 lines 64 transport/stdio.go StartStdio

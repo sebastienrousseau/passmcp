@@ -50,6 +50,9 @@ type Options struct {
 	Version string
 	// MaxRuns bounds how many reports are held in memory.
 	MaxRuns int
+	// MaxInflight bounds how many runs execute at once; zero means
+	// DefaultMaxInflight.
+	MaxInflight int
 	// Open, when set, is called with the URL once the listener is up.
 	Open func(string)
 
@@ -96,15 +99,21 @@ type Server struct {
 
 	limit *limiter
 
-	mu    sync.Mutex
-	runs  map[string]*run
-	order []string
+	// base parents every run; Serve cancels it on shutdown.
+	base context.Context
+	stop context.CancelFunc
+
+	mu       sync.Mutex
+	runs     map[string]*run
+	order    []string
+	inflight int
 }
 
 // run is one diagnostic and everything a browser can ask about it.
 type run struct {
 	id     string
 	spec   engine.RunSpec
+	ctx    context.Context
 	cancel context.CancelFunc
 
 	mu      sync.Mutex
@@ -115,14 +124,23 @@ type run struct {
 	failure string
 }
 
+// withDefaults fills the options a caller left at zero.
+func (o Options) withDefaults() Options {
+	if o.Addr == "" {
+		o.Addr = "127.0.0.1:0"
+	}
+	if o.MaxRuns <= 0 {
+		o.MaxRuns = DefaultMaxRuns
+	}
+	if o.MaxInflight <= 0 {
+		o.MaxInflight = DefaultMaxInflight
+	}
+	return o
+}
+
 // New builds a server. It does not listen.
 func New(opts Options) (*Server, error) {
-	if opts.Addr == "" {
-		opts.Addr = "127.0.0.1:0"
-	}
-	if opts.MaxRuns <= 0 {
-		opts.MaxRuns = DefaultMaxRuns
-	}
+	opts = opts.withDefaults()
 	host, _, err := net.SplitHostPort(opts.Addr)
 	if err != nil {
 		return nil, fmt.Errorf("web: invalid address %q: %w", opts.Addr, err)
@@ -148,6 +166,7 @@ func New(opts Options) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{opts: opts, token: tok, mux: http.NewServeMux(), runs: map[string]*run{}}
+	s.base, s.stop = context.WithCancel(context.Background())
 	if opts.Public {
 		s.limit = newLimiter(opts.RatePerMinute, opts.RateBurst)
 	}
@@ -273,6 +292,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 	go func() {
 		<-ctx.Done()
+		s.stop()
 		// Shutdown needs a context that outlives the cancelled one, but
 		// should still carry its values: WithoutCancel is exactly that.
 		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
@@ -395,38 +415,6 @@ func (s *Server) listTools(w http.ResponseWriter, r *http.Request) {
 // toolListTimeout bounds the selector's connection. Shorter than a run,
 // because nothing is being diagnosed: somebody is waiting to see a list.
 const toolListTimeout = 90 * time.Second
-
-func (s *Server) startRun(w http.ResponseWriter, r *http.Request) {
-	spec, ok := s.admit(w, r)
-	if !ok {
-		return
-	}
-
-	id, err := newToken()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	rn := &run{id: id, spec: spec, cancel: cancel, subs: map[chan engine.Event]struct{}{}}
-
-	s.mu.Lock()
-	s.runs[id] = rn
-	s.order = append(s.order, id)
-	for len(s.order) > s.opts.MaxRuns {
-		delete(s.runs, s.order[0])
-		s.order = s.order[1:]
-	}
-	s.mu.Unlock()
-
-	go func() {
-		defer cancel()
-		res := engine.Run(ctx, spec, engine.SinkFunc(rn.publish))
-		rn.finish(res)
-	}()
-
-	writeJSON(w, http.StatusAccepted, map[string]string{"id": id})
-}
 
 func (s *Server) lookup(r *http.Request) *run {
 	s.mu.Lock()
@@ -561,7 +549,9 @@ func followRun(r *http.Request, rn *run, ch chan engine.Event, sse sseWriter) {
 
 func (r *run) publish(e engine.Event) {
 	r.mu.Lock()
-	r.events = append(r.events, e)
+	if len(r.events) < maxRunEvents {
+		r.events = append(r.events, e)
+	}
 	subs := make([]chan engine.Event, 0, len(r.subs))
 	for c := range r.subs {
 		subs = append(subs, c)
