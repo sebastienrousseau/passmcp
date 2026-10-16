@@ -353,7 +353,7 @@ func emitReport(spec engine.RunSpec, res *engine.Result, ndjson *json.Encoder) e
 		width = termWidth()
 	}
 	out := spec
-	out.Output.NoColor = spec.Output.NoColor || !stdoutIsTTY()
+	out.Output.NoColor = spec.Output.NoColor || noColorEnv() || !stdoutIsTTY()
 	return res.Render(os.Stdout, out, width)
 }
 

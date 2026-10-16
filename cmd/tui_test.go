@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"satellion.com/passmcp/internal/creds"
 	"satellion.com/passmcp/internal/engine"
 	"satellion.com/passmcp/internal/tui"
@@ -36,6 +38,31 @@ func TestProgressViewPath(t *testing.T) {
 	out, code := run(t, "check", f.srv.URL+"/mcp", "--rps", "0", "--samples", "1", "--concurrency", "0", "--phases", "net,discovery,handshake,catalog")
 	if code != 0 || !strings.Contains(out, "How it scores") || !strings.Contains(out, "Ready") {
 		t.Fatalf("code %d\n%s", code, out)
+	}
+}
+
+// NO_COLOR, present and non-empty, turns colour off however capable the
+// terminal is (https://no-color.org).
+func TestNoColorEnvironmentTurnsColourOff(t *testing.T) {
+	f := newFakeServer(t)
+	f.open = true
+	headless(t)
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor) // a terminal that could show colour
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	args := []string{"check", f.srv.URL + "/mcp", "--rps", "0", "--samples", "1", "--concurrency", "0", "--phases", "net,discovery,handshake,catalog"}
+
+	out, _ := run(t, args...)
+	if !strings.Contains(out, "\x1b[") {
+		t.Fatalf("a colour terminal without NO_COLOR got no colour:\n%s", out)
+	}
+	t.Setenv("NO_COLOR", "1")
+	out, code := run(t, args...)
+	if code != 0 || !strings.Contains(out, "How it scores") {
+		t.Fatalf("code %d\n%s", code, out)
+	}
+	if strings.Contains(out, "\x1b[") {
+		t.Errorf("NO_COLOR=1 still produced escape codes:\n%q", out)
 	}
 }
 

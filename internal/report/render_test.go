@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"satellion.com/passmcp"
 	"satellion.com/passmcp/internal/creds"
 	"satellion.com/passmcp/internal/probe"
@@ -57,7 +59,17 @@ func fullReport() *Report {
 	return r
 }
 
+// useColourProfile stands in for a terminal with profile p: lipgloss
+// detects the profile from stdout, which under go test is never one.
+func useColourProfile(t *testing.T, p termenv.Profile) {
+	t.Helper()
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(p)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+}
+
 func TestTextAllBranches(t *testing.T) {
+	useColourProfile(t, termenv.TrueColor)
 	r := fullReport()
 	for _, o := range []TextOptions{{}, {Color: true, Verbose: true}} {
 		var buf bytes.Buffer
@@ -85,6 +97,22 @@ func TestTextAllBranches(t *testing.T) {
 	}
 	if mark(probe.Status("weird"), false) != "" {
 		t.Error("unknown status mark")
+	}
+}
+
+// The colour profile is the terminal's and the environment's to choose
+// (NO_COLOR, CLICOLOR, COLORTERM), not the renderer's. Text used to set
+// TrueColor process-wide whenever colour was on, which painted escape
+// codes into a terminal that had asked for none.
+func TestTextLeavesTheColourProfileToTheTerminal(t *testing.T) {
+	useColourProfile(t, termenv.Ascii)
+	var buf bytes.Buffer
+	Text(&buf, fullReport(), TextOptions{Color: true, Verbose: true})
+	if strings.Contains(buf.String(), "\x1b[") {
+		t.Error("Text coloured output for a terminal whose profile has no colour")
+	}
+	if p := lipgloss.ColorProfile(); p != termenv.Ascii {
+		t.Errorf("Text changed the process-wide colour profile to %v", p)
 	}
 }
 

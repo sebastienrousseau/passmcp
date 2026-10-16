@@ -24,6 +24,10 @@ func jsonOrString(v string) any {
 // (progress view, selector) without a terminal.
 var stdoutIsTTY = func() bool { return isTerminal(os.Stdout) }
 
+// noColorEnv reports whether NO_COLOR asks for no colour: present and
+// non-empty, whatever its value (https://no-color.org).
+func noColorEnv() bool { return os.Getenv("NO_COLOR") != "" }
+
 // isTerminal reports whether f is a terminal, counting the Cygwin and MSYS2
 // pseudo-terminals Windows users run under. Every terminal decision in the
 // CLI goes through it, so the progress view, the report's width and the
