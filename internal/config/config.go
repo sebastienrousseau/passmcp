@@ -63,6 +63,13 @@ func DefaultPath() (string, error) {
 	return filepath.Join(home, ".config", "passmcp", "config.json"), nil
 }
 
+// defaultPathIfKnown is DefaultPath for a caller that treats "no home
+// directory" as "no default file" rather than as an error.
+func defaultPathIfKnown() (string, bool) {
+	p, err := DefaultPath()
+	return p, err == nil
+}
+
 // Load reads and validates a config file.
 func Load(path string) (File, error) {
 	raw, err := os.ReadFile(path) // #nosec G304 -- the operator names their own config file
@@ -88,9 +95,11 @@ func Load(path string) (File, error) {
 func LoadOptional(path string) (File, string, error) {
 	explicit := path != ""
 	if !explicit {
-		var err error
-		if path, err = DefaultPath(); err != nil {
-			return File{}, "", err
+		var known bool
+		if path, known = defaultPathIfKnown(); !known {
+			// No home directory means no default config file, not a failed
+			// run: the file is optional, and flags alone must still work.
+			return File{}, "", nil
 		}
 	}
 	f, err := Load(path)

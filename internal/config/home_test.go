@@ -12,7 +12,9 @@ import (
 // With no home directory the default config used to be
 // .config/passmcp/config.json relative to the working directory. A
 // repository can carry that file, and it would set the options of a run
-// started inside it. Loading must refuse instead.
+// started inside it. Loading must read nothing instead, and it must not
+// fail: the config file is optional, and a run with no home directory (a
+// service account, some CI runners) has to work with flags alone.
 func TestLoadOptionalWithoutAHomeDirectoryReadsNothing(t *testing.T) {
 	cwd := t.TempDir()
 	planted := filepath.Join(cwd, ".config", "passmcp", "config.json")
@@ -33,7 +35,10 @@ func TestLoadOptionalWithoutAHomeDirectoryReadsNothing(t *testing.T) {
 	}
 
 	f, path, err := LoadOptional("")
-	if err == nil {
-		t.Errorf("LoadOptional read %s (%d defaults) with no home directory", path, len(f.Defaults))
+	if err != nil {
+		t.Fatalf("with no home directory the optional config must be skipped, not fail the run: %v", err)
+	}
+	if path != "" || len(f.Defaults) != 0 {
+		t.Errorf("LoadOptional read %q (%d defaults) with no home directory", path, len(f.Defaults))
 	}
 }
