@@ -46,8 +46,9 @@ bench:
 #
 # A single static binary a security team can approve in an afternoon is
 # the product, not an aesthetic, and the way that stops being true is one
-# dependency at a time. 18 MiB against roughly 13 today: headroom for
-# growth somebody chose, and a red build for growth nobody noticed.
+# dependency at a time. 18 MiB against about 15 today (15.1 MiB stripped,
+# linux/amd64, on feat/v0.0.7): headroom for growth somebody chose, and a
+# red build for growth nobody noticed.
 #
 # The allocation budgets live in internal/report/perf_test.go, where they
 # run with the rest of the suite. Wall-clock budgets are measured and
