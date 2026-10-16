@@ -4,7 +4,11 @@
 package transport
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -14,12 +18,66 @@ func FuzzReadSSE(f *testing.F) {
 	f.Add(": keepalive\n\nevent: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":7,\ndata: \"result\":{\"a\":1}}\n\n", int64(7))
 	f.Add("data: not json\n\n", int64(1))
 	f.Add("", int64(0))
+	f.Add("data:x\r\ndata:  two\r\n\r\ndata: {\"id\":3,\"error\":{\"code\":1}}", int64(3))
 	f.Fuzz(func(t *testing.T, body string, id int64) {
 		res, err := readSSEResponse(strings.NewReader(body), id)
 		if err == nil && res != nil && res.ID != nil && *res.ID != id {
 			t.Fatalf("returned response for wrong id: %d != %d", *res.ID, id)
 		}
+		want, wantErr := readSSEResponseOracle(strings.NewReader(body), id)
+		if fmt.Sprint(err) != fmt.Sprint(wantErr) || !reflect.DeepEqual(res, want) {
+			t.Fatalf("readSSEResponse = %+v, %v; the string-based reader gave %+v, %v", res, err, want, wantErr)
+		}
 	})
+}
+
+// readSSEResponseOracle is readSSEResponse as it was written before it
+// worked on the scanner's bytes, kept as the reference for FuzzReadSSE.
+func readSSEResponseOracle(r io.Reader, want int64) (*Response, error) {
+	sc := bufio.NewScanner(io.LimitReader(r, MaxStreamBytes))
+	sc.Buffer(make([]byte, 0, 64<<10), 16<<20)
+	events := 0
+	var data strings.Builder
+	flush := func() (*Response, bool) {
+		if data.Len() == 0 {
+			return nil, false
+		}
+		payload := data.String()
+		data.Reset()
+		var out Response
+		if json.Unmarshal([]byte(payload), &out) != nil {
+			return nil, false
+		}
+		if out.ID != nil && *out.ID == want && (out.Result != nil || out.Error != nil) {
+			return &out, true
+		}
+		return nil, false
+	}
+	for sc.Scan() {
+		line := sc.Text()
+		switch {
+		case line == "":
+			if out, ok := flush(); ok {
+				return out, nil
+			}
+			if events++; events > MaxStreamEvents {
+				return nil, ErrStreamTooLarge
+			}
+		case strings.HasPrefix(line, ":"):
+		case strings.HasPrefix(line, "data:"):
+			if data.Len() > 0 {
+				data.WriteByte('\n')
+			}
+			data.WriteString(strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("transport: read sse: %w", err)
+	}
+	if out, ok := flush(); ok {
+		return out, nil
+	}
+	return nil, fmt.Errorf("transport: stream ended without response for id %d", want)
 }
 
 // FuzzHeaderValue holds the parameter header encoder to its two promises

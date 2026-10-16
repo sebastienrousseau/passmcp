@@ -354,6 +354,9 @@ func decodeResponse(resp *http.Response, id int64) (*Response, error) {
 	}
 }
 
+// sseData is the field prefix of an SSE data line.
+var sseData = []byte("data:")
+
 // readSSEResponse consumes an SSE stream until it finds the JSON-RPC
 // response whose id matches want. Other messages on the stream (server
 // requests, notifications) are skipped.
@@ -361,24 +364,26 @@ func readSSEResponse(r io.Reader, want int64) (*Response, error) {
 	sc := bufio.NewScanner(io.LimitReader(r, MaxStreamBytes))
 	sc.Buffer(make([]byte, 0, 64<<10), 16<<20)
 	events := 0
-	var data strings.Builder
+	// The scanner reuses its buffer, so each data line is copied exactly
+	// once, into data, and decoded from there.
+	var data bytes.Buffer
 	for sc.Scan() {
-		line := sc.Text()
+		line := sc.Bytes()
 		switch {
-		case line == "":
+		case len(line) == 0:
 			if out, ok, err := flushSSEEvent(&data, want); err != nil || ok {
 				return out, err
 			}
 			if events++; events > MaxStreamEvents {
 				return nil, ErrStreamTooLarge
 			}
-		case strings.HasPrefix(line, ":"):
+		case line[0] == ':':
 			// comment / keep-alive
-		case strings.HasPrefix(line, "data:"):
+		case bytes.HasPrefix(line, sseData):
 			if data.Len() > 0 {
 				data.WriteByte('\n')
 			}
-			data.WriteString(strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
+			data.Write(bytes.TrimPrefix(line[len(sseData):], []byte(" ")))
 		}
 	}
 	if err := sc.Err(); err != nil {
@@ -392,14 +397,15 @@ func readSSEResponse(r io.Reader, want int64) (*Response, error) {
 
 // flushSSEEvent decodes the event accumulated in data, empties data, and
 // reports whether it was the response to want.
-func flushSSEEvent(data *strings.Builder, want int64) (*Response, bool, error) {
+func flushSSEEvent(data *bytes.Buffer, want int64) (*Response, bool, error) {
 	if data.Len() == 0 {
 		return nil, false, nil
 	}
-	payload := data.String()
-	data.Reset()
+	// Unmarshal copies what it keeps, so data can be reused afterwards.
 	var out Response
-	if err := json.Unmarshal([]byte(payload), &out); err != nil {
+	err := json.Unmarshal(data.Bytes(), &out)
+	data.Reset()
+	if err != nil {
 		// Not a response we understand (could be a batch or a server
 		// request); skip it and keep reading the stream.
 		return nil, false, nil //nolint:nilerr // deliberate: an unparsable event is skipped, not fatal
