@@ -14,6 +14,27 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+### Fixed
+
+- **A stdio server that ignores a truncated line is no longer failed.**
+  `protocol.malformed_json` scored that silence as a failure, which on
+  its own turned the verdict to "Not ready for agents". rmcp and the
+  TypeScript and Python SDKs all drop an unparsable line on a pipe
+  rather than reply, because a reply can start an error storm with a
+  peer that echoes stray output
+  ([rust-sdk#938](https://github.com/modelcontextprotocol/rust-sdk/issues/938)).
+  Over stdio the check now reports it as info. HTTP is unchanged.
+- **`protocol.deprecated_features` asks for `initialize` as a handshake.**
+  It sent `initialize` in the stateless dialect, which a server serving
+  both generations correctly refuses, and then warned that the server
+  declares handshake revisions it does not serve. It now sends the
+  request a client that negotiated down would send: the newest declared
+  handshake revision, with no `_meta`, protocol-version header or
+  session. Found against noyalib-mcp 0.0.58, which serves 2025-11-25
+  and 2025-06-18 on both transports.
+
 ## [0.0.6] - 2026-10-12
 
 ### Changed
