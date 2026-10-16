@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/term"
-	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"satellion.com/passmcp/internal/tui"
@@ -52,7 +51,7 @@ func installStyledHelp(root *cobra.Command) {
 	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		out := cmd.OutOrStdout()
 		f, ok := out.(*os.File)
-		if !ok || !isatty.IsTerminal(f.Fd()) {
+		if !ok || !isTerminal(f) {
 			plain(cmd, args)
 			return
 		}

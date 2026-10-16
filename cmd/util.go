@@ -22,8 +22,14 @@ func jsonOrString(v string) any {
 
 // stdoutIsTTY is a variable so tests can drive the terminal paths
 // (progress view, selector) without a terminal.
-var stdoutIsTTY = func() bool {
-	return isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+var stdoutIsTTY = func() bool { return isTerminal(os.Stdout) }
+
+// isTerminal reports whether f is a terminal, counting the Cygwin and MSYS2
+// pseudo-terminals Windows users run under. Every terminal decision in the
+// CLI goes through it, so the progress view, the report's width and the
+// styled help never disagree about the same stream.
+func isTerminal(f *os.File) bool {
+	return isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd())
 }
 
 // cmdContext returns the command's context, or Background when the command
