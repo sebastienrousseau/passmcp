@@ -68,6 +68,15 @@ func openStdioPipes() (*stdioPipes, error) {
 	return &p, nil
 }
 
+// closeChildEnds closes the parent's copies of the ends the child now
+// holds: the read end of its stdin and the write ends of its stdout and
+// stderr.
+func (p *stdioPipes) closeChildEnds() {
+	_ = p.stdinRead.Close()
+	_ = p.stdoutWrite.Close()
+	_ = p.stderrWrite.Close()
+}
+
 // closeAll closes every end of every pipe, for a server that never started.
 func (p *stdioPipes) closeAll() {
 	_ = p.stdinRead.Close()
