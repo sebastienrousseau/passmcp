@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -154,8 +155,35 @@ func defaultConfigHelp() string {
 
 // tildePath shortens a path under the home directory to ~/… for display.
 func tildePath(p string) string {
-	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(p, home) {
-		return "~" + strings.TrimPrefix(p, home)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
 	}
-	return p
+	return tildeUnder(p, home, runtime.GOOS == "windows")
+}
+
+// tildeUnder replaces home with ~ when p is home or lies under it.
+//
+// A string prefix is not enough: /Users/sebastian starts with /Users/seb
+// and is not under it, so the match must end at a separator. Windows
+// paths compare without case and take either separator, as the
+// filesystem does.
+func tildeUnder(p, home string, windows bool) string {
+	seps := "/"
+	if windows {
+		seps = `/\`
+	}
+	home = strings.TrimRight(home, seps)
+	if home == "" || len(p) < len(home) {
+		return p
+	}
+	head, rest := p[:len(home)], p[len(home):]
+	same := head == home
+	if windows {
+		same = strings.EqualFold(head, home)
+	}
+	if !same || (rest != "" && !strings.ContainsRune(seps, rune(rest[0]))) {
+		return p
+	}
+	return "~" + rest
 }
