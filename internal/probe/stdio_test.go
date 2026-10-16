@@ -539,7 +539,13 @@ func TestStdioFailsAServerThatIgnoresItsInputClosing(t *testing.T) {
 	if f.Status != Fail {
 		t.Fatalf("a server that ignored stdin closing was not failed: %+v", f)
 	}
-	if !strings.Contains(f.Detail, "SIGKILL") {
+	// What stopped it is named as the platform did it: a signal on Unix,
+	// the Win32 call that ended its job (or its process) on Windows.
+	stopped := "SIGKILL"
+	if runtime.GOOS == "windows" {
+		stopped = "Terminate"
+	}
+	if !strings.Contains(f.Detail, stopped) {
 		t.Errorf("the finding does not say what it took to stop it: %q", f.Detail)
 	}
 
