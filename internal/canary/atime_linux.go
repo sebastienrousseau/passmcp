@@ -26,5 +26,5 @@ func accessTime(path string) (time.Time, bool) {
 	if !ok {
 		return time.Time{}, false
 	}
-	return time.Unix(st.Atim.Sec, st.Atim.Nsec), true
+	return time.Unix(st.Atim.Unix()), true
 }
