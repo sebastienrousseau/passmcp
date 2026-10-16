@@ -337,9 +337,11 @@ jobs:
     timeout-minutes: 5
     permissions: {}
     steps:
-      # docs/ecosystem.md, rule 2: propagation is automatic. Each lockstep
-      # repository receives the version and the image digest it must pin,
-      # and does the rest itself. GITHUB_TOKEN cannot dispatch to another
+      # docs/ecosystem.md, rule 2: propagation is automated up to the tag.
+      # Each lockstep repository receives the version and the image digest
+      # it must pin and commits them onto its release branch; the owner
+      # merges and tags. passmcp-reporting has no listener and ignores it.
+      # GITHUB_TOKEN cannot dispatch to another
       # repository, so this needs a fine-grained token with contents:write
       # on the satellites — and is loud when it is missing, for the reason
       # the tap job is.
