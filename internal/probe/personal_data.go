@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"satellion.com/passmcp"
+	"satellion.com/passmcp/internal/pii"
 )
 
 // PersonalDataTool is a tool whose input or output schema names fields that
@@ -116,36 +117,21 @@ func walkProperties(props map[string]any, path string, depth int, seen map[strin
 	}
 }
 
-// personalKeys are normalised field names (lower case, no separators) that
-// hold personal data on their own.
-var personalKeys = map[string]bool{
-	"email": true, "emailaddress": true, "mail": true,
-	"phone": true, "phonenumber": true, "telephone": true, "mobile": true, "mobilenumber": true, "cellphone": true, "msisdn": true, "tel": true,
-	"firstname": true, "lastname": true, "fullname": true, "givenname": true, "familyname": true, "surname": true, "middlename": true, "forename": true, "displayname": true, "personname": true, "customername": true, "contactname": true, "patientname": true, "employeename": true,
-	"address": true, "streetaddress": true, "postaladdress": true, "homeaddress": true, "mailingaddress": true, "billingaddress": true, "shippingaddress": true, "street": true, "postcode": true, "postalcode": true, "zipcode": true,
-	"dob": true, "dateofbirth": true, "birthdate": true, "birthday": true,
-	"ssn": true, "socialsecuritynumber": true, "nationalid": true, "nationalidentifier": true, "nationalinsurancenumber": true, "nino": true, "passport": true, "passportnumber": true, "taxid": true, "idnumber": true,
-}
-
 // personalDescription is what makes a bare "name" personal: a field called
 // name is more often a repository or a file than a person.
 var personalDescription = regexp.MustCompile(`(?i)\b(person|people|customer|user|contact|patient|employee|member|your)\b`)
 
-// fieldSeparators strips the separators a field name may be written with.
-// It is built once and shared: a Replacer is safe for concurrent use.
-var fieldSeparators = strings.NewReplacer("_", "", "-", "", " ", "", ".", "")
-
 // personalField reports whether a field name, with its description, names
 // personal data.
 func personalField(name, description string) bool {
-	k := fieldSeparators.Replace(strings.ToLower(name))
+	k := pii.Normalise(name)
 	if k == "name" {
 		return personalDescription.MatchString(description)
 	}
 	if strings.Contains(k, "ipaddress") || strings.Contains(k, "macaddress") {
 		return false
 	}
-	if personalKeys[k] {
+	if pii.Key(k) {
 		return true
 	}
 	return strings.Contains(k, "email") || strings.Contains(k, "phonenumber")

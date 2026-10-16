@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"satellion.com/passmcp/internal/pii"
 )
 
 // Personal data is masked as data minimisation (GDPR Art. 5(1)(c)): passmcp
@@ -54,17 +56,6 @@ func (s RedactionSummary) Total() int {
 // returned to the agent, as opposed to what it says about itself.
 var resultBearing = map[string]bool{
 	"tools/call": true, "resources/read": true, "prompts/get": true, "tasks/result": true,
-}
-
-// personalKeys are normalised JSON keys whose values are personal data in a
-// result.
-var personalKeys = map[string]bool{
-	"email": true, "emailaddress": true, "mail": true,
-	"phone": true, "phonenumber": true, "telephone": true, "mobile": true, "mobilenumber": true, "cellphone": true, "msisdn": true, "tel": true,
-	"name": true, "firstname": true, "lastname": true, "fullname": true, "givenname": true, "familyname": true, "surname": true, "middlename": true, "forename": true, "displayname": true,
-	"address": true, "streetaddress": true, "postaladdress": true, "homeaddress": true, "postcode": true, "postalcode": true, "zipcode": true,
-	"dob": true, "dateofbirth": true, "birthdate": true, "birthday": true,
-	"ssn": true, "socialsecuritynumber": true, "nationalid": true, "nationalinsurancenumber": true, "passportnumber": true, "taxid": true,
 }
 
 var (
@@ -138,7 +129,7 @@ func (r *Redactor) walkPersonal(v any, depth int) {
 	switch t := v.(type) {
 	case map[string]any:
 		for k, val := range t {
-			if s, ok := val.(string); ok && personalKeys[normaliseKey(k)] {
+			if s, ok := val.(string); ok && pii.Key(pii.Normalise(k)) {
 				r.addPersonal(s)
 				continue
 			}
@@ -158,15 +149,6 @@ func (r *Redactor) walkPersonal(v any, depth int) {
 			}
 		}
 	}
-}
-
-// keySeparators strips the separators a key may be written with. It is
-// built once: a Replacer is safe for concurrent use, and building one per
-// key cost more than the replacement itself.
-var keySeparators = strings.NewReplacer("_", "", "-", "", " ", "")
-
-func normaliseKey(k string) string {
-	return keySeparators.Replace(strings.ToLower(k))
 }
 
 // addPersonal registers one personal value.
