@@ -145,8 +145,13 @@ func (r *Redactor) walkPersonal(v any, depth int) {
 	}
 }
 
+// keySeparators strips the separators a key may be written with. It is
+// built once: a Replacer is safe for concurrent use, and building one per
+// key cost more than the replacement itself.
+var keySeparators = strings.NewReplacer("_", "", "-", "", " ", "")
+
 func normaliseKey(k string) string {
-	return strings.NewReplacer("_", "", "-", "", " ", "").Replace(strings.ToLower(k))
+	return keySeparators.Replace(strings.ToLower(k))
 }
 
 // addPersonal registers one personal value.

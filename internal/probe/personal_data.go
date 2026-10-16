@@ -131,10 +131,14 @@ var personalKeys = map[string]bool{
 // name is more often a repository or a file than a person.
 var personalDescription = regexp.MustCompile(`(?i)\b(person|people|customer|user|contact|patient|employee|member|your)\b`)
 
+// fieldSeparators strips the separators a field name may be written with.
+// It is built once and shared: a Replacer is safe for concurrent use.
+var fieldSeparators = strings.NewReplacer("_", "", "-", "", " ", "", ".", "")
+
 // personalField reports whether a field name, with its description, names
 // personal data.
 func personalField(name, description string) bool {
-	k := strings.NewReplacer("_", "", "-", "", " ", "", ".", "").Replace(strings.ToLower(name))
+	k := fieldSeparators.Replace(strings.ToLower(name))
 	if k == "name" {
 		return personalDescription.MatchString(description)
 	}

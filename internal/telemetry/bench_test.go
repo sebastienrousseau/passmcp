@@ -13,3 +13,10 @@ func BenchmarkRedactJSON(b *testing.B) {
 		_ = r.JSON(body)
 	}
 }
+
+func BenchmarkNormaliseKey(b *testing.B) {
+	keys := []string{"email_address", "Phone-Number", "first name", "repository", "id"}
+	for i := 0; i < b.N; i++ {
+		_ = normaliseKey(keys[i%len(keys)])
+	}
+}
