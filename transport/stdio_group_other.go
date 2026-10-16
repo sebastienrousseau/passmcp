@@ -32,16 +32,22 @@ func setProcessGroup(*exec.Cmd) {}
 // groupAlive cannot see the tree on this platform.
 func groupAlive(int) (bool, error) { return false, errNoProcessGroups }
 
-// killName is what Custody.Signalled records when the server had to be
-// killed.
-const killName = "kill"
-
 // terminateTree has no polite form on this platform.
 func terminateTree(int) (string, error) { return "", nil }
 
-// killTree ends the one process this platform lets passmcp reach.
-func killTree(p *os.Process, _ int) {
+// processTree needs no state here.
+type processTree struct{}
+
+// adopt has nothing to attach the server to on this platform.
+func (*processTree) adopt(*os.Process) {}
+
+// kill ends the one process this platform lets passmcp reach.
+func (*processTree) kill(p *os.Process, _ int) string {
 	if p != nil {
 		_ = p.Kill()
 	}
+	return "kill"
 }
+
+// release has nothing to close.
+func (*processTree) release() {}

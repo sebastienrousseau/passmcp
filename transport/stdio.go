@@ -128,6 +128,11 @@ type Stdio struct {
 	stdin  io.WriteCloser
 	stdout *bufio.Reader
 
+	// tree is what lets Close end the server's whole process tree where
+	// the pid alone does not reach it. Touched only by StartStdio and
+	// Close.
+	tree processTree
+
 	protocolVersion atomic.Value // string
 	sessionID       atomic.Value // string
 	// custody is what Close found: whether the server had to be forced,
@@ -246,7 +251,7 @@ func StartStdio(ctx context.Context, cfg StdioConfig) (*Stdio, error) {
 	s.sessionID.Store("")
 	s.dialect.Store(&dialectBox{d: &Sessioned{}})
 
-	if err := cmd.Start(); err != nil {
+	if err := s.start(); err != nil {
 		p.closeAll()
 		return nil, fmt.Errorf("transport: start %s: %w", cfg.Command, err)
 	}
@@ -282,6 +287,17 @@ func StartStdio(ctx context.Context, cfg StdioConfig) (*Stdio, error) {
 		}
 	}
 	return s, nil
+}
+
+// start starts the process and, where the platform needs one, puts it in
+// the container that lets Close end everything it starts. See
+// stdio_group_windows.go.
+func (s *Stdio) start() error {
+	if err := s.cmd.Start(); err != nil {
+		return err
+	}
+	s.tree.adopt(s.cmd.Process)
+	return nil
 }
 
 // drainStderr copies the server's stderr into the ring buffer. It ends

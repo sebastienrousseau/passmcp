@@ -79,23 +79,28 @@ func groupAlive(pid int) (bool, error) {
 	}
 }
 
-// killName is what Custody.Signalled records when the tree had to be
-// killed.
-const killName = "SIGKILL"
-
 // terminateTree asks the whole group to stop with SIGTERM and returns the
 // name of what it sent, which Close then gives termGrace to work.
 func terminateTree(pid int) (string, error) {
 	return "SIGTERM", signalGroup(pid, syscall.SIGTERM)
 }
 
-// killTree sends SIGKILL to the whole group, falling back to the one
-// process passmcp holds when the group cannot be signalled.
-func killTree(p *os.Process, pid int) {
-	if signalGroup(pid, syscall.SIGKILL) == nil {
-		return
-	}
-	if p != nil {
+// processTree needs no state here: the process group is named by the
+// server's pid.
+type processTree struct{}
+
+// adopt has nothing to do: Setpgid already put the server in its group.
+func (*processTree) adopt(*os.Process) {}
+
+// kill sends SIGKILL to the whole group, falling back to the one process
+// passmcp holds when the group cannot be signalled, and returns the name
+// of the signal.
+func (*processTree) kill(p *os.Process, pid int) string {
+	if signalGroup(pid, syscall.SIGKILL) != nil && p != nil {
 		_ = p.Kill()
 	}
+	return "SIGKILL"
 }
+
+// release has nothing to close.
+func (*processTree) release() {}

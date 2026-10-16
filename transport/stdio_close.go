@@ -141,6 +141,7 @@ func (s *Stdio) Close() error {
 		s.killGroup(pid)
 	}
 	<-s.done
+	s.tree.release()
 
 	// The tree is gone, so whatever held the stderr write end has let go
 	// and the drain can finish.
@@ -206,15 +207,14 @@ func (s *Stdio) forceStop(pid int, c *Custody) {
 		case <-time.After(termGrace):
 		}
 	}
-	c.Signalled = killName
-	s.killGroup(pid)
+	c.Signalled = s.killGroup(pid)
 	<-s.done
 }
 
 // killGroup ends the whole tree, falling back to the one process this
-// platform can reach.
-func (s *Stdio) killGroup(pid int) {
-	killTree(s.cmd.Process, pid)
+// platform can reach, and returns the name of what it took.
+func (s *Stdio) killGroup(pid int) string {
+	return s.tree.kill(s.cmd.Process, pid)
 }
 
 // Signal sends sig to the server, for a caller testing how it handles one.
