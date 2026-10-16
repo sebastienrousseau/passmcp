@@ -7,6 +7,7 @@ package transport
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -43,8 +44,24 @@ func setProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr.CreationFlags |= syscall.CREATE_NEW_PROCESS_GROUP
 }
 
-// signalGroup cannot reach the tree on this platform.
-func signalGroup(int, syscall.Signal) error { return errNoProcessGroups }
-
 // groupAlive cannot see the tree on this platform.
 func groupAlive(int) (bool, error) { return false, errNoProcessGroups }
+
+// killName is what Custody.Signalled records when the server had to be
+// killed. Windows has no signals; os.Process.Kill calls TerminateProcess.
+const killName = "TerminateProcess"
+
+// terminateTree has no polite form on Windows.
+//
+// os.Process.Signal supports only Kill here and returns an error for
+// SIGTERM, so sending one would record a signal that never left passmcp
+// and then wait termGrace for an effect that cannot come. An empty name
+// tells Close to go straight to killTree.
+func terminateTree(int) (string, error) { return "", nil }
+
+// killTree ends the one process this platform lets passmcp reach.
+func killTree(p *os.Process, _ int) {
+	if p != nil {
+		_ = p.Kill()
+	}
+}

@@ -7,6 +7,7 @@ package transport
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -75,5 +76,26 @@ func groupAlive(pid int) (bool, error) {
 		return true, nil
 	default:
 		return false, err
+	}
+}
+
+// killName is what Custody.Signalled records when the tree had to be
+// killed.
+const killName = "SIGKILL"
+
+// terminateTree asks the whole group to stop with SIGTERM and returns the
+// name of what it sent, which Close then gives termGrace to work.
+func terminateTree(pid int) (string, error) {
+	return "SIGTERM", signalGroup(pid, syscall.SIGTERM)
+}
+
+// killTree sends SIGKILL to the whole group, falling back to the one
+// process passmcp holds when the group cannot be signalled.
+func killTree(p *os.Process, pid int) {
+	if signalGroup(pid, syscall.SIGKILL) == nil {
+		return
+	}
+	if p != nil {
+		_ = p.Kill()
 	}
 }

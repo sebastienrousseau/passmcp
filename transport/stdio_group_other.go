@@ -7,8 +7,8 @@ package transport
 
 import (
 	"errors"
+	"os"
 	"os/exec"
-	"syscall"
 )
 
 // Neither POSIX process groups nor Job Objects exist here.
@@ -29,8 +29,19 @@ var errNoProcessGroups = errors.New("transport: this platform has no process gro
 // setProcessGroup has nothing to set on this platform.
 func setProcessGroup(*exec.Cmd) {}
 
-// signalGroup cannot reach the tree on this platform.
-func signalGroup(int, syscall.Signal) error { return errNoProcessGroups }
-
 // groupAlive cannot see the tree on this platform.
 func groupAlive(int) (bool, error) { return false, errNoProcessGroups }
+
+// killName is what Custody.Signalled records when the server had to be
+// killed.
+const killName = "kill"
+
+// terminateTree has no polite form on this platform.
+func terminateTree(int) (string, error) { return "", nil }
+
+// killTree ends the one process this platform lets passmcp reach.
+func killTree(p *os.Process, _ int) {
+	if p != nil {
+		_ = p.Kill()
+	}
+}
