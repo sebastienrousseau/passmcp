@@ -46,7 +46,7 @@ privileges, on the machine where your credentials live. So it is given a
 fixed base environment and nothing else:
 
 ```text
-PATH HOME TMPDIR TEMP TMP LANG LC_ALL SystemRoot COMSPEC PATHEXT
+PATH HOME TMPDIR TEMP TMP LANG LC_ALL SystemRoot COMSPEC PATHEXT USERPROFILE APPDATA LOCALAPPDATA HOMEDRIVE HOMEPATH SystemDrive ProgramData
 ```
 
 That is enough for a program to find its interpreter and its libraries. It
