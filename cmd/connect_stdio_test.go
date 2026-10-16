@@ -63,7 +63,7 @@ func fakeStdioTarget(mode string, extra ...string) engine.TargetSpec {
 // line is masked in the first event because the recorder had every secret
 // before the first message.
 func TestConnectWithCredsOverStdio(t *testing.T) {
-	const secret = "tok-stdio-argv-0123456789"
+	const secret = "stdio-argv-credential"
 	resetAll()
 	token = secret
 	cr, err := buildCreds()
