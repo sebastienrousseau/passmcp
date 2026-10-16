@@ -9,3 +9,10 @@
 # that shape, but the string remains in the import commit. Kept as a pinned
 # fingerprint rather than rewriting history.
 a10ecde1c51e4cb5a5d0c74263a03cea6610c069:auth/origin_test.go:generic-api-key:129
+
+# The stdio connect test's first fixture credential, a made-up token shaped
+# closely enough to an API key to match generic-api-key. It never was one;
+# the test now uses a low-entropy string, but the original remains in the
+# pushed commit that added the test. Pinned rather than rewriting
+# feat/v0.0.7, which is append-only once pushed.
+d5fa29dd3b2c9ffcf3f7044495a8429568c4cf6d:cmd/connect_stdio_test.go:generic-api-key:66
