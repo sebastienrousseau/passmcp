@@ -6,7 +6,6 @@ package telemetry
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"net/url"
 	"sort"
 	"strings"
@@ -148,6 +147,12 @@ func (r *Redactor) JSON(body []byte) string {
 	if !ok {
 		return r.String(string(body))
 	}
+	return r.maskedJSON(v, body)
+}
+
+// maskedJSON masks the decoded document v of body by key, registering
+// what it masks, and renders it through String.
+func (r *Redactor) maskedJSON(v any, body []byte) string {
 	v = r.maskValue(v)
 	out, err := encodeJSON(v)
 	if err != nil {
@@ -160,14 +165,18 @@ func (r *Redactor) JSON(body []byte) string {
 // would, but keeps each number as the text the server wrote. Decoding into
 // float64 rewrote an id above 2^53 as a different id, which is evidence a
 // report must not alter.
+//
+// json.Valid runs first, as it does inside json.Unmarshal: it rejects
+// trailing data, and it rejects a truncated body without the decoder's
+// buffering.
 func decodeJSON(body []byte) (any, bool) {
+	if !json.Valid(body) {
+		return nil, false
+	}
 	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.UseNumber()
 	var v any
 	if dec.Decode(&v) != nil {
-		return nil, false
-	}
-	if _, err := dec.Token(); err != io.EOF {
 		return nil, false
 	}
 	return v, true
@@ -214,9 +223,8 @@ func (r *Redactor) maskValue(v any) any {
 // to a body truncated at the capture cap. Without the fallback a token in a
 // body larger than the cap would reach the report in the clear.
 func (r *Redactor) JSONOrKeys(body []byte) string {
-	var v any
-	if json.Unmarshal(body, &v) == nil {
-		return r.JSON(body)
+	if v, ok := decodeJSON(body); ok {
+		return r.maskedJSON(v, body)
 	}
 	return r.String(r.maskJSONKeysTextually(string(body)))
 }
