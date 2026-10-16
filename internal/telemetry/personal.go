@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -162,27 +163,26 @@ func (r *Redactor) addPersonal(v string) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, p := range r.personal {
-		if p == v {
-			return
-		}
+	if r.personalSet[v] {
+		return
 	}
-	r.personal = append(r.personal, v)
+	if r.personalSet == nil {
+		r.personalSet = map[string]bool{}
+	}
+	r.personalSet[v] = true
 	// Longest first, as for secrets, so "Ada Lovelace" is masked whole
 	// before "Ada" could split it.
-	for i := len(r.personal) - 1; i > 0 && len(r.personal[i]) > len(r.personal[i-1]); i-- {
-		r.personal[i], r.personal[i-1] = r.personal[i-1], r.personal[i]
-	}
+	at := longestFirstIndex(r.personal, v)
+	r.personal = slices.Insert(r.personal, at, v)
+	r.personalMask.insert(at, []string{v})
 }
 
 // maskPersonalValues masks registered personal values in s. The caller
 // holds r.mu for reading.
 func (r *Redactor) maskPersonalValues(s string) string {
-	for _, p := range r.personal {
-		if n := strings.Count(s, p); n > 0 {
-			r.count("field", n)
-			s = strings.ReplaceAll(s, p, Mask)
-		}
+	s, n := r.personalMask.apply(s)
+	if n > 0 {
+		r.count("field", n)
 	}
 	return s
 }

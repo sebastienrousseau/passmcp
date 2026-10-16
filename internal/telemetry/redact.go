@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -18,11 +19,17 @@ const Mask = "***"
 // Redactor scrubs known secrets and secret-bearing fields from strings,
 // headers and URLs before they reach a report or a log.
 type Redactor struct {
-	mu      sync.RWMutex
-	secrets []string
+	mu sync.RWMutex
+	// secrets are the registered secrets, longest first; secretMask masks
+	// each in that order, raw then URL-escaped.
+	secrets    []string
+	secretSet  map[string]bool
+	secretMask maskSet
 	// personal holds personal-data values registered from result-bearing
 	// responses (see personal.go), masked like secrets.
-	personal []string
+	personal     []string
+	personalSet  map[string]bool
+	personalMask maskSet
 
 	// cmu guards counts, which String updates while holding mu for
 	// reading.
@@ -50,14 +57,28 @@ func (r *Redactor) Add(secret string) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, s := range r.secrets {
-		if s == secret {
-			return
-		}
+	if r.secretSet[secret] {
+		return
 	}
-	r.secrets = append(r.secrets, secret)
-	// Longest first so a secret that contains another is masked whole.
-	sort.Slice(r.secrets, func(i, j int) bool { return len(r.secrets[i]) > len(r.secrets[j]) })
+	if r.secretSet == nil {
+		r.secretSet = map[string]bool{}
+	}
+	r.secretSet[secret] = true
+	// Longest first so a secret that contains another is masked whole;
+	// among equal lengths, first registered first.
+	at := longestFirstIndex(r.secrets, secret)
+	r.secrets = slices.Insert(r.secrets, at, secret)
+	forms := []string{secret}
+	if esc := url.QueryEscape(secret); esc != secret {
+		forms = append(forms, esc)
+	}
+	r.secretMask.insert(at, forms)
+}
+
+// longestFirstIndex is where v goes in list, which is ordered longest
+// first: after every value at least as long.
+func longestFirstIndex(list []string, v string) int {
+	return sort.Search(len(list), func(i int) bool { return len(list[i]) < len(v) })
 }
 
 // String masks registered secrets inside s.
@@ -67,12 +88,7 @@ func (r *Redactor) String(s string) string {
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for _, sec := range r.secrets {
-		s = strings.ReplaceAll(s, sec, Mask)
-		if esc := url.QueryEscape(sec); esc != sec {
-			s = strings.ReplaceAll(s, esc, Mask)
-		}
-	}
+	s, _ = r.secretMask.apply(s)
 	return r.maskPersonalValues(s)
 }
 
