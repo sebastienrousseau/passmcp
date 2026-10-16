@@ -366,27 +366,10 @@ func connectWithCreds(cmd *cobra.Command, target engine.TargetSpec, cr *creds.Cr
 	for _, s := range cr.Secrets() {
 		rec.Redactor.Add(s)
 	}
-	endpoint := target.Endpoint
 	if target.Stdio() {
-		client, err := passmcp.NewStdio(cmdContext(cmd), passmcp.Config{
-			Stdio: &passmcp.StdioConfig{
-				Command: target.Command, Args: target.Args,
-				Dir: target.Dir, PassEnv: target.PassEnv, Env: target.Env,
-				Observe: func(ctx context.Context, m transport.StdioMessage) {
-					rec.RecordPipe(ctx, target.Describe(), m.Sent, m.Received, m.Duration, m.Err)
-				},
-			},
-			ClientInfo: passmcp.Implementation{Name: "passmcp", Version: Version},
-		})
-		if err != nil {
-			return nil, nil, err
-		}
-		if _, err := client.Connect(cmdContext(cmd)); err != nil {
-			_ = client.Close()
-			return nil, nil, err
-		}
-		return client, rec, nil
+		return connectStdio(cmd, target, rec)
 	}
+	endpoint := target.Endpoint
 	cfg := passmcp.Config{Endpoint: endpoint, HTTPClient: &http.Client{Timeout: 60 * time.Second, Transport: rec.Wrap(auth.URLPolicy{}.EndpointTransport(endpoint))}, ClientInfo: passmcp.Implementation{Name: "passmcp", Version: Version}}
 	cr.Apply(&cfg)
 	client, err := passmcp.New(cfg)
@@ -412,6 +395,29 @@ func connectWithCreds(cmd *cobra.Command, target engine.TargetSpec, cr *creds.Cr
 	}
 	if res.Status != passmcp.StatusConnected {
 		return nil, nil, errors.New("server requires a user login; run `passmcp login` first")
+	}
+	return client, rec, nil
+}
+
+// connectStdio starts target's command and connects to it, recording every
+// message on the pipe through rec. rec must already hold every secret.
+func connectStdio(cmd *cobra.Command, target engine.TargetSpec, rec *telemetry.Recorder) (*passmcp.Client, *telemetry.Recorder, error) {
+	client, err := passmcp.NewStdio(cmdContext(cmd), passmcp.Config{
+		Stdio: &passmcp.StdioConfig{
+			Command: target.Command, Args: target.Args,
+			Dir: target.Dir, PassEnv: target.PassEnv, Env: target.Env,
+			Observe: func(ctx context.Context, m transport.StdioMessage) {
+				rec.RecordPipe(ctx, target.Describe(), m.Sent, m.Received, m.Duration, m.Err)
+			},
+		},
+		ClientInfo: passmcp.Implementation{Name: "passmcp", Version: Version},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err := client.Connect(cmdContext(cmd)); err != nil {
+		_ = client.Close()
+		return nil, nil, err
 	}
 	return client, rec, nil
 }

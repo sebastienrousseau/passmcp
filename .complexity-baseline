@@ -7,7 +7,6 @@
 # metric value file function
 cognitive 20 cmd/attest.go gate
 cognitive 18 cmd/attest.go writeVerification
-cognitive 16 cmd/subcommands.go connectWithCreds
 cognitive 16 diagnostics/fuzz.go (*Generator).number
 cognitive 19 diagnostics/poison.go decodeReadable
 cognitive 16 internal/a2a/defaults.go stripValue
