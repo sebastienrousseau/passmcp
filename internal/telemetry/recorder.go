@@ -355,17 +355,7 @@ func (r *Recorder) RecordPipe(ctx context.Context, target string, sent, received
 // bodies are not captured, still registers any secret it issues, and
 // copies a JSON-RPC error onto the request's RPC record.
 func (r *Recorder) recordPipeResponse(ev *Event, received []byte) {
-	r.Redactor.registerPersonalFromResponse(ev.RPC, received)
-	if r.CaptureBodies {
-		ev.ResponseBody = r.captureBody("application/json", received, int64(len(received)))
-	} else if looksJSON(received) {
-		_ = r.Redactor.JSON(received) // register issued secrets
-	}
-	if ev.RPC != nil {
-		if code, msg, ok := rpcErrorFromBody(received); ok {
-			ev.RPC.ErrorCode, ev.RPC.ErrorMessage = code, msg
-		}
-	}
+	r.observeResponse(ev, "application/json", received, int64(len(received)))
 }
 
 type roundTripper struct {
@@ -544,53 +534,10 @@ func (b *bodyRecorder) finish() {
 	b.done = true
 	b.ev.ResponseBytes = b.n
 	b.ev.Timings.Total = time.Since(b.t0)
-	b.rec.Redactor.registerPersonalFromResponse(b.ev.RPC, b.buf.Bytes())
-	if b.rec.CaptureBodies {
-		b.ev.ResponseBody = b.rec.captureBody(b.ct, b.buf.Bytes(), b.n)
-	} else if looksJSON(b.buf.Bytes()) {
-		_ = b.rec.Redactor.JSON(b.buf.Bytes()) // register issued secrets
-	}
-	if b.ev.RPC != nil && b.buf.Len() > 0 {
-		if code, msg, ok := rpcErrorFromBody(b.buf.Bytes()); ok {
-			b.ev.RPC.ErrorCode, b.ev.RPC.ErrorMessage = code, msg
-		}
-	}
+	b.rec.observeResponse(b.ev, b.ct, b.buf.Bytes(), b.n)
 	ev := *b.ev
 	b.mu.Unlock()
 	b.rec.add(ev)
-}
-
-// captureBody renders a body for the report. total is the true size of the
-// body on the wire, which may exceed what was retained.
-func (r *Recorder) captureBody(contentType string, b []byte, total int64) string {
-	if len(b) == 0 {
-		return ""
-	}
-	capped := b
-	truncated := total > int64(r.BodyCap)
-	if len(capped) > r.BodyCap {
-		capped = capped[:r.BodyCap]
-	}
-	var s string
-	switch {
-	case strings.HasPrefix(contentType, "application/x-www-form-urlencoded"):
-		s = r.Redactor.Form(string(capped))
-	case looksJSON(capped):
-		// A truncated body will not parse as JSON, so key-based masking
-		// cannot run over it. Fall back to masking by key name on the raw
-		// text: a token cut in half is still a token, and the half that
-		// survives must not reach a report file.
-		s = r.Redactor.JSONOrKeys(capped)
-	default:
-		s = r.Redactor.String(string(capped))
-	}
-	// E-mail addresses and phone numbers are masked in every captured
-	// body, whatever key or none they sit under (personal.go).
-	s = r.Redactor.maskPersonalPatterns(s)
-	if truncated {
-		s += fmt.Sprintf("…[truncated %d bytes]", total-int64(r.BodyCap))
-	}
-	return s
 }
 
 func redactHeaders(red *Redactor, h http.Header) map[string]string {
@@ -613,28 +560,6 @@ func rpcFromBody(b []byte) *RPCInfo {
 		return nil
 	}
 	return &RPCInfo{Method: probe.Method, ID: probe.ID, Notification: probe.ID == nil}
-}
-
-func rpcErrorFromBody(b []byte) (int, string, bool) {
-	// Works for a JSON body; for SSE, find the first data: line.
-	if bytes.HasPrefix(bytes.TrimSpace(b), []byte("event:")) || bytes.HasPrefix(bytes.TrimSpace(b), []byte("data:")) {
-		for _, line := range bytes.Split(b, []byte("\n")) {
-			if bytes.HasPrefix(line, []byte("data:")) {
-				b = bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
-				break
-			}
-		}
-	}
-	var probe struct {
-		Error *struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if json.Unmarshal(b, &probe) != nil || probe.Error == nil {
-		return 0, "", false
-	}
-	return probe.Error.Code, probe.Error.Message, true
 }
 
 func tlsInfo(cs tls.ConnectionState) *TLSInfo {

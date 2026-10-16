@@ -84,7 +84,7 @@ const minPersonal = 3
 // body when the request's method carries a result. body may be JSON or a
 // text/event-stream whose data lines are JSON.
 func (r *Redactor) registerPersonalFromResponse(rpc *RPCInfo, body []byte) {
-	if r == nil || rpc == nil || !resultBearing[rpc.Method] || len(body) == 0 {
+	if !r.wantsPersonal(rpc) || len(body) == 0 {
 		return
 	}
 	for _, doc := range jsonDocuments(body) {
@@ -93,6 +93,20 @@ func (r *Redactor) registerPersonalFromResponse(rpc *RPCInfo, body []byte) {
 			r.walkPersonal(v, 0)
 		}
 	}
+}
+
+// registerPersonalFromTree is registerPersonalFromResponse for a JSON body
+// the caller has already decoded.
+func (r *Redactor) registerPersonalFromTree(rpc *RPCInfo, tree any) {
+	if r.wantsPersonal(rpc) {
+		r.walkPersonal(tree, 0)
+	}
+}
+
+// wantsPersonal reports whether a response to rpc carries a result whose
+// personal values are registered.
+func (r *Redactor) wantsPersonal(rpc *RPCInfo) bool {
+	return r != nil && rpc != nil && resultBearing[rpc.Method]
 }
 
 // jsonDocuments returns the JSON documents in a body: the body itself, or

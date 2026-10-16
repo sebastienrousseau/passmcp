@@ -85,7 +85,7 @@ file-lines 579 internal/probe/phase_protocol.go -
 file-lines 808 internal/probe/probe.go -
 file-lines 554 internal/report/render_text.go -
 file-lines 520 internal/supply/osv.go -
-file-lines 742 internal/telemetry/recorder.go -
+file-lines 667 internal/telemetry/recorder.go -
 file-lines 636 internal/web/server.go -
 file-lines 615 scripts/checkinventory/main.go -
 lines 62 internal/engine/run.go probeOptions

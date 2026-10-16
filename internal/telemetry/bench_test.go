@@ -4,10 +4,12 @@
 package telemetry
 
 import (
+	"context"
 	"fmt"
 	"math/rand/v2"
 	"strings"
 	"testing"
+	"time"
 )
 
 func BenchmarkRedactJSON(b *testing.B) {
@@ -119,6 +121,21 @@ func BenchmarkRedactorAdd(b *testing.B) {
 			r.Add(s)
 			r.addPersonal(s)
 		}
+	}
+}
+
+func BenchmarkRecordPipe(b *testing.B) {
+	sent := []byte(`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"lookup"}}`)
+	received := benchBody()
+	for _, capture := range []bool{false, true} {
+		b.Run(fmt.Sprintf("capture=%t", capture), func(b *testing.B) {
+			rec := New()
+			rec.CaptureBodies = capture
+			ctx := context.Background()
+			for i := 0; i < b.N; i++ {
+				rec.RecordPipe(ctx, "server", sent, received, time.Millisecond, nil)
+			}
+		})
 	}
 }
 
