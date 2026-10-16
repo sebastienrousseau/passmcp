@@ -35,6 +35,34 @@ project announces that a change felt big.
   session. Found against noyalib-mcp 0.0.58, which serves 2025-11-25
   and 2025-06-18 on both transports.
 
+- **passmcp builds on 32-bit Linux and the library builds for wasm.**
+  `internal/canary` failed to compile on `linux/386` and `linux/arm`
+  (the access time is an `int32` there), and the stdio process-group
+  adapter was tagged `!windows`, which took in `js`, `wasip1` and
+  `plan9`. A new `make cross` target and CI job cross-compile the
+  platforms the test matrix does not run.
+- **Windows: a forced stop ends the server's whole process tree.** The
+  server joins a kill-on-close Job Object, so `cmd /c npx …` no longer
+  leaves `node.exe` running, and a forced stop no longer sends a SIGTERM
+  Windows cannot deliver and then waits two seconds for nothing. The
+  child's default environment also carries the Windows home variables
+  (`USERPROFILE`, `APPDATA`, `LOCALAPPDATA` and the rest).
+- **No home directory no longer means a relative path.** The token store
+  refuses to write instead of creating `.config/passmcp/` in the working
+  directory, and the optional config file is skipped rather than read
+  from there; a run with flags alone still works.
+- **`NO_COLOR` is honoured,** and the text report no longer forces
+  24-bit colour onto terminals that do not support it.
+- **`discover` keeps commas inside JSONC strings.** Its own comment
+  stripper removed `,]` and `,}` inside string values; it now uses
+  `clientconf`'s.
+- **Truncated text is cut on a character boundary,** so a long name or
+  description in a report no longer ends in a broken UTF-8 sequence.
+- **HAR `serverIPAddress` is right for IPv6** (it was `[`), and `~` is
+  shown only for paths actually under the home directory.
+- **Redacted JSON evidence keeps its numbers and markup.** Large
+  integers kept their digits and `<`, `>`, `&` are no longer escaped.
+
 ### Changed
 
 - **Bump `golang.org/x/sys` to v0.49.0**, with `SBOM.md` updated to
@@ -45,7 +73,7 @@ project announces that a change felt big.
 - **Bump the GitHub Actions group**: `actions/upload-artifact` 7.0.2,
   `actions/download-artifact` 8.0.2 and `github/codeql-action` 4.38.3
   ([#42](https://github.com/sebastienrousseau/passmcp/pull/42)).
-- **The complexity baseline shrinks from 90 offenders to 87.**
+- **The complexity baseline shrinks from 90 offenders to 84.**
   `readToken68` drops two branches that returned what its final `return`
   already did ([#36](https://github.com/sebastienrousseau/passmcp/issues/36)),
   the OCSF sender chooses its HTTP client, and refuses redirects, in
@@ -54,7 +82,24 @@ project announces that a change felt big.
   the stdio case of `connectWithCreds` moves into `connectStdio`, now
   covered by a test against a re-executed fake server
   ([#35](https://github.com/sebastienrousseau/passmcp/issues/35)).
-  Behaviour is unchanged.
+  The audit fixes below take `admit`, `New` and `StartStdio` under every
+  ceiling and shrink `recorder.go`, `server.go`, `probe.go` and
+  `render_text.go`. Behaviour is unchanged except where listed.
+
+- **Redaction and recording do less work per exchange.** The redactor
+  finds which secrets occur in one pass before replacing them (8 ms
+  instead of 67 ms for 1000 secrets on 64 KiB), each response body is
+  decoded once rather than three times, retained events are a ring
+  rather than a slice copied on every event, and stdio and SSE reads
+  copy each message once. Output is unchanged; a fuzz target compares
+  the new redactor with the old algorithm.
+- **Release archives, packages and the container image carry
+  `THIRD_PARTY_NOTICES`**, generated at release time by
+  `scripts/notices` from the modules each platform's binary links.
+  `SBOM.md`'s statements about yaml, `x/sys`, `termenv` and the
+  indirect dependencies are corrected.
+- **`docs/architecture.md` describes the current package layout,**
+  including `internal/engine`, through which every surface now runs.
 
 ### Security
 
@@ -63,6 +108,30 @@ project announces that a change felt big.
   advisories in `net/http`, its HTTP/2 implementation, `net/textproto`,
   `crypto/tls` and `html/template` (GO-2026-6599 to GO-2026-6617), all
   fixed in 1.26.9. Release binaries are built with this toolchain.
+- **`passmcp serve` no longer takes run settings it should not from a
+  request** ([GHSA-pgc7-p53h-243q](https://github.com/sebastienrousseau/passmcp/security/advisories/GHSA-pgc7-p53h-243q)).
+  A `client_config` server with a `command` was started by the catalog
+  phase, so a request could run a program on the host: without
+  authentication in `--public` mode, and without `--allow-stdio`
+  locally. In `--public` mode every field other than credentials and
+  target was also taken from the anonymous caller, including
+  `insecure_allow_private_hosts`, `allow_destructive`, `tool_args`,
+  unthrottled pacing, report directories and export endpoints. A public
+  run is now built from the endpoint, phases, report format, the
+  policy's narrowing lists and pacing no faster than the defaults, and
+  a program is started only with `--allow-stdio` and never in public
+  mode. Affects v0.0.1 to v0.0.6.
+- **`serve` bounds and cancels its runs.** At most eight run at once
+  (503 with `Retry-After` beyond that), an evicted run is cancelled,
+  and stopping the server cancels what it started.
+- **`serve --addr :PORT` needs `--allow-remote`.** An empty host listens
+  on every interface and was treated as loopback.
+- **Masking covers more.** Tool-output excerpts are masked before they
+  are cut, so a secret split by the cut no longer leaks its prefix;
+  `--header` values are registered as secrets by the same name rule the
+  recorder masks by, which now includes `Proxy-Authorization` and
+  password and auth headers; and the recorder masks every personal-data
+  field the catalog check flags, from one shared list.
 
 ## [0.0.6] - 2026-10-12
 
