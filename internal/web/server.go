@@ -327,7 +327,7 @@ func (s *Server) admit(w http.ResponseWriter, r *http.Request) (engine.RunSpec, 
 	// A spec naming a program is refused before anything else looks at it.
 	// Public mode never permits one; a local server permits it only when
 	// the operator said so when starting the process.
-	if spec.Target.Stdio() && (s.opts.Public || !s.opts.AllowStdio) {
+	if startsProgram(spec) && (s.opts.Public || !s.opts.AllowStdio) {
 		writeJSON(w, http.StatusForbidden, map[string]string{
 			"error": "this server diagnoses endpoints, not programs. Running a command is a different " +
 				"permission from fetching a URL, and it is not one an HTTP request can claim here: " +

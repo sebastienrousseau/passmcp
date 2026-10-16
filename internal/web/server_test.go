@@ -452,3 +452,19 @@ func TestPublicModeNeverRunsAProgram(t *testing.T) {
 		t.Fatalf("a public server with --allow-stdio ran a program: %d", resp.StatusCode)
 	}
 }
+
+// TestClientConfigCannotStartAProgram: a client configuration names the
+// other servers a host runs, and a stdio entry in it is a command. The
+// catalog phase starts those peers to list their tools, so a peer that
+// arrives over HTTP is the same request as a stdio target and needs the
+// same permission.
+func TestClientConfigCannotStartAProgram(t *testing.T) {
+	s, ts := newTestServer(t)
+	body := `{"target":{"endpoint":"https://mcp.example.com/mcp"},"phases":{"only":["net"]},` +
+		`"client_config":{"servers":[{"name":"peer","command":"/bin/sh","args":["-c","exit 0"]}]}}`
+	resp := do(t, ts, http.MethodPost, "/api/runs?t="+s.Token(), body, map[string]string{"Content-Type": "application/json"})
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("a client_config naming a program returned %d, want 403", resp.StatusCode)
+	}
+}

@@ -233,18 +233,57 @@ func jsonName(f reflect.StructField) string {
 
 // publicSpec returns the spec a public server will actually run.
 //
-// The credentials are constructed, not sanitised: whatever arrived is
-// discarded and replaced with an explicit absence. Sanitising leaves the
-// question "did I remove everything?" open on every future change; building
-// the value closes it.
+// The spec is constructed, not sanitised: a new value is built from the
+// few fields an anonymous caller may choose, and everything else that
+// arrived is discarded. Sanitising leaves the question "did I remove
+// everything?" open on every future change; building the value closes it.
+//
+// What survives, and why it is safe to:
+//   - the endpoint, which admit has already checked against the allowlist;
+//     a public deployment runs nothing, so no command, arguments or
+//     environment are carried (startRun refuses a program before this,
+//     and the reconstruction must not be the thing that carried one
+//     through if that order ever changes);
+//   - an explicit absence of credentials;
+//   - the tool policy's Only and Deny lists and SkipEraCheck, each of
+//     which can only make a run do less; the permissions that widen it
+//     (mutations, destructive tools, tool arguments, private hosts,
+//     plaintext auth, resource mismatches) are the operator's to grant;
+//   - the request rate and call timeout, bounded by the defaults: a caller
+//     may slow a run down, never speed it up, unthrottle it or hold it open;
+//   - the phase selection and the report format.
+//
+// Gates, baselines, egress observation, client configurations, report
+// directories and export endpoints are not carried: each either reads or
+// writes something on the host, or sends data somewhere the operator did
+// not name.
 func publicSpec(s engine.RunSpec) engine.RunSpec {
-	s.Creds = engine.CredSpec{Mode: "none"}
-	// A public deployment runs nothing. startRun already refuses a spec
-	// naming a program, and this is the second place that has to be true:
-	// if a later change moves the order of those checks, the reconstruction
-	// must not be the thing that carried a command through.
-	s.Target = engine.TargetSpec{Endpoint: s.Target.Endpoint}
-	return s
+	return engine.RunSpec{
+		Target: engine.TargetSpec{Endpoint: s.Target.Endpoint},
+		Creds:  engine.CredSpec{Mode: "none"},
+		Policy: engine.PolicySpec{
+			Only:         s.Policy.Only,
+			Deny:         s.Policy.Deny,
+			SkipEraCheck: s.Policy.SkipEraCheck,
+		},
+		Pacing: publicPacing(s.Pacing),
+		Phases: s.Phases,
+		Output: engine.OutputSpec{Format: s.Output.Format},
+	}
+}
+
+// publicPacing keeps a caller's request rate and call timeout only where
+// they are gentler than the defaults. A rate of zero means unthrottled, so
+// it is replaced rather than kept.
+func publicPacing(p engine.PacingSpec) engine.PacingSpec {
+	out := engine.PacingSpec{RPS: engine.DefaultRPS, CallTimeout: engine.DefaultCallTimeout}
+	if p.RPS > 0 && p.RPS < out.RPS {
+		out.RPS = p.RPS
+	}
+	if p.CallTimeout > 0 && p.CallTimeout < out.CallTimeout {
+		out.CallTimeout = p.CallTimeout
+	}
+	return out
 }
 
 // --- rate limiting ---------------------------------------------------------
