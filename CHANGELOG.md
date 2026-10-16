@@ -45,6 +45,10 @@ project announces that a change felt big.
 - **Bump the GitHub Actions group**: `actions/upload-artifact` 7.0.2,
   `actions/download-artifact` 8.0.2 and `github/codeql-action` 4.38.3
   ([#42](https://github.com/sebastienrousseau/passmcp/pull/42)).
+- **The complexity baseline shrinks from 90 offenders to 89.**
+  `readToken68` drops two branches that returned what its final `return`
+  already did ([#36](https://github.com/sebastienrousseau/passmcp/issues/36)).
+  Behaviour is unchanged.
 
 ### Security
 

@@ -46,3 +46,27 @@ func TestParseWWWAuthenticateGarbage(t *testing.T) {
 		_ = ParseWWWAuthenticate(in) // must not panic
 	}
 }
+
+func TestReadToken68(t *testing.T) {
+	cases := []struct {
+		in, tok, rest string
+		ok            bool
+	}{
+		{"abc", "abc", "", true},   // no padding
+		{"abc=", "abc=", "", true}, // one "=" at end of input
+		{"abc=, Bearer realm=\"r\"", "abc=", ", Bearer realm=\"r\"", true}, // one "=" before another challenge
+		{"abc==", "abc==", "", true},                                       // two "="
+		{"abc== ,x", "abc==", ",x", true},                                  // padding, whitespace, comma
+		{"realm=mcp", "", "realm=mcp", false},                              // key=value
+		{`realm="mcp"`, "", `realm="mcp"`, false},                          // key="value"
+		{"", "", "", false},
+		{"=abc", "", "=abc", false},
+	}
+	for _, c := range cases {
+		tok, rest, ok := readToken68(c.in)
+		if tok != c.tok || rest != c.rest || ok != c.ok {
+			t.Errorf("readToken68(%q) = %q, %q, %v; want %q, %q, %v",
+				c.in, tok, rest, ok, c.tok, c.rest, c.ok)
+		}
+	}
+}

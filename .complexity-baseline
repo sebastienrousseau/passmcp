@@ -28,7 +28,6 @@ cognitive 17 internal/trace/scan.go scanFile
 cognitive 16 internal/tui/selector.go (*selectorModel).View
 cognitive 16 transport/streamable.go readSSEResponse
 cyclomatic 11 auth/roundtripper.go (*Transport).RoundTrip
-cyclomatic 11 auth/wwwauth.go readToken68
 cyclomatic 12 client.go (*Client).Connect
 cyclomatic 13 client.go (*Client).Discover
 cyclomatic 11 client.go (*Client).registrationOptions
