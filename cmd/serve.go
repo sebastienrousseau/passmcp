@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 
 	"github.com/spf13/cobra"
 	"satellion.com/passmcp/internal/diag"
@@ -115,22 +114,13 @@ func init() {
 // openBrowser is best-effort: failing to open one is not a reason to fail
 // the command, because the URL is already on screen.
 func openBrowser(ctx context.Context, url string) {
-	var cmd string
-	var args []string
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = "open"
-	case "windows":
-		cmd, args = "rundll32", []string{"url.dll,FileProtocolHandler"}
-	default:
-		cmd = "xdg-open"
-	}
+	cmd, args := browserCommand()
 	path, err := exec.LookPath(cmd)
 	if err != nil {
 		return
 	}
-	// #nosec G204 -- cmd is one of three literals above; url is passmcp's own
-	// loopback address with a token it just minted.
+	// #nosec G204 -- cmd is one of three literals in the open_*.go files;
+	// url is passmcp's own loopback address with a token it just minted.
 	if err := exec.CommandContext(ctx, path, append(args, url)...).Start(); err != nil {
 		diag.Debugf("could not open a browser: %v", err)
 	}
