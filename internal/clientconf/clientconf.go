@@ -361,6 +361,10 @@ func (w walker) array(path string) error {
 
 // --- JSON with comments ----------------------------------------------------
 
+// StripJSONC returns JSON with comments as plain JSON, for any reader of a
+// client's settings file: see stripJSONC.
+func StripJSONC(in []byte) []byte { return stripJSONC(in) }
+
 // stripJSONC blanks comments and trailing commas out of JSON with comments,
 // the format VS Code and Zed settings use. Everything removed becomes
 // spaces, and newlines are kept, so every offset and line in the result is

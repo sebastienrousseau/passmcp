@@ -47,7 +47,6 @@ cyclomatic 13 internal/commitlint/lint.go Lint
 cyclomatic 11 internal/creds/creds.go (*Credentials).Apply
 cyclomatic 11 internal/creds/keyring.go SelectKeyring
 cyclomatic 11 internal/discover/probe.go (*prober).statelessDiscover
-cyclomatic 12 internal/discover/sources.go stripJSONC
 cyclomatic 11 internal/egress/proxy.go (*Proxy).forward
 cyclomatic 13 internal/engine/write.go (*Result).Render
 cyclomatic 12 internal/engine/write.go (*Result).WriteDir
