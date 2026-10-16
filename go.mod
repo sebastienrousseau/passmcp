@@ -1,6 +1,6 @@
 module satellion.com/passmcp
 
-go 1.26.8
+go 1.26.9
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0

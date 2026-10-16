@@ -46,6 +46,14 @@ project announces that a change felt big.
   `actions/download-artifact` 8.0.2 and `github/codeql-action` 4.38.3
   ([#42](https://github.com/sebastienrousseau/passmcp/pull/42)).
 
+### Security
+
+- **Build with Go 1.26.9.** The `go` directive moves from 1.26.8, which
+  `govulncheck` reports as reachable by twelve standard-library
+  advisories in `net/http`, its HTTP/2 implementation, `net/textproto`,
+  `crypto/tls` and `html/template` (GO-2026-6599 to GO-2026-6617), all
+  fixed in 1.26.9. Release binaries are built with this toolchain.
+
 ## [0.0.6] - 2026-10-12
 
 ### Changed

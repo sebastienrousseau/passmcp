@@ -19,7 +19,7 @@
   <a href="https://scorecard.dev/viewer/?uri=github.com/sebastienrousseau/passmcp"><img src="https://img.shields.io/ossf-scorecard/github.com/sebastienrousseau/passmcp?style=for-the-badge&label=OpenSSF%20Scorecard&logo=openssf" alt="OpenSSF Scorecard" /></a>
   <a href="https://www.bestpractices.dev/projects/15080"><img src="https://www.bestpractices.dev/projects/15080/badge" alt="OpenSSF Best Practices" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue.svg?style=for-the-badge" alt="License: GPL-3.0-only" /></a>
-  <a href="https://github.com/sebastienrousseau/passmcp/blob/main/DEVELOPMENT.md#requirements"><img src="https://img.shields.io/badge/go-1.26.8%2B-93450a.svg?style=for-the-badge&logo=go" alt="Go 1.26.8+" /></a>
+  <a href="https://github.com/sebastienrousseau/passmcp/blob/main/DEVELOPMENT.md#requirements"><img src="https://img.shields.io/badge/go-1.26.9%2B-93450a.svg?style=for-the-badge&logo=go" alt="Go 1.26.9+" /></a>
 </p>
 
 <p align="center">
@@ -119,7 +119,7 @@ pseudo-version.
 
 ### Build from source
 
-Requires Go 1.26.8+:
+Requires Go 1.26.9+:
 
 ```bash
 git clone https://github.com/sebastienrousseau/passmcp.git
@@ -164,7 +164,7 @@ sudo dnf install golang
 
 | | |
 |---|---|
-| **Go** | The `go` directive in [`go.mod`](go.mod) — currently **1.26.8** |
+| **Go** | The `go` directive in [`go.mod`](go.mod) — currently **1.26.9** |
 | **Network** | Outbound HTTPS to the server under test and its authorization server |
 
 The Go floor is stated in exactly one place, `go.mod`, and CI sets
