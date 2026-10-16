@@ -4,7 +4,9 @@
 package telemetry
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/url"
 	"sort"
 	"strings"
@@ -142,16 +144,46 @@ var sensitiveJSONKeys = map[string]bool{
 // JSON masks sensitive keys in a JSON document (recursively) and registers
 // their values. Non-JSON input is returned through String.
 func (r *Redactor) JSON(body []byte) string {
-	var v any
-	if err := json.Unmarshal(body, &v); err != nil {
+	v, ok := decodeJSON(body)
+	if !ok {
 		return r.String(string(body))
 	}
 	v = r.maskValue(v)
-	out, err := json.Marshal(v)
+	out, err := encodeJSON(v)
 	if err != nil {
 		return r.String(string(body))
 	}
 	return r.String(string(out))
+}
+
+// decodeJSON parses body as exactly one JSON value, as json.Unmarshal
+// would, but keeps each number as the text the server wrote. Decoding into
+// float64 rewrote an id above 2^53 as a different id, which is evidence a
+// report must not alter.
+func decodeJSON(body []byte) (any, bool) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	var v any
+	if dec.Decode(&v) != nil {
+		return nil, false
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, false
+	}
+	return v, true
+}
+
+// encodeJSON marshals v without HTML escaping, so "<a>&" in a server's
+// body reads as "<a>&" in the report rather than "\u003ca\u003e\u0026".
+// Every renderer escapes for its own medium.
+func encodeJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 func (r *Redactor) maskValue(v any) any {
