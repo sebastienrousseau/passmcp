@@ -367,14 +367,6 @@ func (s *Server) admit(w http.ResponseWriter, r *http.Request) (engine.RunSpec, 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return engine.RunSpec{}, false
 	}
-
-	spec.Version = s.opts.Version
-	spec = spec.WithDefaults()
-	// One validator for every surface, so a browser gets the CLI's error.
-	if err := spec.Validate(); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return engine.RunSpec{}, false
-	}
 	return spec, true
 }
 
