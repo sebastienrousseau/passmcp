@@ -278,12 +278,10 @@ func probeMalformedJSON(s *Session, raw rawProbe) Finding {
 	rep, err := raw("malformed json", rawSend{Body: []byte(`{"jsonrpc":"2.0","id":1,"method":`)})
 	switch {
 	case err != nil:
-		// Over a pipe, silence is the common answer and it is a finding:
-		// JSON-RPC requires a parse error to be reported, and a host whose
-		// call never returns cannot tell a slow server from a lost one.
+		// Over a pipe the official SDKs drop an unparsable line on purpose: a
+		// reply can start an error storm (rust-sdk#938). Reported, not scored.
 		if s.overStdio() {
-			return c.fail(Minor, "no answer to a truncated message: "+err.Error(),
-				"answer a body that does not parse with -32700 and a null id, rather than ignoring it")
+			return c.info("no answer to a truncated line (" + err.Error() + "); the official MCP SDKs ignore unparsable input on a pipe")
 		}
 		return c.warn("request failed: "+err.Error(), "")
 	case rep.HTTP && rep.Status == http.StatusBadRequest:

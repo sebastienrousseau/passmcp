@@ -67,6 +67,12 @@ type rawSend struct {
 	// different and less true finding. Over HTTP the answer arrives on the
 	// request's own response, so there is nothing to match.
 	AnyMessage bool
+	// OmitProtocolVersion and OmitSession leave those headers off an HTTP
+	// request, which is how a handshake-era initialize is sent: before the
+	// handshake there is no version to repeat and no session to name. Over
+	// a pipe there are no headers, so they do nothing.
+	OmitProtocolVersion bool
+	OmitSession         bool
 }
 
 // rawReply is what came back.
@@ -87,6 +93,7 @@ func (s *Session) rawExchange(ctx context.Context, send rawSend) (rawReply, erro
 	if tr, ok := s.Client.HTTP(); ok {
 		raw, err := tr.Do(ctx, transport.RawOptions{
 			Request: send.Request, Body: send.Body, SkipDialect: send.SkipDialect,
+			OmitProtocolVersion: send.OmitProtocolVersion, OmitSession: send.OmitSession,
 		})
 		if err != nil {
 			return rawReply{HTTP: true}, err
