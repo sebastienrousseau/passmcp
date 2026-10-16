@@ -35,6 +35,17 @@ project announces that a change felt big.
   session. Found against noyalib-mcp 0.0.58, which serves 2025-11-25
   and 2025-06-18 on both transports.
 
+### Changed
+
+- **Bump `golang.org/x/sys` to v0.49.0**, with `SBOM.md` updated to
+  match ([#40](https://github.com/sebastienrousseau/passmcp/pull/40)).
+- **Bump the `tools` module group**: `golang.org/x/mod` 0.42.0,
+  `x/sync` 0.24.0, `x/sys` 0.49.0, `x/tools` 0.51.0 and `x/telemetry`
+  ([#41](https://github.com/sebastienrousseau/passmcp/pull/41)).
+- **Bump the GitHub Actions group**: `actions/upload-artifact` 7.0.2,
+  `actions/download-artifact` 8.0.2 and `github/codeql-action` 4.38.3
+  ([#42](https://github.com/sebastienrousseau/passmcp/pull/42)).
+
 ## [0.0.6] - 2026-10-12
 
 ### Changed
