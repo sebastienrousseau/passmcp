@@ -100,6 +100,29 @@ jobs:
             echo "::endgroup::"
           done
 
+  # The test matrix runs on three systems; passmcp and its library build for
+  # more. A build constraint that names the wrong set of platforms compiles
+  # everywhere the matrix looks and fails for the first user elsewhere, so
+  # the other targets are compiled here. Building is the whole check: none
+  # of these can run the suite on a hosted runner.
+  cross-compile:
+    name: Cross-compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No actions/setup-go, as in hardened-tests: GOTOOLCHAIN=auto honours
+      # the `go` directive in go.mod.
+      - name: Build for linux/386, linux/arm, freebsd/amd64, windows/arm64 and wasm
+        env:
+          GOTOOLCHAIN: auto
+        run: make cross
+
   # Coverage is gated per package, not in aggregate: an aggregate can be
   # carried by one large well-tested package while a small one goes
   # untested. 85% is the threshold; the rationale is in DEVELOPMENT.md.

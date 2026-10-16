@@ -13,7 +13,7 @@ export CGO_ENABLED = 0
 COVER_MIN ?= 85
 BRANCH_MIN ?= 80
 
-.PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
+.PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check cross perf \
         fuzz sbom sbom-check notices coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
         ecosystem ecosystem-verify commitlint ssg-check readme-check demo verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
@@ -278,6 +278,25 @@ verify-versions:
 example-check:
 	go run ./scripts/example_check.go
 
+# Compiles for platforms the test matrix does not run on, so a build
+# constraint that names the wrong set of systems fails here rather than for
+# the first user of that platform. 32-bit Linux catches syscall field
+# widths; FreeBSD and windows/arm64 the !windows and GOOS switches. The
+# library packages, which are importable on their own, must also build for
+# WebAssembly, where there are no processes to start.
+CROSS_TARGETS = linux/386 linux/arm freebsd/amd64 windows/arm64
+WASM_TARGETS = wasip1/wasm js/wasm
+LIBRARY_PKGS = . ./transport ./auth ./diagnostics
+cross:
+	@set -e; for t in $(CROSS_TARGETS); do \
+	  echo "cross: ./... for $$t"; \
+	  CGO_ENABLED=0 GOOS=$${t%/*} GOARCH=$${t#*/} GOARM=7 go build ./...; \
+	done; \
+	for t in $(WASM_TARGETS); do \
+	  echo "cross: library packages for $$t"; \
+	  CGO_ENABLED=0 GOOS=$${t%/*} GOARCH=$${t#*/} go build $(LIBRARY_PKGS); \
+	done
+
 fuzz:
 	scripts/fuzz.sh
 
@@ -302,7 +321,7 @@ clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check notices trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check cross readme-check demo verify-versions fuzz sbom sbom-check notices trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).

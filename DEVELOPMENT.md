@@ -102,6 +102,7 @@ is the cross-platform matrix.
 | Licence headers (SPDX) | `make spdx-check` |
 | SBOM drift | `make sbom-check` |
 | Example compilation | `make example-check` |
+| Cross-compile (linux/386, linux/arm, freebsd/amd64, windows/arm64; library packages for wasm) | `make cross` |
 | API compatibility | `make api-check` |
 | Check inventory | `make checks-verify` (regenerate with `make checks`) |
 | Acceptance-criteria trace | `make trace-check` (report only: `make trace`) |
