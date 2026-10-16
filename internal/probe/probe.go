@@ -29,6 +29,7 @@ import (
 	"satellion.com/passmcp/internal/egress"
 	"satellion.com/passmcp/internal/supply"
 	"satellion.com/passmcp/internal/telemetry"
+	"satellion.com/passmcp/internal/termsafe"
 	"satellion.com/passmcp/internal/witness"
 	"satellion.com/passmcp/spec/controls"
 	"satellion.com/passmcp/trace"
@@ -779,13 +780,7 @@ func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func truncate(s string, n int) string {
-	s = strings.TrimSpace(s)
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
-}
+func truncate(s string, n int) string { return termsafe.Truncate(strings.TrimSpace(s), n, "…") }
 
 // ms renders a duration in milliseconds. It accepts both time.Duration and
 // Millis so call sites need not convert.

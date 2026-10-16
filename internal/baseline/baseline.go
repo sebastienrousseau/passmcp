@@ -35,6 +35,7 @@ import (
 
 	"satellion.com/passmcp"
 	"satellion.com/passmcp/diagnostics"
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // Version is the snapshot format. A file written by a later passmcp is
@@ -409,11 +410,7 @@ func hintString(b *bool) string {
 }
 
 func truncate(s string, n int) string {
-	s = strings.Join(strings.Fields(s), " ")
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
+	return termsafe.Truncate(strings.Join(strings.Fields(s), " "), n, "…")
 }
 
 // Worst returns the highest severity in a set of changes.
