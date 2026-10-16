@@ -307,7 +307,7 @@ func TestIsLoopback(t *testing.T) {
 		want bool
 	}{
 		{"localhost", true},
-		{"", true},
+		{"", false}, // ":8080" listens on every interface
 		{"127.0.0.1", true},
 		{"::1", true},
 		{"0.0.0.0", false},

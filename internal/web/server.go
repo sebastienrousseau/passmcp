@@ -166,14 +166,6 @@ func newToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b[:]), nil
 }
 
-func isLoopback(host string) bool {
-	if host == "localhost" || host == "" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
-}
-
 func (s *Server) routes() {
 	shell, err := fs.Sub(dist, "dist")
 	if err != nil {

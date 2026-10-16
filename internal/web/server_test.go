@@ -129,6 +129,13 @@ func TestRemoteBindRefused(t *testing.T) {
 	if _, err := New(Options{Addr: "0.0.0.0:0", AllowRemote: true}); err != nil {
 		t.Errorf("--allow-remote must permit it: %v", err)
 	}
+	// An empty host is the wildcard to net.Listen, every interface, not
+	// loopback: ":8080" must need --allow-remote as "0.0.0.0:8080" does.
+	for _, addr := range []string{":0", ":8080", "[::]:0"} {
+		if _, err := New(Options{Addr: addr}); err == nil {
+			t.Errorf("%q binds every interface and must be refused by default", addr)
+		}
+	}
 	if _, err := New(Options{Addr: "nonsense"}); err == nil {
 		t.Error("an unparsable address must be an error")
 	}
