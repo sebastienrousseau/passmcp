@@ -129,6 +129,12 @@ type removedMethod struct {
 	Method string
 	Was    string
 	Params json.RawMessage
+	// Handshake sends the method the way a client that negotiated down
+	// would: as a handshake-era request, with no stateless _meta, no
+	// protocol-version header and no session. A server serving both
+	// generations routes initialize by those, so asking in the stateless
+	// dialect only learns that the dialect and the method disagree.
+	Handshake bool
 }
 
 // removedMethods are the two the revision removed that a server can still be
@@ -137,7 +143,7 @@ type removedMethod struct {
 // the first cannot be probed by asking for it — a server either issues one
 // or it does not, which handshake.session already reports.
 var removedMethods = []removedMethod{
-	{Method: "initialize", Was: "the opening handshake"},
+	{Method: "initialize", Was: "the opening handshake", Handshake: true},
 	{Method: "ping", Was: "liveness"},
 }
 
@@ -161,20 +167,17 @@ func checkDeprecatedFeatures(ctx context.Context, s *Session) Finding {
 		return c.skip("this server speaks a handshake revision, where initialize and ping are the protocol; handshake.protocol_era reports the generation")
 	}
 
+	declared := handshakeVersionsDeclared(s)
 	var served []string
 	for _, m := range removedMethods {
-		id := s.nextID()
 		rctx, cancel := s.stdioDeadline(telemetry.WithPhase(ctx, "protocol", "removed "+m.Method))
-		rep, err := s.rawExchange(rctx, rawSend{Request: &transport.Request{
-			JSONRPC: "2.0", ID: &id, Method: m.Method, Params: m.Params,
-		}})
+		rep, err := s.rawExchange(rctx, removedMethodRequest(s, m, declared))
 		cancel()
 		if err == nil && replied(rep) {
 			served = append(served, fmt.Sprintf("%s (%s)", m.Method, m.Was))
 		}
 	}
 
-	declared := handshakeVersionsDeclared(s)
 	if len(served) == 0 {
 		if len(declared) > 0 {
 			// It declares the older revisions and does not serve them. That
@@ -196,6 +199,28 @@ func checkDeprecatedFeatures(ctx context.Context, s *Session) Finding {
 		fmt.Sprintf("still answers %s, which %s removed, and supportedVersions declares no handshake revision",
 			list(served), passmcp.StatelessVersions[0]),
 		"decide which this is. To keep serving older clients, list the handshake revisions in the server/discover result's supportedVersions so a client can negotiate down on purpose. To stop, remove the handlers — an endpoint no current client calls is reached only by stale software and by whoever is looking for one")
+}
+
+// removedMethodRequest is how checkDeprecatedFeatures asks for m. A
+// handshake method asks for the newest handshake revision the server
+// declared, or passmcp's newest when it declared none, so the question is
+// the one a falling-back client would put.
+func removedMethodRequest(s *Session, m removedMethod, declared []string) rawSend {
+	id := s.nextID()
+	req := &transport.Request{JSONRPC: "2.0", ID: &id, Method: m.Method, Params: m.Params}
+	if !m.Handshake {
+		return rawSend{Request: req}
+	}
+	version := passmcp.SupportedProtocolVersions[0]
+	if len(declared) > 0 {
+		version = declared[len(declared)-1] // sorted, so the newest
+	}
+	req.Params, _ = jsonMarshal(map[string]any{
+		"protocolVersion": version,
+		"capabilities":    map[string]any{},
+		"clientInfo":      map[string]string{"name": "passmcp", "version": s.Opts.Version},
+	})
+	return rawSend{Request: req, SkipDialect: true, OmitProtocolVersion: true, OmitSession: true}
 }
 
 // handshakeVersionsDeclared is the handshake revisions the server said it

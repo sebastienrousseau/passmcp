@@ -36,6 +36,11 @@ type statelessOpts struct {
 	// generations; the default fake does not, so the conformant case is the
 	// one the other tests run against.
 	serveRemoved bool
+	// serveHandshake answers initialize only when it arrives as a
+	// handshake-era request (no _meta, no protocol-version header) and
+	// refuses one sent in the stateless dialect, as rmcp does when one
+	// binary serves both generations.
+	serveHandshake bool
 	// supportedVersions and extensions are raw JSON arrays the discover
 	// result declares. Raw, because the point of these tests is what a
 	// server can put on the wire, including shapes Go's own types would
@@ -102,9 +107,10 @@ func statelessFake(t *testing.T, o statelessOpts) *httptest.Server {
 			ID     json.RawMessage `json:"id"`
 			Method string          `json:"method"`
 			Params struct {
-				Name   string         `json:"name"`
-				TaskID string         `json:"taskId"`
-				Meta   map[string]any `json:"_meta"`
+				Name            string         `json:"name"`
+				TaskID          string         `json:"taskId"`
+				ProtocolVersion string         `json:"protocolVersion"`
+				Meta            map[string]any `json:"_meta"`
 			} `json:"params"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -123,6 +129,13 @@ func statelessFake(t *testing.T, o statelessOpts) *httptest.Server {
 			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"error":{"code":%d,"message":%q}}`, id, code, msg)
 		}
 
+		if req.Method == "initialize" && (o.serveRemoved || o.serveHandshake) &&
+			req.Params.Meta == nil && r.Header.Get(transport.HeaderProtocolVersion) == "" {
+			// A handshake-era initialize, served by the older generation.
+			w.Header().Set(transport.HeaderSessionID, "handshake-session")
+			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":%q,"capabilities":{"tools":{}},"serverInfo":{"name":"stateless-fake","version":"2.0"}}}`, id, req.Params.ProtocolVersion)
+			return
+		}
 		ver, _ := req.Params.Meta[transport.MetaProtocolVersion].(string)
 		if ver == "" {
 			fail(http.StatusBadRequest, -32602, "missing _meta protocolVersion")
