@@ -22,6 +22,7 @@ targets=(
   "./internal/probe FuzzSchemaValid"
   "./internal/report FuzzHTMLEscaping"
   "./internal/report FuzzFixFirst"
+  "./internal/telemetry FuzzRedactorMatchesOracle"
   "./internal/termsafe FuzzString"
 )
 for t in "${targets[@]}"; do
