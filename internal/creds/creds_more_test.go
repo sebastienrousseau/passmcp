@@ -115,21 +115,22 @@ func TestHTTPWrapper(t *testing.T) {
 
 func TestStorePathsAndErrors(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/xdg")
-	if DefaultStorePath() != filepath.Join("/xdg", "passmcp", "tokens.json") {
-		t.Errorf("xdg store = %s", DefaultStorePath())
+	if p, err := DefaultStorePath(); err != nil || p != filepath.Join("/xdg", "passmcp", "tokens.json") {
+		t.Errorf("xdg store = %s, %v", p, err)
 	}
 	t.Setenv("XDG_CONFIG_HOME", "")
 	home, _ := os.UserHomeDir()
-	if DefaultStorePath() != filepath.Join(home, ".config", "passmcp", "tokens.json") {
-		t.Errorf("home store = %s", DefaultStorePath())
+	if p, err := DefaultStorePath(); err != nil || p != filepath.Join(home, ".config", "passmcp", "tokens.json") {
+		t.Errorf("home store = %s, %v", p, err)
 	}
-	t.Setenv("HOME", "")
-	if !strings.HasSuffix(DefaultStorePath(), filepath.Join(".config", "passmcp", "tokens.json")) {
-		t.Errorf("fallback store = %s", DefaultStorePath())
+	unsetHome(t)
+	if p, err := DefaultStorePath(); err == nil {
+		t.Errorf("no home directory, yet a store path: %s", p)
 	}
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	s := &Store{}
-	if s.path() != DefaultStorePath() {
+	want, _ := DefaultStorePath()
+	if p, _ := s.path(); p != want {
 		t.Error("empty Path uses default")
 	}
 	if err := s.Put(StoredToken{Endpoint: "e", AccessToken: "a"}); err != nil {

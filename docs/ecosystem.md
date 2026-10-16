@@ -151,9 +151,10 @@ ambiguity for a security diagnostic.
 
 1. **One source.** `passmcp`'s tag is the only place a version is authored.
    Satellites never choose their own.
-2. **Propagation is automatic.** A release fires `repository_dispatch` at
-   each satellite, which writes the version, pins the image *by digest*,
-   tags itself and deploys.
+2. **Propagation is automated up to the tag.** A release fires
+   `repository_dispatch` at a satellite, which writes the version and pins
+   the image *by digest* on its `feat/vX.Y.Z` branch. A person reviews and
+   merges that pull request and pushes the signed tag.
 3. **Drift is a red check.** Each satellite carries a required
    `Version Lockstep` status check comparing its version to the latest
    published `passmcp` release. Disagreement blocks the merge.
@@ -165,14 +166,17 @@ deployed is not.
 
 *All three rules are in force.* How each repository meets them differs, and
 is stated here as it is, not as it will be. `passmcp-action` and
-`passmcp-server` follow passmcp's release exactly as rule 2 describes: the
-release fires `repository_dispatch` at them, each pins the new image by
-digest, and each one's `Version Lockstep` check refuses a version that is not
-passmcp's latest. `passmcp-reporting` runs the other way, because passmcp
+`passmcp-server` follow passmcp's release as rule 2 describes: the release
+fires `repository_dispatch` at them, and each one's sync workflow commits the
+version and the image digest onto its `feat/vX.Y.Z` branch, or opens
+`sync/vX.Y.Z` when that branch does not exist. It does not merge or tag; the
+owner does, after the pull request's checks are restarted (commits made with
+the workflow's own token start no workflows). Each one's `Version Lockstep`
+check refuses a version that is not passmcp's latest. `passmcp-reporting` runs the other way, because passmcp
 *imports* it: it tags first, so that passmcp's `go.mod` can name the version,
 and its lockstep check allows it to be exactly one release ahead of passmcp's
-latest and nothing else. The dispatch reaches it too, as the signal that the
-release it tagged for has shipped.
+latest and nothing else. It has no dispatch workflow: nothing in it reacts to
+passmcp's release.
 
 The rule binds every repository in the family: every row above says yes in
 its **Lockstep** column, and `internal/ecosystem` refuses a row that does not.

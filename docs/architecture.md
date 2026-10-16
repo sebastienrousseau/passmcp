@@ -19,38 +19,49 @@ asserted separately.
 
 ## Package layout
 
+Packages fall into layers. `go list ./...` and each package's doc comment
+are the authoritative list; this section is the map.
+
 ```text
-cmd/passmcp            main(); nothing but a call into cmd
-cmd/                 cobra commands, shared flag groups, config precedence
-internal/probe       the nine phases and the Session they share
-internal/report      Report model, scoring, text/Markdown renderers
-internal/telemetry   httptrace recorder, redaction, HAR/NDJSON export
-internal/creds       credential model, env resolution, token store
-internal/config      flag-keyed config file with defaults and profiles
-internal/diag        levelled diagnostics, always to stderr
-internal/tui         Bubble Tea run view (phase list, report viewport), tool selector, braille logo
-passmcp (root)         public client: Connect state machine, catalog, calls
-auth/                RFC 9110/9728/8414/7591/8707 + PKCE, token sources
-transport/           Streamable HTTP: JSON-RPC over POST, SSE, sessions
-diagnostics/         policy, schema-driven arguments, validator, limiter
-trace/               per-run trace id in context and X-MCP-Trace-ID
+surfaces        cmd/ (cobra commands, flags, config precedence),
+                cmd/passmcp (main), internal/tui (terminal views),
+                internal/web (passmcp serve: browser app and --public mode)
+orchestration   internal/engine: the one place a run is configured
+                (RunSpec), validated and started, for every surface
+multi-target    internal/fleet (scheduled sets), internal/watch (drift),
+                internal/discover (find and prove MCP endpoints)
+diagnostic      internal/probe (the phases and their Session), with
+                internal/egress, canary, witness, supply, clientconf and
+                diagnostics/ (policy, generated arguments, validation)
+results         internal/report (model, score, renderers), attest,
+                baseline, policy (gates), enrich, ocsf, otlp, a2a
+support         internal/telemetry (recorder, redaction, HAR/NDJSON),
+                internal/creds, config, diag, termsafe
+public library  passmcp (root client), auth/, transport/, diagnostics/,
+                trace/, attestation/, spec/controls; none imports
+                internal/ or cmd/, and only attestation/ (which forwards
+                to passmcp-reporting) goes beyond the standard library
 ```
 
 Dependencies run one way:
 
 ```text
-cmd ──► probe ──► passmcp ──► auth
-  │       │         └────► transport
-  │       ├──► creds ──► auth
-  │       ├──► telemetry ──► trace
-  │       └──► diagnostics ──► passmcp
-  ├──► report ──► probe
-  └──► config
+cmd ──► web, fleet, watch, discover ──► engine
+engine ──► probe ──► passmcp ──► auth, transport
+   │         ├──► creds ──► auth, telemetry
+   │         ├──► telemetry ──► trace
+   │         └──► diagnostics ──► passmcp
+   └──► report, attest, baseline, policy, ocsf, otlp ──► probe (Finding)
 ```
+
+The result packages import `probe` only for the `Finding` model.
+`discover` reaches `engine` to validate what it found, which is the one
+edge that points from a source package to the orchestrator.
 
 ## The run
 
-`probe.Run` builds one `http.Client` whose transport is wrapped by the
+Every surface builds an `engine.RunSpec` and calls `engine.Run`, which
+validates it and hands probe its options. `probe.Run` builds one `http.Client` whose transport is wrapped by the
 telemetry recorder, then wraps that again for the client: trace header,
 fixed headers (API keys, basic auth), and the bearer transport. A second,
 bare transport to the same endpoint carries nothing but the trace header;
@@ -88,7 +99,8 @@ critical zeroes the category, major costs 40, minor 15; every warn costs 5.
 
 The recorder owns a `Redactor`. Operator-supplied secrets are registered
 before the first request. Header values are masked by name policy
-(Authorization, Cookie, anything containing key/token/secret). Query
+(`telemetry.SensitiveHeader`: Authorization, Proxy-Authorization,
+cookies, anything containing key, token, secret, password or auth). Query
 parameters and form fields are masked by name. JSON bodies are masked
 structurally: `access_token`, `refresh_token`, `client_secret`, `code`
 and friends are replaced and their values registered, so a token issued

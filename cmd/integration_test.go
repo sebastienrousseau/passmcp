@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -22,61 +23,93 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"satellion.com/passmcp/internal/diag"
 	"satellion.com/passmcp/internal/engine"
-	"satellion.com/passmcp/internal/supply"
 )
 
-// resetAll restores every package-level flag variable and command state.
+// resetAll restores every flag of every command to its default, and the
+// little package state that is not a flag. It walks the command tree
+// rather than listing variables, so a flag added later is reset without
+// anybody remembering to.
 func resetAll() {
-	resetFlags()
-	allowMutations, allowDestructive = false, false
-	onlyTools, denyTools = nil, nil
-	samples, concurrency, rps, callTimeout, seed = 5, 4, 2, 30*time.Second, 1
-	fillOpt, allowLoad, maxRes, maxPrompts = false, false, 25, 25
-	output, reportDir, captureBodies, withEvents, verbose, noColor = "text", "", false, false, false, false
-	interactive = false
-	phasesOnly, phasesSkip = nil, nil
-	callArgsJSON, callArgs, promptArgs = "", nil, nil
-	redirectPort, tokenAuthMethod = 8976, ""
-	userAgent = ""
-	logLevel = "info"
-	verifyEndpoint, verifyTransport, verifyRequire = "", "http", nil
-	verifyAgainst = ""
-	verifyReproduce, reproPerm = false, reproducePermissions{}
-	overlapOutput = "text"
-	explainModel, explainKeyEnv, explainURL, explainOutput, explainCurl = "", "ANTHROPIC_API_KEY", "https://api.anthropic.com", "md", ""
-	verifyMaxFail, verifyMinScore, verifyOutput = 0, 0.0, "text"
-	verifyPolicy, policyFile = "", ""
-	baselineFile, approveBaseline = "", false
-	badgeLabel = "passmcp"
-	sbomOSV, sbomOSVURL = false, supply.DefaultOSVEndpoint
-	watchInterval, watchOnce = 0, false
-	watchEgress, expectEgress, plantCanaries, faultUpstream = false, nil, false, false
-	retain, verifyFramework = "", ""
-	evidenceFramework, evidenceFrom, evidenceTo, evidenceOutDir, evidenceReports = "", "", "", ".", nil
-
-	wrongAudienceTokenEnv, clientConfigFile = "", ""
-
-	ocsfEndpoint, ocsfHeaders = "", nil
-	fleetState, fleetOutput, fleetOCSFEndpoint, fleetOCSFHeaders = "", "text", "", nil
-
-	a2aOutput, a2aTimeout, a2aAllowPrivate = "text", 20*time.Second, false
-	// cobra remembers Changed between runs, and the help flag keeps its
-	// value, so a --help run would turn every later run into help output.
-	reset := func(f *pflagFlag) {
-		f.Changed = false
-		if f.Name == "help" {
-			_ = f.Value.Set("false")
-		}
-	}
-	for _, c := range append(rootCmd.Commands(), rootCmd) {
-		c.Flags().VisitAll(reset)
-		c.PersistentFlags().VisitAll(reset)
+	endpointFromProfile = "" // set by applyConfig from --profile, not a flag
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		c.Flags().VisitAll(resetFlag)
+		c.PersistentFlags().VisitAll(resetFlag)
 		for _, sub := range c.Commands() {
-			sub.Flags().VisitAll(reset)
+			walk(sub)
 		}
 	}
+	walk(rootCmd)
+}
+
+// resetFlag puts f back to its default and clears Changed: cobra remembers
+// it between runs, and a help flag left true turns every later run into
+// help output. A slice flag is replaced rather than Set, because Set on a
+// slice flag that was already set appends.
+func resetFlag(f *pflagFlag) {
+	f.Changed = false
+	var err error
+	if sv, ok := f.Value.(pflag.SliceValue); ok {
+		err = sv.Replace(sliceDefault(f.DefValue))
+	} else {
+		err = f.Value.Set(f.DefValue)
+	}
+	if err != nil {
+		panic(fmt.Sprintf("resetAll: --%s cannot be reset to %q: %v", f.Name, f.DefValue, err))
+	}
+}
+
+// sliceDefault parses a slice flag's DefValue, which pflag renders as
+// "[a,b]", or "[]" for none.
+func sliceDefault(def string) []string {
+	def = strings.TrimSuffix(strings.TrimPrefix(def, "["), "]")
+	if def == "" {
+		return nil
+	}
+	return strings.Split(def, ",")
+}
+
+// resetAll must undo every flag a test can set, on every command, or one
+// test's flags leak into the next run. A hand-kept list missed flags as
+// they were added; these are some it missed, of each kind.
+func TestResetAllRestoresEveryFlag(t *testing.T) {
+	set := []struct {
+		cmd       *cobra.Command
+		name, val string
+		isDefault func() bool
+	}{
+		{checkCmd, "otlp-endpoint", "http://collector.invalid", func() bool { return otlpEndpoint == "" }},
+		{checkCmd, "otlp-header", "X-A: b", func() bool { return len(otlpHeaders) == 0 }},
+		{checkCmd, "guidance", "true", func() bool { return !withGuidance }},
+		{checkCmd, "phases", "net,auth", func() bool { return len(phasesOnly) == 0 }},
+		{checkCmd, "samples", "9", func() bool { return samples == 5 }},
+		{serveCmd, "addr", "127.0.0.1:9", func() bool { return serveAddr == "127.0.0.1:0" }},
+		{discoverCmd, "paths", "/a,/b", func() bool { return len(discoverOpts.paths) == 0 }},
+	}
+	for _, s := range set {
+		if err := s.cmd.Flags().Set(s.name, s.val); err != nil {
+			t.Fatalf("--%s: %v", s.name, err)
+		}
+	}
+	resetAll()
+	for _, s := range set {
+		if !s.isDefault() {
+			t.Errorf("--%s kept its value after resetAll", s.name)
+		}
+		if s.cmd.Flags().Lookup(s.name).Changed {
+			t.Errorf("--%s is still marked changed after resetAll", s.name)
+		}
+	}
+	// A slice flag set again after a reset holds the new value alone.
+	_ = checkCmd.Flags().Set("phases", "net")
+	if len(phasesOnly) != 1 || phasesOnly[0] != "net" {
+		t.Errorf("phases after reset and set = %v", phasesOnly)
+	}
+	resetAll()
 }
 
 // run executes the CLI with args, capturing stdout and the exit code passed

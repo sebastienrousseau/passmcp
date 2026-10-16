@@ -167,27 +167,36 @@ func (e *ErrInsecurePermissions) Error() string {
 	return fmt.Sprintf("token store %s is mode %#o; it holds refresh tokens and must not be readable by other users (chmod 600 %s)", e.Path, e.Mode.Perm(), e.Path)
 }
 
-// DefaultStorePath is $XDG_CONFIG_HOME/passmcp/tokens.json.
-func DefaultStorePath() string {
+// DefaultStorePath is $XDG_CONFIG_HOME/passmcp/tokens.json, else
+// ~/.config/passmcp/tokens.json.
+//
+// With neither known it fails rather than fall back to a path relative to
+// the working directory. That directory is often a git repository, and a
+// refresh token written there is one `git add .` from being published.
+func DefaultStorePath() (string, error) {
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "passmcp", "tokens.json")
+		return filepath.Join(x, "passmcp", "tokens.json"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".config", "passmcp", "tokens.json")
+		return "", fmt.Errorf("token store: no home directory to keep it in "+
+			"(set HOME or XDG_CONFIG_HOME): %w", err)
 	}
-	return filepath.Join(home, ".config", "passmcp", "tokens.json")
+	return filepath.Join(home, ".config", "passmcp", "tokens.json"), nil
 }
 
-func (s *Store) path() string {
+func (s *Store) path() (string, error) {
 	if s.Path != "" {
-		return s.Path
+		return s.Path, nil
 	}
 	return DefaultStorePath()
 }
 
 func (s *Store) load() (map[string]StoredToken, error) {
-	p := s.path()
+	p, err := s.path()
+	if err != nil {
+		return nil, err
+	}
 	info, err := os.Stat(p)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -207,7 +216,7 @@ func (s *Store) load() (map[string]StoredToken, error) {
 	}
 	out := map[string]StoredToken{}
 	if err := json.Unmarshal(b, &out); err != nil {
-		return nil, fmt.Errorf("token store %s: %w", s.path(), err)
+		return nil, fmt.Errorf("token store %s: %w", p, err)
 	}
 	return out, nil
 }
@@ -262,7 +271,10 @@ func (s *Store) Delete(endpoint string) error {
 // write would otherwise lose every other endpoint's token, not just the one
 // being changed.
 func (s *Store) save(all map[string]StoredToken) error {
-	p := s.path()
+	p, err := s.path()
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}

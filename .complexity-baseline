@@ -7,7 +7,6 @@
 # metric value file function
 cognitive 20 cmd/attest.go gate
 cognitive 18 cmd/attest.go writeVerification
-cognitive 16 cmd/subcommands.go connectWithCreds
 cognitive 16 diagnostics/fuzz.go (*Generator).number
 cognitive 19 diagnostics/poison.go decodeReadable
 cognitive 16 internal/a2a/defaults.go stripValue
@@ -28,7 +27,6 @@ cognitive 17 internal/trace/scan.go scanFile
 cognitive 16 internal/tui/selector.go (*selectorModel).View
 cognitive 16 transport/streamable.go readSSEResponse
 cyclomatic 11 auth/roundtripper.go (*Transport).RoundTrip
-cyclomatic 11 auth/wwwauth.go readToken68
 cyclomatic 12 client.go (*Client).Connect
 cyclomatic 13 client.go (*Client).Discover
 cyclomatic 11 client.go (*Client).registrationOptions
@@ -49,11 +47,9 @@ cyclomatic 13 internal/commitlint/lint.go Lint
 cyclomatic 11 internal/creds/creds.go (*Credentials).Apply
 cyclomatic 11 internal/creds/keyring.go SelectKeyring
 cyclomatic 11 internal/discover/probe.go (*prober).statelessDiscover
-cyclomatic 12 internal/discover/sources.go stripJSONC
 cyclomatic 11 internal/egress/proxy.go (*Proxy).forward
 cyclomatic 13 internal/engine/write.go (*Result).Render
 cyclomatic 12 internal/engine/write.go (*Result).WriteDir
-cyclomatic 11 internal/ocsf/send.go (Sender).Send
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender
 cyclomatic 13 internal/probe/attacks.go privateReader
@@ -70,8 +66,7 @@ cyclomatic 11 internal/report/render_text.go writeDetailFinding
 cyclomatic 12 internal/supply/lock_toml.go (*tomlReader).line
 cyclomatic 11 internal/telemetry/recorder.go (*roundTripper).RoundTrip
 cyclomatic 13 internal/tui/run.go (*RunModel).stepLine
-cyclomatic 12 internal/web/server.go (*Server).admit
-cyclomatic 11 internal/web/server.go New
+cyclomatic 11 internal/web/server.go (*Server).admit
 cyclomatic 11 internal/witness/witness.go (*Watcher).sample
 cyclomatic 11 scripts/trace/main.go mainErr
 cyclomatic 11 spec/controls/controls.go (*Mapping).Problems
@@ -86,12 +81,11 @@ file-lines 516 internal/engine/spec.go -
 file-lines 523 internal/probe/attacks.go -
 file-lines 520 internal/probe/phase_auth.go -
 file-lines 512 internal/probe/phase_exec.go -
-file-lines 581 internal/probe/phase_protocol.go -
-file-lines 813 internal/probe/probe.go -
-file-lines 556 internal/report/render_text.go -
+file-lines 579 internal/probe/phase_protocol.go -
+file-lines 808 internal/probe/probe.go -
+file-lines 554 internal/report/render_text.go -
 file-lines 520 internal/supply/osv.go -
-file-lines 742 internal/telemetry/recorder.go -
-file-lines 662 internal/web/server.go -
+file-lines 623 internal/telemetry/recorder.go -
+file-lines 636 internal/web/server.go -
 file-lines 615 scripts/checkinventory/main.go -
 lines 62 internal/engine/run.go probeOptions
-lines 64 transport/stdio.go StartStdio

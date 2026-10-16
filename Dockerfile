@@ -24,6 +24,9 @@ FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c
 
 ARG TARGETPLATFORM
 COPY ${TARGETPLATFORM}/passmcp /usr/local/bin/passmcp
+# The binary statically links third-party code whose licences ask to travel
+# with it; scripts/notices generates the notices from the build graph.
+COPY LICENSE build/THIRD_PARTY_NOTICES /usr/share/doc/passmcp/
 
 LABEL org.opencontainers.image.source="https://github.com/sebastienrousseau/passmcp" \
       org.opencontainers.image.description="passmcp: onboard, test and diagnose remote MCP servers end to end" \

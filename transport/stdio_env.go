@@ -13,7 +13,13 @@ import (
 // A program needs to be able to find its interpreter and its libraries, and
 // an empty environment breaks almost everything for no security gain — PATH
 // is not a secret. Everything that might be one is left out.
-var BaseEnv = []string{"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "SystemRoot", "COMSPEC", "PATHEXT"}
+//
+// The second line is Windows' equivalent of HOME: where a program finds its
+// own configuration and cache. They are paths, not credentials.
+var BaseEnv = []string{
+	"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "SystemRoot", "COMSPEC", "PATHEXT",
+	"USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH", "SystemDrive", "ProgramData",
+}
 
 // environment builds what the child will see.
 func (c StdioConfig) environment() []string {

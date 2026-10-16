@@ -6,6 +6,7 @@ package creds
 import (
 	"net/url"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,5 +148,26 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 	if got, _ := st.Get("https://x"); got != nil {
 		t.Error("delete failed")
+	}
+}
+
+// TestHeaderSecretsMatchTheRecorder: a header the recorder masks by name
+// must have its value registered as a secret too, or a server echoing it
+// in a body shows it in clear.
+func TestHeaderSecretsMatchTheRecorder(t *testing.T) {
+	c := &Credentials{Headers: map[string]string{
+		"Proxy-Authorization": "Basic cHJveHk6cGFzcw==",
+		"X-Password":          "hunter2-but-longer",
+		"X-Auth":              "auth-value-123",
+		"X-Tenant":            "acme",
+	}}
+	got := strings.Join(c.Secrets(), "\n")
+	for _, want := range []string{"Basic cHJveHk6cGFzcw==", "hunter2-but-longer", "auth-value-123"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("header value %q is not registered as a secret", want)
+		}
+	}
+	if strings.Contains(got, "acme") {
+		t.Error("a tenant header is not a credential and should not be masked everywhere")
 	}
 }

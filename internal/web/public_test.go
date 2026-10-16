@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -435,6 +436,110 @@ func TestOriginKeyRejectsNonAbsolute(t *testing.T) {
 	for _, bad := range []string{"", "/mcp", "mcp.example.com/mcp", "://x"} {
 		if _, err := originKey(bad); err == nil {
 			t.Errorf("%q is not an absolute URL", bad)
+		}
+	}
+}
+
+// TestPublicModeRefusesAClientConfigProgram: --public with --allow-stdio
+// must not run a client_config peer either.
+func TestPublicModeRefusesAClientConfigProgram(t *testing.T) {
+	spy := newSpyServer(t)
+	list := &Allowlist{origins: map[string]string{}}
+	o, err := originKey(spy.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	list.origins[o] = "fixture"
+	s, err := New(Options{Version: "test", Public: true, Allowed: list, AllowStdio: true, RatePerMinute: 600, RateBurst: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(s)
+	t.Cleanup(ts.Close)
+	body := fmt.Sprintf(`{"target":{"endpoint":%q},"phases":{"only":["net"]},`+
+		`"client_config":{"servers":[{"name":"peer","command":"/bin/sh","args":["-c","exit 0"]}]}}`, spy.URL)
+	resp := postRun(t, ts, body)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("a public client_config naming a program returned %d, want 403", resp.StatusCode)
+	}
+}
+
+// fillAll sets every exported field reachable from v to a non-zero value,
+// so a test can see which of them survive a function under test.
+func fillAll(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+		fillAll(v.Elem())
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if v.Type().Field(i).IsExported() {
+				fillAll(v.Field(i))
+			}
+		}
+	case reflect.String:
+		v.SetString("x")
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int, reflect.Int64, reflect.Int32:
+		v.SetInt(1 << 40)
+	case reflect.Uint, reflect.Uint64:
+		v.SetUint(1 << 40)
+	case reflect.Float64:
+		v.SetFloat(1e9)
+	case reflect.Slice:
+		v.Set(reflect.MakeSlice(v.Type(), 1, 1))
+		fillAll(v.Index(0))
+	case reflect.Map:
+		m := reflect.MakeMap(v.Type())
+		k, e := reflect.New(v.Type().Key()).Elem(), reflect.New(v.Type().Elem()).Elem()
+		fillAll(k)
+		fillAll(e)
+		m.SetMapIndex(k, e)
+		v.Set(m)
+	}
+}
+
+// TestPublicSpecIsConstructed: everything an anonymous caller sends is
+// discarded except the fields a public run is built from, and those are
+// bounded. Filling every field, including ones added after this test was
+// written, is what makes it a guard rather than a list: a new RunSpec field
+// that reached a public run would show up here.
+func TestPublicSpecIsConstructed(t *testing.T) {
+	var full engine.RunSpec
+	fillAll(reflect.ValueOf(&full).Elem())
+	got := publicSpec(full)
+	want := engine.RunSpec{
+		Target: engine.TargetSpec{Endpoint: "x"},
+		Creds:  engine.CredSpec{Mode: "none"},
+		Policy: engine.PolicySpec{Only: []string{"x"}, Deny: []string{"x"}, SkipEraCheck: true},
+		Pacing: engine.PacingSpec{RPS: engine.DefaultRPS, CallTimeout: engine.DefaultCallTimeout},
+		Phases: full.Phases,
+		Output: engine.OutputSpec{Format: full.Output.Format},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("publicSpec kept more than it builds:\n got %+v\nwant %+v", got, want)
+	}
+}
+
+// TestPublicPacingIsBounded: a caller may ask a public run to go slower,
+// never faster or longer than the defaults.
+func TestPublicPacingIsBounded(t *testing.T) {
+	for _, c := range []struct {
+		rps, wantRPS    float64
+		to, wantTimeout time.Duration
+	}{
+		{0, engine.DefaultRPS, 0, engine.DefaultCallTimeout},
+		{-1, engine.DefaultRPS, -time.Second, engine.DefaultCallTimeout},
+		{100, engine.DefaultRPS, time.Hour, engine.DefaultCallTimeout},
+		{0.5, 0.5, 5 * time.Second, 5 * time.Second},
+	} {
+		p := publicSpec(engine.RunSpec{Pacing: engine.PacingSpec{RPS: c.rps, CallTimeout: c.to}}).Pacing
+		if p.RPS != c.wantRPS || p.CallTimeout != c.wantTimeout {
+			t.Errorf("rps %v timeout %v: got %v %v, want %v %v", c.rps, c.to, p.RPS, p.CallTimeout, c.wantRPS, c.wantTimeout)
 		}
 	}
 }

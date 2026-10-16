@@ -312,7 +312,15 @@ guard is the strict one, and an unknown case is refused.
 - **The hosted diagnostic.** `passmcp serve --public` scans only an
   allowlist it was started with, and a missing allowlist admits nothing
   (`TestAllowlistNilIsClosed`,
-  [ADR-0005](adr/0005-public-mode-is-the-same-binary.md)).
+  [ADR-0005](adr/0005-public-mode-is-the-same-binary.md)). The spec it
+  runs is built from the endpoint, phases, report format, the policy's
+  narrowing lists and bounded pacing; every other field a request sends
+  is discarded (`TestPublicSpecIsConstructed`,
+  `TestPublicPacingIsBounded`). At most eight runs execute at once, a
+  request over that is answered 503 with `Retry-After`, an evicted run is
+  cancelled, and stopping the server cancels every run it started
+  (`TestRunsInFlightAreBounded`, `TestEvictionCancelsTheRun`,
+  `TestShutdownCancelsRuns`).
 - **The token store.** On Unix a store readable by group or others is
   refused rather than read (`TestStoreRefusesWorldReadableFile`). On
   Windows a store whose access-control list lets another account read or
@@ -367,9 +375,12 @@ Where one condition could be forged or mistaken, two are required.
 - **A web shell request** needs the per-run token **and** a same-origin
   `Origin` (`TestGuards`).
 - **A program started from the browser** needs `--allow-stdio` on the
-  command line, and public mode refuses it whatever is passed
+  command line, and public mode refuses it whatever is passed. That
+  covers a stdio target and a stdio server named in a request's
+  `client_config`, which the catalog phase would start to list its tools
   (`TestBrowserCannotStartAProgram`, `TestAllowStdioIsWhatPermitsIt`,
-  `TestPublicModeNeverRunsAProgram`).
+  `TestPublicModeNeverRunsAProgram`, `TestClientConfigCannotStartAProgram`,
+  `TestPublicModeRefusesAClientConfigProgram`).
 
 ### Least privilege
 
@@ -422,7 +433,7 @@ countermeasure and the evidence for it.
 | **CWE-20** Improper input validation | Every server-sent structure is parsed defensively, and the parsers of server bytes are fuzzed: `WWW-Authenticate`, SSE, JSON Schema, client configuration; run specifications are validated before a run; fleet names are restricted to a safe pattern | `engine.RunSpec.Validate`; `FuzzParseWWWAuthenticate`, `FuzzReadSSE`, `FuzzHeaderValue`, `FuzzValidate`, `FuzzSchemaValid`, `FuzzParse`, `FuzzRunSpecJSON`; `TestValidate`, `TestParseRefusesInlineSecretsAndMistakes` |
 | **CWE-117** Improper output neutralization for logs | A finding's detail is collapsed to one line before it is recorded, so server text cannot forge a line in the text report or a log; structured logs are JSON-encoded; Markdown table cells are escaped; the HTML report is rendered through `html/template` and fuzzed; hidden bidi and zero-width characters are shown as code points in poisoning excerpts | `oneLine` and `truncate` in `internal/probe`, `esc` in `internal/report/render_md.go`, `diagnostics.visible`; `FuzzHTMLEscaping`, `TestHTMLEscapesHostileCatalog`, `TestScanTextFindsHiddenCharacters` |
 | **CWE-150** Improper neutralization of escape, meta or control sequences | Server text written for a person (text and Markdown reports, TUI, human diagnostics, `call`/`read`/`prompt`/`watch` text) has ANSI escape sequences and C0/C1 control characters removed at the renderer; machine formats stay faithful and are escaped by their encoders | `internal/termsafe`; `TestStringRemovesControlSequences`, `TestTextAndMarkdownNeutraliseTerminalSequences`, `TestTextOutputsNeutraliseServerText` |
-| **CWE-78**, **CWE-88** OS command and argument injection | No shell is ever invoked; a stdio server is executed as named with its arguments as given; keyring keys are encoded before they reach a helper; the web shell cannot start a program unless `--allow-stdio` is passed | `transport/stdio.go`, `internal/creds/keyring.go`; `TestKeyNeverEscapesTheCommand`, `TestAHostileKeyCannotReachTheShell`, `TestBrowserCannotStartAProgram` |
+| **CWE-78**, **CWE-88** OS command and argument injection | No shell is ever invoked; a stdio server is executed as named with its arguments as given; keyring keys are encoded before they reach a helper; the web shell cannot start a program, as a target or as a `client_config` peer, unless `--allow-stdio` is passed | `transport/stdio.go`, `internal/creds/keyring.go`, `internal/web/server.go` `startsProgram`; `TestKeyNeverEscapesTheCommand`, `TestAHostileKeyCannotReachTheShell`, `TestBrowserCannotStartAProgram`, `TestClientConfigCannotStartAProgram` |
 | **CWE-352**, **CWE-346** Cross-site request forgery and origin validation | `passmcp login` binds its redirect listener to `127.0.0.1`, serves only the redirect URI's path there and closes it after five minutes without a redirect, checks `state` in constant time, always uses PKCE S256 and refuses a server that advertises PKCE methods without it, and checks the RFC 9207 `iss`; authorization server metadata must name, exactly, the issuer it was fetched for (RFC 8414 §3.3); the web shell requires its per-run token and a same-origin request | `auth.NewPKCE`, `auth.NewState`, `checkIssuer` in `client_auth.go`, `auth.IssuerMismatchError`; `TestLoginWrongState`, `TestLoginServesOnlyTheCallbackPath`, `TestLoginGivesUpWhenNoRedirectArrives`, `TestLoginRejectsMixUpIssuer`, `TestAuthorizationCodeFlow`, `TestDiscoverServerRequiresTheIssuerItAskedFor`, `TestAuthorizationServerNamingAnotherIssuerBlocks`, `TestGuards`, `TestRemoteBindRefused` |
 | **CWE-22** Path traversal | Report files have fixed names inside the operator's directory; names derived from data are hashes (discovery) or must match a safe pattern (fleet) | `engine.Result.WriteDir`, `safeName` in `internal/fleet/file.go`; `TestParseRefusesInlineSecretsAndMistakes` |
 | **CWE-798** Hard-coded credentials | No credential is compiled in; every one comes from the operator. Gitleaks scans every push to `main`, every pull request and, weekly, the whole history | `.github/workflows/secret-scan.yml` |

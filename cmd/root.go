@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -131,7 +132,7 @@ func init() {
 	}
 	installStyledHelp(rootCmd)
 	pf := rootCmd.PersistentFlags()
-	pf.StringVar(&configPath, "config", "", "config file (default "+tildePath(config.DefaultPath())+")")
+	pf.StringVar(&configPath, "config", "", "config file (default "+defaultConfigHelp()+")")
 	pf.StringVar(&profileName, "profile", "", "profile from the config file supplying the endpoint and settings")
 	pf.StringVar(&logLevel, "log-level", "info", "diagnostic verbosity on stderr: error, warn, info or debug ("+diag.EnvVar+")")
 	pf.StringVar(&logFormat, "log-format", "human", "diagnostic format on stderr: human or json")
@@ -141,10 +142,48 @@ func init() {
 // Root returns the root command, for documentation generators.
 func Root() *cobra.Command { return rootCmd }
 
+// defaultConfigHelp is the --config default as the help text shows it.
+// Without a home directory there is no default file, which is what the
+// help then says.
+func defaultConfigHelp() string {
+	p, err := config.DefaultPath()
+	if err != nil {
+		return "none: no home directory"
+	}
+	return tildePath(p)
+}
+
 // tildePath shortens a path under the home directory to ~/… for display.
 func tildePath(p string) string {
-	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(p, home) {
-		return "~" + strings.TrimPrefix(p, home)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
 	}
-	return p
+	return tildeUnder(p, home, runtime.GOOS == "windows")
+}
+
+// tildeUnder replaces home with ~ when p is home or lies under it.
+//
+// A string prefix is not enough: /Users/sebastian starts with /Users/seb
+// and is not under it, so the match must end at a separator. Windows
+// paths compare without case and take either separator, as the
+// filesystem does.
+func tildeUnder(p, home string, windows bool) string {
+	seps := "/"
+	if windows {
+		seps = `/\`
+	}
+	home = strings.TrimRight(home, seps)
+	if home == "" || len(p) < len(home) {
+		return p
+	}
+	head, rest := p[:len(home)], p[len(home):]
+	same := head == home
+	if windows {
+		same = strings.EqualFold(head, home)
+	}
+	if !same || (rest != "" && !strings.ContainsRune(seps, rune(rest[0]))) {
+		return p
+	}
+	return "~" + rest
 }

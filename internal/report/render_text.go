@@ -11,13 +11,14 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 	"satellion.com/passmcp/internal/probe"
 	"satellion.com/passmcp/internal/termsafe"
 )
 
 // TextOptions tune the terminal rendering.
 type TextOptions struct {
+	// Color turns styling on. How many colours is lipgloss's to detect
+	// from the terminal and the environment (NO_COLOR, CLICOLOR), not ours.
 	Color   bool
 	Verbose bool // include the per-check detail and evidence references
 	// Width is the column budget; 0 means 84.
@@ -70,9 +71,6 @@ func mark(st probe.Status, color bool) string {
 // the caller's report is left as it is for the machine renderings.
 func Text(w io.Writer, r *Report, o TextOptions) {
 	r = termsafe.Value(r)
-	if o.Color {
-		lipgloss.SetColorProfile(termenv.TrueColor)
-	}
 	width := o.Width
 	if width <= 0 {
 		width = 84

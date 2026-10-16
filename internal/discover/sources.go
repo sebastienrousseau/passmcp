@@ -5,7 +5,6 @@ package discover
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,6 +17,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"satellion.com/passmcp/internal/clientconf"
 )
 
 // The source types a target can come from.
@@ -86,7 +87,7 @@ func normalise(s string) (string, error) {
 // not one. No value from the file other than the URL is kept.
 func FromClientConfig(b []byte, ref string) ([]Target, error) {
 	var doc map[string]any
-	if err := json.Unmarshal(stripJSONC(b), &doc); err != nil {
+	if err := json.Unmarshal(clientconf.StripJSONC(b), &doc); err != nil {
 		return nil, fmt.Errorf("%s is not a JSON client configuration: %w", ref, err)
 	}
 	var urls []string
@@ -147,58 +148,6 @@ func targetsFrom(urls []string, src Source) []Target {
 	sort.Slice(out, func(i, j int) bool { return out[i].URL < out[j].URL })
 	return out
 }
-
-// stripJSONC removes // and /* */ comments and trailing commas outside
-// strings, so the JSON-with-comments that VS Code and Zed write parses.
-func stripJSONC(b []byte) []byte {
-	var out bytes.Buffer
-	for i := 0; i < len(b); i++ {
-		c := b[i]
-		switch {
-		case c == '"':
-			i = copyString(&out, b, i)
-		case c == '/' && i+1 < len(b) && b[i+1] == '/':
-			for i < len(b) && b[i] != '\n' {
-				i++
-			}
-			out.WriteByte('\n')
-		case c == '/' && i+1 < len(b) && b[i+1] == '*':
-			end := bytes.Index(b[i+2:], []byte("*/"))
-			if end < 0 {
-				i = len(b)
-				continue
-			}
-			i += end + 3
-		default:
-			out.WriteByte(c)
-		}
-	}
-	return trailingCommas.ReplaceAll(out.Bytes(), []byte("$1"))
-}
-
-// copyString copies the JSON string opening at b[start] to out, escapes
-// and all, and returns the index of its closing quote (or the last byte of
-// an unterminated one).
-func copyString(out *bytes.Buffer, b []byte, start int) int {
-	out.WriteByte(b[start])
-	esc := false
-	for i := start + 1; i < len(b); i++ {
-		c := b[i]
-		out.WriteByte(c)
-		switch {
-		case esc:
-			esc = false
-		case c == '\\':
-			esc = true
-		case c == '"':
-			return i
-		}
-	}
-	return len(b) - 1
-}
-
-// trailingCommas matches a comma before a closing bracket.
-var trailingCommas = regexp.MustCompile(`,(\s*[}\]])`)
 
 // ErrNamespace is returned for a registry namespace that is not a single
 // organisation's.

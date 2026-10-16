@@ -68,6 +68,15 @@ func openStdioPipes() (*stdioPipes, error) {
 	return &p, nil
 }
 
+// closeChildEnds closes the parent's copies of the ends the child now
+// holds: the read end of its stdin and the write ends of its stdout and
+// stderr.
+func (p *stdioPipes) closeChildEnds() {
+	_ = p.stdinRead.Close()
+	_ = p.stdoutWrite.Close()
+	_ = p.stderrWrite.Close()
+}
+
 // closeAll closes every end of every pipe, for a server that never started.
 func (p *stdioPipes) closeAll() {
 	_ = p.stdinRead.Close()
@@ -103,13 +112,17 @@ func (r *ringBuffer) Write(p []byte) (int, error) {
 		r.full = true
 		return total, nil
 	}
-	for _, b := range p {
-		r.buf[r.n] = b
-		r.n++
-		if r.n == len(r.buf) {
-			r.n = 0
-			r.full = true
-		}
+	// At most two copies: up to the end of the buffer, then from its start.
+	c := copy(r.buf[r.n:], p)
+	if c < len(p) {
+		r.n = copy(r.buf, p[c:])
+		r.full = true
+		return total, nil
+	}
+	r.n += c
+	if r.n == len(r.buf) {
+		r.n = 0
+		r.full = true
 	}
 	return total, nil
 }

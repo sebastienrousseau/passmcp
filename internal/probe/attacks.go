@@ -232,10 +232,10 @@ func reqRef(from, to int) string {
 	}
 }
 
-// noteOutput scans one successful result for instructions addressed to the
-// model. Only the critical and major instruction rules apply: a phrase like
-// "always include" is ordinary in data and would drown the finding that
-// matters.
+// noteOutput scans one result for instructions addressed to the model, with
+// only the critical and major rules ("always include" is ordinary in data).
+// The text is masked before the scan: the excerpt is cut around the match,
+// and a cut through a secret leaves a fragment masking cannot recognise.
 func (s *Session) noteOutput(tool string, res *passmcp.CallToolResult, ref string) {
 	if res == nil || ref == "" {
 		return
@@ -245,13 +245,13 @@ func (s *Session) noteOutput(tool string, res *passmcp.CallToolResult, ref strin
 		text += "\n" + string(res.StructuredContent)
 	}
 	s.outputRefs = append(s.outputRefs, ref)
-	for _, sig := range diagnostics.ScanText("tool "+tool+" output", text) {
+	for _, sig := range diagnostics.ScanText("tool "+tool+" output", s.Opts.Recorder.Redactor.String(text)) {
 		if sig.Kind != diagnostics.SignalInstruction || sig.Severity == diagnostics.SeverityMinor {
 			continue
 		}
 		s.outputHits = append(s.outputHits, outputHit{
 			tool: tool, ref: ref, detail: sig.Detail,
-			excerpt: s.Opts.Recorder.Redactor.String(truncate(sig.Excerpt, 120)),
+			excerpt: truncate(s.Opts.Recorder.Redactor.String(sig.Excerpt), 120),
 		})
 		return // one per result: the call is the unit an operator acts on
 	}

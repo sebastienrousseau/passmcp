@@ -91,18 +91,26 @@ func TestStateFileErrors(t *testing.T) {
 
 func TestJSONCCommentsAndStringsSurvive(t *testing.T) {
 	in := []byte(`{
-	  /* block */ "a": "keep // this and /* that */",
-	  "b": "escaped \" quote", // line
-	  "c": [1, 2,],
-	  /* unterminated`)
-	out := string(stripJSONC(in))
-	for _, want := range []string{`"keep // this and /* that */"`, `"escaped \" quote"`, `[1, 2]`} {
-		if !strings.Contains(out, want) {
-			t.Errorf("stripped output lost %s:\n%s", want, out)
-		}
+	  /* block */ "mcpServers": {
+	    "a": {"url": "https://a.example/mcp?keep=//this/*and*/that"},
+	    "b": {"url": "https://b.example/mcp", "args": ["escaped \" quote", 1, 2,],}, // line
+	    "c": {"url": "https://c.example/mcp?list=x,]", "args": ["--x=a,]"]},
+	    "d": {"url": "https://d.example/mcp?map=y,}"},
+	  },
+	}`)
+	got, err := FromClientConfig(in, "settings.json")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if strings.Contains(out, "block") || strings.Contains(out, "line") || strings.Contains(out, "unterminated") {
-		t.Errorf("a comment survived:\n%s", out)
+	var urls []string
+	for _, tg := range got {
+		urls = append(urls, tg.URL)
+	}
+	// Comments go, and so do trailing commas; but a comma before a
+	// closing bracket inside a string is data, and the URLs keep theirs.
+	want := []string{"https://a.example/mcp?keep=//this/*and*/that", "https://b.example/mcp", "https://c.example/mcp?list=x,]", "https://d.example/mcp?map=y,}"}
+	if strings.Join(urls, "\n") != strings.Join(want, "\n") {
+		t.Errorf("urls = %q\nwant  %q", urls, want)
 	}
 	if _, err := FromClientConfig([]byte("not json"), "x"); err == nil {
 		t.Error("a non-JSON client configuration was accepted")

@@ -287,3 +287,25 @@ func TestRepliedPredicate(t *testing.T) {
 		}
 	}
 }
+
+// A server that serves both generations the way rmcp does answers a
+// handshake-era initialize and refuses one sent in the stateless dialect.
+// Asking in the stateless dialect reported it as declaring revisions it
+// does not serve; asking as a falling-back client would is what shows the
+// declaration is kept.
+func TestDeclaredCompatibilityServedByHandshake(t *testing.T) {
+	s := runStateless(t, statelessFake(t, statelessOpts{
+		serveHandshake:    true,
+		supportedVersions: `["2026-07-28","2025-11-25","2025-06-18"]`,
+	}), nil)
+	f, ok := findingByID(s, "protocol.deprecated_features")
+	if !ok {
+		t.Fatal("protocol.deprecated_features is missing")
+	}
+	if f.Status != Pass {
+		t.Fatalf("status = %s: %s", f.Status, f.Detail)
+	}
+	if !strings.Contains(f.Detail, "initialize") || !strings.Contains(f.Detail, "deliberately") {
+		t.Errorf("detail does not say initialize is served on purpose: %q", f.Detail)
+	}
+}

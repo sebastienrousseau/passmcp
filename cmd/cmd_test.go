@@ -18,15 +18,6 @@ import (
 	"satellion.com/passmcp/internal/engine"
 )
 
-func resetFlags() {
-	authMode, token, tokenEnv, basic, clientID, clientSecret, clientSecretEnv = "auto", "", "", "", "", "", ""
-	headers, params, toolArgs = nil, nil, nil
-	clientMetadataURL, scope, tokenURL, authURL, resource = "", "", "", "", ""
-	endpointFromProfile, configPath, profileName = "", "", ""
-	useStdio, stdioDir = false, ""
-	stdioEnv, stdioOnly = nil, nil
-}
-
 func TestParseToolArgs(t *testing.T) {
 	got, err := parseToolArgs([]string{"search.q=hello", "search.limit=5", "other.flag=true", `x.obj={"a":1}`})
 	if err != nil {
@@ -46,7 +37,7 @@ func TestParseToolArgs(t *testing.T) {
 }
 
 func TestBuildCredsPrecedenceAndValidation(t *testing.T) {
-	resetFlags()
+	resetAll()
 	t.Setenv(creds.EnvToken, "from-env")
 	c, err := buildCreds()
 	if err != nil || c.Effective() != creds.ModeBearer || c.Token != "from-env" {
@@ -57,7 +48,7 @@ func TestBuildCredsPrecedenceAndValidation(t *testing.T) {
 	if c.Token != "from-flag" || c.Sources["token"] != "flag --token" {
 		t.Errorf("flag must win: %+v", c)
 	}
-	resetFlags()
+	resetAll()
 	os.Unsetenv(creds.EnvToken)
 	t.Setenv("MY_TOK", "env-named")
 	tokenEnv = "MY_TOK"
@@ -67,12 +58,12 @@ func TestBuildCredsPrecedenceAndValidation(t *testing.T) {
 	if err != nil || c.Token != "env-named" || c.Headers["X-Api-Key"] != "k1" || c.Headers["X-Tenant"] != "acme" || c.Params.Get("profile_id") != "t1" {
 		t.Errorf("%v %+v", err, c)
 	}
-	resetFlags()
+	resetAll()
 	authMode = "bearer"
 	if _, err := buildCreds(); err == nil {
 		t.Error("bearer without token must fail")
 	}
-	resetFlags()
+	resetAll()
 	headers = []string{"garbage"}
 	if _, err := buildCreds(); err == nil {
 		t.Error("bad header must fail")
@@ -105,7 +96,7 @@ func TestConfigProfileSuppliesEndpointAndSettings(t *testing.T) {
 	if err := applyConfig(checkCmd); err == nil || !strings.Contains(err.Error(), `profile "missing"`) {
 		t.Errorf("missing profile: %v", err)
 	}
-	resetFlags()
+	resetAll()
 	rps = 2
 }
 

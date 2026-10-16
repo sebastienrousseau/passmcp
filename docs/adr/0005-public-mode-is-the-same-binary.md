@@ -61,6 +61,21 @@ same release, in a different posture.
   `--insecure-allow-private-hosts`, `--insecure-allow-http-auth` and
   `--allow-resource-mismatch` cannot be combined with `--public`. A flag
   that appears to work and does nothing is worse than one that fails.
+- **The whole spec is constructed, not only the credentials.** Amended in
+  0.0.7. `publicSpec` builds a new `RunSpec` from the allowlisted
+  endpoint, the phase selection, the report format, the tool policy's
+  narrowing lists (`only`, `deny`, `skip_era_check`) and a request rate
+  and call timeout no more aggressive than the defaults. Everything else
+  a request carries is discarded: the policy switches that widen a run
+  (mutations, destructive tools, tool arguments, private hosts,
+  plaintext auth), pacing, gates, baselines, egress observation, client
+  configurations, report directories and export endpoints. Until then
+  only the credentials and target were rebuilt, so the same switches the
+  flags above refuse could arrive in the JSON body, and a
+  `client_config` stdio peer started a program on the host.
+  `TestPublicSpecIsConstructed` fills every field of `RunSpec` and fails
+  if one reaches a public run, so a field added later is discarded by
+  default.
 - **No token is required.** A public deployment exists to be used by
   people who were never handed one. Origin validation still applies, and
   a caller's reach is bounded by the allowlist and the rate limiter rather

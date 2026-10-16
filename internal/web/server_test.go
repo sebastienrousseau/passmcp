@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"satellion.com/passmcp/internal/engine"
 )
 
 // mcpServer is a small, well-behaved MCP server to point runs at.
@@ -128,6 +130,13 @@ func TestRemoteBindRefused(t *testing.T) {
 	}
 	if _, err := New(Options{Addr: "0.0.0.0:0", AllowRemote: true}); err != nil {
 		t.Errorf("--allow-remote must permit it: %v", err)
+	}
+	// An empty host is the wildcard to net.Listen, every interface, not
+	// loopback: ":8080" must need --allow-remote as "0.0.0.0:8080" does.
+	for _, addr := range []string{":0", ":8080", "[::]:0"} {
+		if _, err := New(Options{Addr: addr}); err == nil {
+			t.Errorf("%q binds every interface and must be refused by default", addr)
+		}
 	}
 	if _, err := New(Options{Addr: "nonsense"}); err == nil {
 		t.Error("an unparsable address must be an error")
@@ -450,5 +459,158 @@ func TestPublicModeNeverRunsAProgram(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("a public server with --allow-stdio ran a program: %d", resp.StatusCode)
+	}
+}
+
+// TestClientConfigCannotStartAProgram: a client configuration names the
+// other servers a host runs, and a stdio entry in it is a command. The
+// catalog phase starts those peers to list their tools, so a peer that
+// arrives over HTTP is the same request as a stdio target and needs the
+// same permission.
+func TestClientConfigCannotStartAProgram(t *testing.T) {
+	s, ts := newTestServer(t)
+	body := `{"target":{"endpoint":"https://mcp.example.com/mcp"},"phases":{"only":["net"]},` +
+		`"client_config":{"servers":[{"name":"peer","command":"/bin/sh","args":["-c","exit 0"]}]}}`
+	resp := do(t, ts, http.MethodPost, "/api/runs?t="+s.Token(), body, map[string]string{"Content-Type": "application/json"})
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("a client_config naming a program returned %d, want 403", resp.StatusCode)
+	}
+}
+
+// hangServer answers nothing: every request waits until its client gives
+// up or the test ends, so a run against it stays in flight until it is
+// cancelled.
+func hangServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	t.Cleanup(func() { close(release); srv.Close() })
+	return srv
+}
+
+func startHangingRun(t *testing.T, s *Server, ts *httptest.Server, endpoint string) (*http.Response, *run) {
+	t.Helper()
+	spec := fmt.Sprintf(`{"target":{"endpoint":%q},"phases":{"only":["net","handshake"]}}`, endpoint)
+	resp := do(t, ts, http.MethodPost, "/api/runs?t="+s.Token(), spec, map[string]string{"Content-Type": "application/json"})
+	var started map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&started)
+	_ = resp.Body.Close()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return resp, s.runs[started["id"]]
+}
+
+func waitDone(rn *run, d time.Duration) bool {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		rn.mu.Lock()
+		done := rn.done
+		rn.mu.Unlock()
+		if done {
+			return true
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return false
+}
+
+// TestEvictionCancelsTheRun: a run dropped from the registry can no longer
+// be reached to cancel it, so dropping it must cancel it, or it keeps
+// working for nobody.
+func TestEvictionCancelsTheRun(t *testing.T) {
+	hang := hangServer(t)
+	s, err := New(Options{Version: "test", MaxRuns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(s)
+	t.Cleanup(ts.Close)
+	_, first := startHangingRun(t, s, ts, hang.URL+"/mcp")
+	if first == nil {
+		t.Fatal("the first run did not start")
+	}
+	startHangingRun(t, s, ts, hang.URL+"/mcp")
+	if !waitDone(first, 5*time.Second) {
+		t.Error("an evicted run was still running five seconds later")
+	}
+}
+
+// TestRunsInFlightAreBounded: each run holds connections and goroutines
+// until it ends, so the number running at once has a ceiling, and a
+// request over it is told to come back rather than queued.
+func TestRunsInFlightAreBounded(t *testing.T) {
+	hang := hangServer(t)
+	s, err := New(Options{Version: "test", MaxInflight: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(s)
+	t.Cleanup(ts.Close)
+	startHangingRun(t, s, ts, hang.URL+"/mcp")
+	resp, _ := startHangingRun(t, s, ts, hang.URL+"/mcp")
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("a run over the in-flight ceiling returned %d, want 503", resp.StatusCode)
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Error("a 503 should say when to retry")
+	}
+}
+
+// TestShutdownCancelsRuns: stopping the server stops what it started.
+func TestShutdownCancelsRuns(t *testing.T) {
+	hang := hangServer(t)
+	urls := make(chan string, 1)
+	s, err := New(Options{Version: "test", Open: func(u string) { urls <- u }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	served := make(chan error, 1)
+	go func() { served <- s.Serve(ctx) }()
+	base := strings.SplitN(<-urls, "/?", 2)[0]
+	spec := fmt.Sprintf(`{"target":{"endpoint":%q},"phases":{"only":["net","handshake"]}}`, hang.URL+"/mcp")
+	req, _ := http.NewRequest(http.MethodPost, base+"/api/runs?t="+s.Token(), strings.NewReader(spec))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", base)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var started map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&started)
+	_ = resp.Body.Close()
+	s.mu.Lock()
+	rn := s.runs[started["id"]]
+	s.mu.Unlock()
+	if rn == nil {
+		t.Fatalf("the run did not start: %d", resp.StatusCode)
+	}
+	cancel()
+	<-served
+	if !waitDone(rn, 5*time.Second) {
+		t.Error("a run was still running five seconds after the server stopped")
+	}
+}
+
+// TestRunEventsAreBounded: a run's replay log has a ceiling, and a
+// subscriber that is listening still gets every event.
+func TestRunEventsAreBounded(t *testing.T) {
+	rn := &run{subs: map[chan engine.Event]struct{}{}}
+	live := make(chan engine.Event, maxRunEvents+10)
+	rn.subs[live] = struct{}{}
+	for i := 0; i < maxRunEvents+10; i++ {
+		rn.publish(engine.Event{})
+	}
+	if len(rn.events) != maxRunEvents {
+		t.Errorf("kept %d events, want %d", len(rn.events), maxRunEvents)
+	}
+	if len(live) != maxRunEvents+10 {
+		t.Errorf("a live subscriber got %d events, want %d", len(live), maxRunEvents+10)
 	}
 }

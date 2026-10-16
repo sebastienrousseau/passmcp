@@ -157,15 +157,9 @@ func readToken68(s string) (string, string, bool) {
 	if tail != "" && tail[0] != ',' {
 		return "", s, false // "key=value..." shape
 	}
-	if j == i+1 && tail == "" {
-		// "abc=" at end of input: ambiguous; treat as token68.
-		return s[:j], tail, true
-	}
-	if j == i+1 {
-		// "abc=," — a param with an empty value is not a valid auth-param
-		// either; treat as token68 for robustness.
-		return s[:j], tail, true
-	}
+	// A single "=" is token68 too: "abc=" at end of input is ambiguous,
+	// and "abc=," would be a param with an empty value, which is not a
+	// valid auth-param either; both are treated as token68 for robustness.
 	return s[:j], tail, true
 }
 

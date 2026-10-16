@@ -169,8 +169,8 @@ func fakeStdioServer(mode string) {
 			Params json.RawMessage `json:"params"`
 		}
 		if json.Unmarshal(line, &req) != nil {
-			// A server that ignores what it cannot parse, which is what most
-			// of them do and what protocol.malformed_json reports.
+			// A server that ignores what it cannot parse, which is what the
+			// official SDKs do and what protocol.malformed_json reports.
 			continue
 		}
 		if req.ID == nil {
@@ -384,9 +384,10 @@ func TestStdioRunsTheProbesThatAreNotAboutHTTP(t *testing.T) {
 	expect(t, fs, "protocol.id_echo", Pass, "id echoed")
 	expect(t, fs, "protocol.unknown_tool", Pass, "")
 
-	// The fixture ignores what it cannot parse, which is a real finding
-	// rather than a probe that could not run.
-	expect(t, fs, "protocol.malformed_json", Fail, "no answer to a truncated message")
+	// The fixture ignores what it cannot parse, as the official SDKs do on
+	// a pipe: reported, so the run says what it saw, but not held against
+	// the server.
+	expect(t, fs, "protocol.malformed_json", Info, "no answer to a truncated line")
 }
 
 // TestStdioFindingsCiteEvidence: a stdio finding has to be as traceable as
@@ -538,7 +539,13 @@ func TestStdioFailsAServerThatIgnoresItsInputClosing(t *testing.T) {
 	if f.Status != Fail {
 		t.Fatalf("a server that ignored stdin closing was not failed: %+v", f)
 	}
-	if !strings.Contains(f.Detail, "SIGKILL") {
+	// What stopped it is named as the platform did it: a signal on Unix,
+	// the Win32 call that ended its job (or its process) on Windows.
+	stopped := "SIGKILL"
+	if runtime.GOOS == "windows" {
+		stopped = "Terminate"
+	}
+	if !strings.Contains(f.Detail, stopped) {
 		t.Errorf("the finding does not say what it took to stop it: %q", f.Detail)
 	}
 

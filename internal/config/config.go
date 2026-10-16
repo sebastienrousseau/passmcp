@@ -41,19 +41,33 @@ type Applied struct {
 	Source string `json:"source"`
 }
 
-// DefaultPath is $XDG_CONFIG_HOME/passmcp/config.json or ~/.config/passmcp/config.json.
-func DefaultPath() string {
+// DefaultPath is $PASSMCP_CONFIG, else $XDG_CONFIG_HOME/passmcp/config.json,
+// else ~/.config/passmcp/config.json.
+//
+// With none of the three known it fails rather than fall back to a path
+// relative to the working directory: that directory is often a repository
+// somebody else wrote, and a config file planted in it would set this
+// run's options.
+func DefaultPath() (string, error) {
 	if p := os.Getenv("PASSMCP_CONFIG"); p != "" {
-		return p
+		return p, nil
 	}
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "passmcp", "config.json")
+		return filepath.Join(x, "passmcp", "config.json"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".config", "passmcp", "config.json")
+		return "", fmt.Errorf("config: no home directory to find the config file in "+
+			"(set HOME, XDG_CONFIG_HOME or PASSMCP_CONFIG, or pass --config): %w", err)
 	}
-	return filepath.Join(home, ".config", "passmcp", "config.json")
+	return filepath.Join(home, ".config", "passmcp", "config.json"), nil
+}
+
+// defaultPathIfKnown is DefaultPath for a caller that treats "no home
+// directory" as "no default file" rather than as an error.
+func defaultPathIfKnown() (string, bool) {
+	p, err := DefaultPath()
+	return p, err == nil
 }
 
 // Load reads and validates a config file.
@@ -81,7 +95,12 @@ func Load(path string) (File, error) {
 func LoadOptional(path string) (File, string, error) {
 	explicit := path != ""
 	if !explicit {
-		path = DefaultPath()
+		var known bool
+		if path, known = defaultPathIfKnown(); !known {
+			// No home directory means no default config file, not a failed
+			// run: the file is optional, and flags alone must still work.
+			return File{}, "", nil
+		}
 	}
 	f, err := Load(path)
 	if err != nil {

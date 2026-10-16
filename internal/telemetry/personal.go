@@ -8,8 +8,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"satellion.com/passmcp/internal/pii"
 )
 
 // Personal data is masked as data minimisation (GDPR Art. 5(1)(c)): passmcp
@@ -55,17 +58,6 @@ var resultBearing = map[string]bool{
 	"tools/call": true, "resources/read": true, "prompts/get": true, "tasks/result": true,
 }
 
-// personalKeys are normalised JSON keys whose values are personal data in a
-// result.
-var personalKeys = map[string]bool{
-	"email": true, "emailaddress": true, "mail": true,
-	"phone": true, "phonenumber": true, "telephone": true, "mobile": true, "mobilenumber": true, "cellphone": true, "msisdn": true, "tel": true,
-	"name": true, "firstname": true, "lastname": true, "fullname": true, "givenname": true, "familyname": true, "surname": true, "middlename": true, "forename": true, "displayname": true,
-	"address": true, "streetaddress": true, "postaladdress": true, "homeaddress": true, "postcode": true, "postalcode": true, "zipcode": true,
-	"dob": true, "dateofbirth": true, "birthdate": true, "birthday": true,
-	"ssn": true, "socialsecuritynumber": true, "nationalid": true, "nationalinsurancenumber": true, "passportnumber": true, "taxid": true,
-}
-
 var (
 	emailRe = regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}`)
 	// Three shapes, conservative on purpose: an international number with
@@ -83,7 +75,7 @@ const minPersonal = 3
 // body when the request's method carries a result. body may be JSON or a
 // text/event-stream whose data lines are JSON.
 func (r *Redactor) registerPersonalFromResponse(rpc *RPCInfo, body []byte) {
-	if r == nil || rpc == nil || !resultBearing[rpc.Method] || len(body) == 0 {
+	if !r.wantsPersonal(rpc) || len(body) == 0 {
 		return
 	}
 	for _, doc := range jsonDocuments(body) {
@@ -92,6 +84,20 @@ func (r *Redactor) registerPersonalFromResponse(rpc *RPCInfo, body []byte) {
 			r.walkPersonal(v, 0)
 		}
 	}
+}
+
+// registerPersonalFromTree is registerPersonalFromResponse for a JSON body
+// the caller has already decoded.
+func (r *Redactor) registerPersonalFromTree(rpc *RPCInfo, tree any) {
+	if r.wantsPersonal(rpc) {
+		r.walkPersonal(tree, 0)
+	}
+}
+
+// wantsPersonal reports whether a response to rpc carries a result whose
+// personal values are registered.
+func (r *Redactor) wantsPersonal(rpc *RPCInfo) bool {
+	return r != nil && rpc != nil && resultBearing[rpc.Method]
 }
 
 // jsonDocuments returns the JSON documents in a body: the body itself, or
@@ -123,7 +129,7 @@ func (r *Redactor) walkPersonal(v any, depth int) {
 	switch t := v.(type) {
 	case map[string]any:
 		for k, val := range t {
-			if s, ok := val.(string); ok && personalKeys[normaliseKey(k)] {
+			if s, ok := val.(string); ok && pii.Key(pii.Normalise(k)) {
 				r.addPersonal(s)
 				continue
 			}
@@ -145,10 +151,6 @@ func (r *Redactor) walkPersonal(v any, depth int) {
 	}
 }
 
-func normaliseKey(k string) string {
-	return strings.NewReplacer("_", "", "-", "", " ", "").Replace(strings.ToLower(k))
-}
-
 // addPersonal registers one personal value.
 func (r *Redactor) addPersonal(v string) {
 	v = strings.TrimSpace(v)
@@ -157,27 +159,26 @@ func (r *Redactor) addPersonal(v string) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, p := range r.personal {
-		if p == v {
-			return
-		}
+	if r.personalSet[v] {
+		return
 	}
-	r.personal = append(r.personal, v)
+	if r.personalSet == nil {
+		r.personalSet = map[string]bool{}
+	}
+	r.personalSet[v] = true
 	// Longest first, as for secrets, so "Ada Lovelace" is masked whole
 	// before "Ada" could split it.
-	for i := len(r.personal) - 1; i > 0 && len(r.personal[i]) > len(r.personal[i-1]); i-- {
-		r.personal[i], r.personal[i-1] = r.personal[i-1], r.personal[i]
-	}
+	at := longestFirstIndex(r.personal, v)
+	r.personal = slices.Insert(r.personal, at, v)
+	r.personalMask.insert(at, []string{v})
 }
 
 // maskPersonalValues masks registered personal values in s. The caller
 // holds r.mu for reading.
 func (r *Redactor) maskPersonalValues(s string) string {
-	for _, p := range r.personal {
-		if n := strings.Count(s, p); n > 0 {
-			r.count("field", n)
-			s = strings.ReplaceAll(s, p, Mask)
-		}
+	s, n := r.personalMask.apply(s)
+	if n > 0 {
+		r.count("field", n)
 	}
 	return s
 }

@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 )
 
 // ClientMetadata is the RFC 7591 client metadata used for dynamic
@@ -139,9 +140,19 @@ func (r *Registrar) dynamicRegister(ctx context.Context, endpoint string, opts R
 	return &reg, nil
 }
 
+// truncate quotes at most n bytes of b, cut on a rune boundary so the
+// error stays valid UTF-8. (internal/termsafe.Truncate does the same for
+// the rest of the module; a public package cannot import it.)
 func truncate(b []byte, n int) string {
 	if len(b) <= n {
 		return string(b)
 	}
-	return string(b[:n]) + "..."
+	cut := n
+	for i := n; i >= 0 && i > n-utf8.UTFMax; i-- {
+		if utf8.RuneStart(b[i]) {
+			cut = i
+			break
+		}
+	}
+	return string(b[:cut]) + "..."
 }

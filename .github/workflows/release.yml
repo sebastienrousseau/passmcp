@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload dry-run artefacts for inspection
         if: env.DRY_RUN == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dry-run-dist
           path: |
@@ -242,7 +242,7 @@ jobs:
       # path this step used until v0.0.1 was the one `brews:` wrote to.
       - name: Carry the Homebrew cask to the publishing job
         if: env.DRY_RUN != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: homebrew-cask
           path: dist/homebrew/Casks/passmcp.rb
@@ -269,7 +269,7 @@ jobs:
       contents: read
     steps:
       - name: Fetch the generated cask
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: homebrew-cask
           path: cask
@@ -337,9 +337,11 @@ jobs:
     timeout-minutes: 5
     permissions: {}
     steps:
-      # docs/ecosystem.md, rule 2: propagation is automatic. Each lockstep
-      # repository receives the version and the image digest it must pin,
-      # and does the rest itself. GITHUB_TOKEN cannot dispatch to another
+      # docs/ecosystem.md, rule 2: propagation is automated up to the tag.
+      # Each lockstep repository receives the version and the image digest
+      # it must pin and commits them onto its release branch; the owner
+      # merges and tags. passmcp-reporting has no listener and ignores it.
+      # GITHUB_TOKEN cannot dispatch to another
       # repository, so this needs a fine-grained token with contents:write
       # on the satellites — and is loud when it is missing, for the reason
       # the tap job is.

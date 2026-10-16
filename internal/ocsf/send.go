@@ -54,22 +54,7 @@ func (s Sender) Send(ctx context.Context, events []Event) error {
 	for k, v := range s.Headers {
 		req.Header.Set(k, v)
 	}
-	cl := s.Client
-	if cl == nil {
-		to := s.Timeout
-		if to <= 0 {
-			to = 10 * time.Second
-		}
-		cl = &http.Client{Timeout: to}
-	}
-	// The events go to the endpoint the operator named and nowhere else: a
-	// collector that answers with a redirect does not get to forward them.
-	c := *cl
-	c.CheckRedirect = func(*http.Request, []*http.Request) error {
-		return errors.New("the OCSF endpoint redirected; events are sent only to the endpoint named by --ocsf-endpoint")
-	}
-	cl = &c
-	resp, err := cl.Do(req)
+	resp, err := s.httpClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending OCSF events: %w", err)
 	}
@@ -79,6 +64,27 @@ func (s Sender) Send(ctx context.Context, events []Event) error {
 		return fmt.Errorf("OCSF endpoint returned %s: %s", resp.Status, strings.TrimSpace(string(msg)))
 	}
 	return nil
+}
+
+// httpClient returns the client Send uses: a copy of Client, or a new one
+// bounded by Timeout (ten seconds when unset), that refuses redirects. The
+// copy is what leaves the caller's own CheckRedirect untouched.
+func (s Sender) httpClient() *http.Client {
+	var c http.Client
+	if s.Client != nil {
+		c = *s.Client
+	} else {
+		c.Timeout = s.Timeout
+		if c.Timeout <= 0 {
+			c.Timeout = 10 * time.Second
+		}
+	}
+	// The events go to the endpoint the operator named and nowhere else: a
+	// collector that answers with a redirect does not get to forward them.
+	c.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return errors.New("the OCSF endpoint redirected; events are sent only to the endpoint named by --ocsf-endpoint")
+	}
+	return &c
 }
 
 // checkEndpoint accepts HTTPS anywhere and plain HTTP only to this machine,

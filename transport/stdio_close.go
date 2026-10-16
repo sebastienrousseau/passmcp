@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -62,7 +61,8 @@ type Custody struct {
 	// Forced is true when closing stdin did not end the server and it had
 	// to be signalled.
 	Forced bool
-	// Signalled names the strongest signal it took, for the report.
+	// Signalled names the strongest signal it took, for the report. On a
+	// platform without signals it names the call that ended the process.
 	Signalled string
 	// Orphans is true when processes were still in the server's group
 	// after the server itself had exited.
@@ -128,17 +128,7 @@ func (s *Stdio) Close() error {
 		c.Orphans, c.Err = s.survivors(pid)
 	case <-time.After(s.cfg.ShutdownGrace):
 		c.Forced = true
-		c.Signalled = "SIGTERM"
-		if err := s.terminateGroup(pid); err != nil {
-			c.Err = err
-		}
-		select {
-		case <-s.done:
-		case <-time.After(termGrace):
-			c.Signalled = "SIGKILL"
-			s.killGroup(pid)
-			<-s.done
-		}
+		s.forceStop(pid, &c)
 		// A forced server's group was just signalled, so asking what is
 		// left in it answers a question about the signal rather than about
 		// the server. Orphans stays false and Forced carries the finding.
@@ -151,6 +141,7 @@ func (s *Stdio) Close() error {
 		s.killGroup(pid)
 	}
 	<-s.done
+	s.tree.release()
 
 	// The tree is gone, so whatever held the stderr write end has let go
 	// and the drain can finish.
@@ -197,31 +188,33 @@ func (s *Stdio) survivors(pid int) (bool, error) {
 	return groupAlive(pid)
 }
 
-// terminateGroup asks the whole tree to stop.
-func (s *Stdio) terminateGroup(pid int) error {
-	if processGroupsSupported {
-		if err := signalGroup(pid, syscall.SIGTERM); err != nil {
-			return err
+// forceStop ends a server that outlived ShutdownGrace and waits for it.
+//
+// Where the platform has a polite signal, the tree is sent it and given
+// termGrace before being killed. Where it has none, as on Windows, there
+// is nothing to wait for: the tree is killed at once, and Signalled names
+// only what was actually done to it.
+func (s *Stdio) forceStop(pid int, c *Custody) {
+	sent, err := terminateTree(pid)
+	if err != nil {
+		c.Err = err
+	}
+	if sent != "" {
+		c.Signalled = sent
+		select {
+		case <-s.done:
+			return
+		case <-time.After(termGrace):
 		}
-		return nil
 	}
-	if s.cmd.Process != nil {
-		return s.cmd.Process.Signal(syscall.SIGTERM)
-	}
-	return nil
+	c.Signalled = s.killGroup(pid)
+	<-s.done
 }
 
 // killGroup ends the whole tree, falling back to the one process this
-// platform can reach.
-func (s *Stdio) killGroup(pid int) {
-	if processGroupsSupported {
-		if err := signalGroup(pid, syscall.SIGKILL); err == nil {
-			return
-		}
-	}
-	if s.cmd.Process != nil {
-		_ = s.cmd.Process.Kill()
-	}
+// platform can reach, and returns the name of what it took.
+func (s *Stdio) killGroup(pid int) string {
+	return s.tree.kill(s.cmd.Process, pid)
 }
 
 // Signal sends sig to the server, for a caller testing how it handles one.

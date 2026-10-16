@@ -16,7 +16,7 @@ Not duplicated here; see [`../README.md`](../README.md) for why.
   from the flags
 - shell completions for bash, zsh and fish, installed under the names
   each shell actually looks the command up by
-- `README.md`, `CHANGELOG.md` and `LICENSE` under
+- `README.md`, `CHANGELOG.md`, `LICENSE` and `THIRD_PARTY_NOTICES` under
   `/usr/share/doc/passmcp/`
 
 ## Runtime dependencies

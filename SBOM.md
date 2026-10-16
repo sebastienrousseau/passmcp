@@ -23,18 +23,26 @@ is bumped.
 | `github.com/charmbracelet/bubbles` | v1.0.0 | Progress bar, spinner and table components used by the TUI | MIT |
 | `github.com/charmbracelet/lipgloss` | v1.1.0 | Terminal styling for the TUI, the logo and the text report | MIT |
 | `github.com/charmbracelet/x/term` | v0.2.2 | Terminal width, to fit `check` output and the help screen to the window | MIT |
-| `github.com/muesli/termenv` | v0.16.0 | Colour profile selection when the text report is written to a terminal | MIT |
+| `github.com/muesli/termenv` | v0.16.0 | Imported by tests only, to pin lipgloss's colour profile so coloured output can be asserted without a terminal; linked into the binary through lipgloss, which detects the terminal's profile with it | MIT |
 | `github.com/spf13/pflag` | v1.0.10 | CLI flag parsing; the shared flag groups and the flag-keyed config file | BSD-3-Clause |
-| `satellion.com/passmcp-reporting` | v0.0.6 | The attestation format's statement types and offline verifier, the A2A predicate and the graph model, first-party, split out so gateways can import it without this module's graph; standard library only | Apache-2.0 |
-| `golang.org/x/sys` | v0.48.0 | Windows only: reads and sets the token store's access-control list (`internal/creds`), which Go's standard library cannot; already compiled into the Windows binary through the terminal libraries, now imported directly | BSD-3-Clause |
-| `go.yaml.in/yaml/v3` | v3.0.5 | Parses fleet files (`passmcp fleet run fleet.yaml`); already in the build through cobra, now imported directly rather than adding a second YAML parser | MIT and Apache-2.0 |
+| `satellion.com/passmcp-reporting` | v0.0.7 | The attestation format's statement types and offline verifier, the A2A predicate and the graph model, first-party, split out so gateways can import it without this module's graph; standard library only | Apache-2.0 |
+| `golang.org/x/sys` | v0.49.0 | Imported directly on Windows only (`x/sys/windows`): reads and sets the token store's access-control list (`internal/creds`), which Go's standard library cannot. Linked on every platform regardless: the terminal libraries (`go-isatty`, `x/term`, `termenv`, `cancelreader`) use `x/sys/unix` on Linux and macOS and `x/sys/windows` on Windows | BSD-3-Clause |
+| `go.yaml.in/yaml/v3` | v3.0.5 | Parses fleet files (`passmcp fleet run fleet.yaml`); `internal/fleet` is its only importer in the shipped binary. cobra imports it only from `cobra/doc`, which renders the manpages at build time and is not linked. Ships an Apache-2.0 `NOTICE`, passed on in `THIRD_PARTY_NOTICES` | MIT and Apache-2.0 |
 
 This table lists every **direct** requirement in `go.mod`, and
 `make sbom-check` (run in CI's Repository Checks, and by `make sbom`) fails
-if its components or versions drift from that file in either direction. Indirect
-dependencies (`mousetrap`, `golang.org/x/text`) are not enumerated here:
-`go.sum` is the authoritative, checksummed record, and a hand-maintained
-copy of it would be wrong within a week.
+if its components or versions drift from that file in either direction. The
+19 indirect requirements in `go.mod` are not enumerated here: `go.mod` and
+`go.sum` are the authoritative, checksummed record, and a hand-maintained
+copy would be wrong within a week. Most are the terminal libraries'
+own dependencies (Charm's `colorprofile`, `x/ansi` and `x/cellbuf`,
+Unicode width and segmentation, colour and terminfo handling); `mousetrap`,
+`coninput`, `go-localereader` and `golang.org/x/text` are linked into the
+Windows binary only; `go-md2man` and `blackfriday` are used by `cobra/doc`
+to render the manpages at build time and are never linked. `go list -deps
+./cmd/passmcp` with `GOOS` set gives the exact set per platform, and
+`build/THIRD_PARTY_NOTICES` (`make notices`) carries each linked module's
+licence.
 
 Everything passmcp does on the wire — HTTP with `httptrace` timings, TLS,
 JSON-RPC, Server-Sent Events, OAuth 2.1 with PKCE, RFC 9728 and RFC 8414

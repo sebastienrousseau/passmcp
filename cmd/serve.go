@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 
 	"github.com/spf13/cobra"
 	"satellion.com/passmcp/internal/diag"
@@ -54,15 +53,6 @@ Examples:
 				return fmt.Errorf("--public needs --allow-file naming the servers this deployment may scan.\n" +
 					"  Without one it would send requests wherever it was asked to, which is the\n" +
 					"  thing passmcp reports other servers for")
-			}
-			// The overrides that make local debugging pleasant are the ones
-			// that make a public deployment dangerous, so they are refused
-			// here rather than ignored: a flag that appears to work and does
-			// nothing is worse than one that fails.
-			for _, f := range []string{"insecure-allow-private-hosts", "insecure-allow-http-auth", "allow-resource-mismatch"} {
-				if cmd.Flags().Changed(f) || cmd.Root().PersistentFlags().Changed(f) {
-					return fmt.Errorf("--%s cannot be combined with --public", f)
-				}
 			}
 			var err error
 			if allowed, err = web.LoadAllowlist(serveAllowFile); err != nil {
@@ -124,22 +114,13 @@ func init() {
 // openBrowser is best-effort: failing to open one is not a reason to fail
 // the command, because the URL is already on screen.
 func openBrowser(ctx context.Context, url string) {
-	var cmd string
-	var args []string
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = "open"
-	case "windows":
-		cmd, args = "rundll32", []string{"url.dll,FileProtocolHandler"}
-	default:
-		cmd = "xdg-open"
-	}
+	cmd, args := browserCommand()
 	path, err := exec.LookPath(cmd)
 	if err != nil {
 		return
 	}
-	// #nosec G204 -- cmd is one of three literals above; url is passmcp's own
-	// loopback address with a token it just minted.
+	// #nosec G204 -- cmd is one of three literals in the open_*.go files;
+	// url is passmcp's own loopback address with a token it just minted.
 	if err := exec.CommandContext(ctx, path, append(args, url)...).Start(); err != nil {
 		diag.Debugf("could not open a browser: %v", err)
 	}

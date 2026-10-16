@@ -14,7 +14,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/term"
-	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"satellion.com/passmcp/internal/baseline"
 	"satellion.com/passmcp/internal/creds"
@@ -354,7 +353,7 @@ func emitReport(spec engine.RunSpec, res *engine.Result, ndjson *json.Encoder) e
 		width = termWidth()
 	}
 	out := spec
-	out.Output.NoColor = spec.Output.NoColor || !stdoutIsTTY()
+	out.Output.NoColor = spec.Output.NoColor || noColorEnv() || !stdoutIsTTY()
 	return res.Render(os.Stdout, out, width)
 }
 
@@ -447,7 +446,7 @@ func phaseSummary(pr probe.PhaseResult, warn, fail int) string {
 // termWidth returns stdout's column count, clamped to a comfortable reading
 // width, or 84 when stdout is not a terminal.
 func termWidth() int {
-	if f, ok := any(os.Stdout).(*os.File); ok && isatty.IsTerminal(f.Fd()) {
+	if f := os.Stdout; isTerminal(f) {
 		if w, _, err := term.GetSize(f.Fd()); err == nil && w > 40 {
 			if w > 96 {
 				return 96

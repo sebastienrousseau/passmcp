@@ -128,6 +128,11 @@ type Stdio struct {
 	stdin  io.WriteCloser
 	stdout *bufio.Reader
 
+	// tree is what lets Close end the server's whole process tree where
+	// the pid alone does not reach it. Touched only by StartStdio and
+	// Close.
+	tree processTree
+
 	protocolVersion atomic.Value // string
 	sessionID       atomic.Value // string
 	// custody is what Close found: whether the server had to be forced,
@@ -246,7 +251,7 @@ func StartStdio(ctx context.Context, cfg StdioConfig) (*Stdio, error) {
 	s.sessionID.Store("")
 	s.dialect.Store(&dialectBox{d: &Sessioned{}})
 
-	if err := cmd.Start(); err != nil {
+	if err := s.start(); err != nil {
 		p.closeAll()
 		return nil, fmt.Errorf("transport: start %s: %w", cfg.Command, err)
 	}
@@ -255,19 +260,10 @@ func StartStdio(ctx context.Context, cfg StdioConfig) (*Stdio, error) {
 	// what makes EOF mean "the child exited" rather than "nobody is writing
 	// yet", and what lets the child see EOF on stdin when Close shuts its
 	// end.
-	_ = p.stdinRead.Close()
-	_ = p.stdoutWrite.Close()
-	_ = p.stderrWrite.Close()
+	p.closeChildEnds()
 
-	// One goroutine drains stderr into the ring buffer. It ends when the
-	// last holder of the write end lets go, which may be later than the
-	// server's own exit; nothing waits on it except Close, and only
-	// briefly.
-	go func() {
-		_, _ = io.Copy(s.stderr, p.stderrRead)
-		_ = p.stderrRead.Close()
-		close(s.stderrDone)
-	}()
+	// One goroutine drains stderr into the ring buffer.
+	go s.drainStderr(p.stderrRead)
 
 	// One goroutine owns Wait, so the exit status is available to every
 	// caller and reaped exactly once.
@@ -291,6 +287,27 @@ func StartStdio(ctx context.Context, cfg StdioConfig) (*Stdio, error) {
 		}
 	}
 	return s, nil
+}
+
+// start starts the process and, where the platform needs one, puts it in
+// the container that lets Close end everything it starts. See
+// stdio_group_windows.go.
+func (s *Stdio) start() error {
+	if err := s.cmd.Start(); err != nil {
+		return err
+	}
+	s.tree.adopt(s.cmd.Process)
+	return nil
+}
+
+// drainStderr copies the server's stderr into the ring buffer. It ends
+// when the last holder of the write end lets go, which may be later than
+// the server's own exit; nothing waits on it except Close, and only
+// briefly.
+func (s *Stdio) drainStderr(r io.ReadCloser) {
+	_, _ = io.Copy(s.stderr, r)
+	_ = r.Close()
+	close(s.stderrDone)
 }
 
 // applyDefaults fills every limit the caller left at zero.

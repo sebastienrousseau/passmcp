@@ -141,8 +141,11 @@ type Recorder struct {
 	// unbounded.
 	MaxEvents int
 
-	mu      sync.Mutex
+	mu sync.Mutex
+	// events is a ring once it holds MaxEvents: head is the index of the
+	// oldest event, and is zero whenever the ring is not full.
 	events  []Event
+	head    int
 	seq     int
 	dropped int
 	first   time.Time
@@ -181,24 +184,6 @@ func (r *Recorder) Wrap(base http.RoundTripper) http.RoundTripper {
 		base = http.DefaultTransport
 	}
 	return &roundTripper{rec: r, base: base}
-}
-
-// Events returns a copy of everything recorded so far.
-func (r *Recorder) Events() []Event {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	out := make([]Event, len(r.events))
-	copy(out, r.events)
-	return out
-}
-
-// maxEvents resolves the retention limit. It must be called with r.mu held
-// or from a context where concurrent mutation is impossible.
-func (r *Recorder) maxEvents() int {
-	if r.MaxEvents == 0 {
-		return DefaultMaxEvents
-	}
-	return r.MaxEvents
 }
 
 // accumulate folds one event into a Summary.
@@ -244,8 +229,7 @@ func (r *Recorder) Summary() Summary {
 	s := Summary{ByStatus: map[string]int{}, ByPhase: map[string]int{}, ByHost: map[string]int{}}
 	r.mu.Lock()
 	base := r.agg
-	evs := make([]Event, len(r.events))
-	copy(evs, r.events)
+	evs := r.ordered()
 	first, last := r.first, r.last
 	r.mu.Unlock()
 
@@ -267,34 +251,6 @@ func (r *Recorder) Summary() Summary {
 		s.Wall = last.Sub(first)
 	}
 	return s
-}
-
-func (r *Recorder) add(e Event) {
-	r.mu.Lock()
-	r.seq++
-	e.Seq = r.seq
-	r.events = append(r.events, e)
-	if maxEv := r.maxEvents(); maxEv > 0 && len(r.events) > maxEv {
-		// Fold the evicted events into the running aggregate so the summary
-		// still describes the whole run, then drop them.
-		drop := len(r.events) - maxEv
-		for _, old := range r.events[:drop] {
-			accumulate(&r.agg, old)
-		}
-		r.dropped += drop
-		r.events = append(r.events[:0], r.events[drop:]...)
-	}
-	if r.first.IsZero() {
-		r.first = e.Time
-	}
-	if end := e.Time.Add(e.Timings.Total); end.After(r.last) {
-		r.last = end
-	}
-	sink := r.Sink
-	r.mu.Unlock()
-	if sink != nil {
-		sink(e)
-	}
 }
 
 // PipeMethod is the Event.Method of an exchange that was not HTTP.
@@ -355,17 +311,7 @@ func (r *Recorder) RecordPipe(ctx context.Context, target string, sent, received
 // bodies are not captured, still registers any secret it issues, and
 // copies a JSON-RPC error onto the request's RPC record.
 func (r *Recorder) recordPipeResponse(ev *Event, received []byte) {
-	r.Redactor.registerPersonalFromResponse(ev.RPC, received)
-	if r.CaptureBodies {
-		ev.ResponseBody = r.captureBody("application/json", received, int64(len(received)))
-	} else if looksJSON(received) {
-		_ = r.Redactor.JSON(received) // register issued secrets
-	}
-	if ev.RPC != nil {
-		if code, msg, ok := rpcErrorFromBody(received); ok {
-			ev.RPC.ErrorCode, ev.RPC.ErrorMessage = code, msg
-		}
-	}
+	r.observeResponse(ev, "application/json", received, int64(len(received)))
 }
 
 type roundTripper struct {
@@ -544,53 +490,10 @@ func (b *bodyRecorder) finish() {
 	b.done = true
 	b.ev.ResponseBytes = b.n
 	b.ev.Timings.Total = time.Since(b.t0)
-	b.rec.Redactor.registerPersonalFromResponse(b.ev.RPC, b.buf.Bytes())
-	if b.rec.CaptureBodies {
-		b.ev.ResponseBody = b.rec.captureBody(b.ct, b.buf.Bytes(), b.n)
-	} else if looksJSON(b.buf.Bytes()) {
-		_ = b.rec.Redactor.JSON(b.buf.Bytes()) // register issued secrets
-	}
-	if b.ev.RPC != nil && b.buf.Len() > 0 {
-		if code, msg, ok := rpcErrorFromBody(b.buf.Bytes()); ok {
-			b.ev.RPC.ErrorCode, b.ev.RPC.ErrorMessage = code, msg
-		}
-	}
+	b.rec.observeResponse(b.ev, b.ct, b.buf.Bytes(), b.n)
 	ev := *b.ev
 	b.mu.Unlock()
 	b.rec.add(ev)
-}
-
-// captureBody renders a body for the report. total is the true size of the
-// body on the wire, which may exceed what was retained.
-func (r *Recorder) captureBody(contentType string, b []byte, total int64) string {
-	if len(b) == 0 {
-		return ""
-	}
-	capped := b
-	truncated := total > int64(r.BodyCap)
-	if len(capped) > r.BodyCap {
-		capped = capped[:r.BodyCap]
-	}
-	var s string
-	switch {
-	case strings.HasPrefix(contentType, "application/x-www-form-urlencoded"):
-		s = r.Redactor.Form(string(capped))
-	case looksJSON(capped):
-		// A truncated body will not parse as JSON, so key-based masking
-		// cannot run over it. Fall back to masking by key name on the raw
-		// text: a token cut in half is still a token, and the half that
-		// survives must not reach a report file.
-		s = r.Redactor.JSONOrKeys(capped)
-	default:
-		s = r.Redactor.String(string(capped))
-	}
-	// E-mail addresses and phone numbers are masked in every captured
-	// body, whatever key or none they sit under (personal.go).
-	s = r.Redactor.maskPersonalPatterns(s)
-	if truncated {
-		s += fmt.Sprintf("…[truncated %d bytes]", total-int64(r.BodyCap))
-	}
-	return s
 }
 
 func redactHeaders(red *Redactor, h http.Header) map[string]string {
@@ -613,28 +516,6 @@ func rpcFromBody(b []byte) *RPCInfo {
 		return nil
 	}
 	return &RPCInfo{Method: probe.Method, ID: probe.ID, Notification: probe.ID == nil}
-}
-
-func rpcErrorFromBody(b []byte) (int, string, bool) {
-	// Works for a JSON body; for SSE, find the first data: line.
-	if bytes.HasPrefix(bytes.TrimSpace(b), []byte("event:")) || bytes.HasPrefix(bytes.TrimSpace(b), []byte("data:")) {
-		for _, line := range bytes.Split(b, []byte("\n")) {
-			if bytes.HasPrefix(line, []byte("data:")) {
-				b = bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
-				break
-			}
-		}
-	}
-	var probe struct {
-		Error *struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if json.Unmarshal(b, &probe) != nil || probe.Error == nil {
-		return 0, "", false
-	}
-	return probe.Error.Code, probe.Error.Message, true
 }
 
 func tlsInfo(cs tls.ConnectionState) *TLSInfo {
@@ -714,7 +595,7 @@ func (r *Recorder) WriteHAR(w io.Writer, creatorVersion string) error {
 			"response":        map[string]any{"status": status, "statusText": statusText, "httpVersion": "HTTP/1.1", "headers": headers(e.ResponseHeaders), "cookies": []nv{}, "content": content, "redirectURL": "", "headersSize": -1, "bodySize": e.ResponseBytes},
 			"cache":           map[string]any{},
 			"timings":         map[string]any{"blocked": -1, "dns": ms(e.Timings.DNS), "connect": ms(e.Timings.Connect), "ssl": ms(e.Timings.TLS), "send": 0, "wait": ms(wait), "receive": float64(recv) / float64(time.Millisecond)},
-			"serverIPAddress": strings.Split(e.Remote, ":")[0],
+			"serverIPAddress": harServerIP(e.Remote),
 			"comment":         strings.TrimSpace(e.Phase + " " + e.Label),
 		})
 	}

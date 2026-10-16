@@ -13,8 +13,8 @@ export CGO_ENABLED = 0
 COVER_MIN ?= 85
 BRANCH_MIN ?= 80
 
-.PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
-        fuzz sbom sbom-check coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
+.PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check cross perf \
+        fuzz sbom sbom-check notices coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
         ecosystem ecosystem-verify commitlint ssg-check readme-check demo verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
 all: format vet lint spdx-check example-check ecosystem-verify ssg-check test test-race build
@@ -46,8 +46,9 @@ bench:
 #
 # A single static binary a security team can approve in an afternoon is
 # the product, not an aesthetic, and the way that stops being true is one
-# dependency at a time. 18 MiB against roughly 13 today: headroom for
-# growth somebody chose, and a red build for growth nobody noticed.
+# dependency at a time. 18 MiB against about 15 today (15.1 MiB stripped,
+# linux/amd64, on feat/v0.0.7): headroom for growth somebody chose, and a
+# red build for growth nobody noticed.
 #
 # The allocation budgets live in internal/report/perf_test.go, where they
 # run with the rest of the suite. Wall-clock budgets are measured and
@@ -277,11 +278,36 @@ verify-versions:
 example-check:
 	go run ./scripts/example_check.go
 
+# Compiles for platforms the test matrix does not run on, so a build
+# constraint that names the wrong set of systems fails here rather than for
+# the first user of that platform. 32-bit Linux catches syscall field
+# widths; FreeBSD and windows/arm64 the !windows and GOOS switches. The
+# library packages, which are importable on their own, must also build for
+# WebAssembly, where there are no processes to start.
+CROSS_TARGETS = linux/386 linux/arm freebsd/amd64 windows/arm64
+WASM_TARGETS = wasip1/wasm js/wasm
+LIBRARY_PKGS = . ./transport ./auth ./diagnostics
+cross:
+	@set -e; for t in $(CROSS_TARGETS); do \
+	  echo "cross: ./... for $$t"; \
+	  CGO_ENABLED=0 GOOS=$${t%/*} GOARCH=$${t#*/} GOARM=7 go build ./...; \
+	done; \
+	for t in $(WASM_TARGETS); do \
+	  echo "cross: library packages for $$t"; \
+	  CGO_ENABLED=0 GOOS=$${t%/*} GOARCH=$${t#*/} go build $(LIBRARY_PKGS); \
+	done
+
 fuzz:
 	scripts/fuzz.sh
 
 sbom-check:
 	scripts/sbom-check.sh
+
+# The licence and notice files of every module the binary links, from the
+# build graph, into build/THIRD_PARTY_NOTICES. Generated, never committed;
+# goreleaser's before-hook and `make install` both run it.
+notices:
+	go run ./scripts/notices -o $(DIST)/THIRD_PARTY_NOTICES
 
 # Condition coverage with gobco (several minutes); MODE=branch for branch
 # coverage. Fails under BRANCH_MIN percent.
@@ -295,7 +321,7 @@ clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check cross readme-check demo verify-versions fuzz sbom sbom-check notices trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).

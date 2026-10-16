@@ -52,7 +52,9 @@ func TestServePublicRefusesABadAllowlist(t *testing.T) {
 
 // The overrides that make local debugging pleasant are the ones that make a
 // public deployment dangerous. Combining them must fail loudly rather than
-// be quietly ignored.
+// be quietly ignored. serve does not register them at all, so cobra refuses
+// them as unknown flags; the same switches sent in a request body are
+// discarded by the web package's publicSpec.
 func TestServePublicRefusesTheInsecureOverrides(t *testing.T) {
 	dir := t.TempDir()
 	list := filepath.Join(dir, "list.json")

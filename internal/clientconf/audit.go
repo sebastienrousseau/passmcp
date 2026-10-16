@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"satellion.com/passmcp/internal/termsafe"
 )
 
 // A stdio server's launch command is decided before the server answers a
@@ -272,11 +274,7 @@ func secretIssue(s Server, i int, detail string) Issue {
 // clip bounds text taken from the file. It is the operator's own file, but
 // a finding is one line and a command can be long.
 func clip(s string) string {
-	s = strings.Join(strings.Fields(s), " ")
-	if len(s) > 80 {
-		return s[:80] + "…"
-	}
-	return s
+	return termsafe.Truncate(strings.Join(strings.Fields(s), " "), 80, "…")
 }
 
 // queryRe matches a query parameter's value, which is where a download URL

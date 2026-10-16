@@ -4,8 +4,10 @@
 package telemetry
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -17,11 +19,17 @@ const Mask = "***"
 // Redactor scrubs known secrets and secret-bearing fields from strings,
 // headers and URLs before they reach a report or a log.
 type Redactor struct {
-	mu      sync.RWMutex
-	secrets []string
+	mu sync.RWMutex
+	// secrets are the registered secrets, longest first; secretMask masks
+	// each in that order, raw then URL-escaped.
+	secrets    []string
+	secretSet  map[string]bool
+	secretMask maskSet
 	// personal holds personal-data values registered from result-bearing
 	// responses (see personal.go), masked like secrets.
-	personal []string
+	personal     []string
+	personalSet  map[string]bool
+	personalMask maskSet
 
 	// cmu guards counts, which String updates while holding mu for
 	// reading.
@@ -49,14 +57,28 @@ func (r *Redactor) Add(secret string) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, s := range r.secrets {
-		if s == secret {
-			return
-		}
+	if r.secretSet[secret] {
+		return
 	}
-	r.secrets = append(r.secrets, secret)
-	// Longest first so a secret that contains another is masked whole.
-	sort.Slice(r.secrets, func(i, j int) bool { return len(r.secrets[i]) > len(r.secrets[j]) })
+	if r.secretSet == nil {
+		r.secretSet = map[string]bool{}
+	}
+	r.secretSet[secret] = true
+	// Longest first so a secret that contains another is masked whole;
+	// among equal lengths, first registered first.
+	at := longestFirstIndex(r.secrets, secret)
+	r.secrets = slices.Insert(r.secrets, at, secret)
+	forms := []string{secret}
+	if esc := url.QueryEscape(secret); esc != secret {
+		forms = append(forms, esc)
+	}
+	r.secretMask.insert(at, forms)
+}
+
+// longestFirstIndex is where v goes in list, which is ordered longest
+// first: after every value at least as long.
+func longestFirstIndex(list []string, v string) int {
+	return sort.Search(len(list), func(i int) bool { return len(list[i]) < len(v) })
 }
 
 // String masks registered secrets inside s.
@@ -66,19 +88,30 @@ func (r *Redactor) String(s string) string {
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for _, sec := range r.secrets {
-		s = strings.ReplaceAll(s, sec, Mask)
-		if esc := url.QueryEscape(sec); esc != sec {
-			s = strings.ReplaceAll(s, esc, Mask)
+	s, _ = r.secretMask.apply(s)
+	return r.maskPersonalValues(s)
+}
+
+// SensitiveHeader reports whether a header's value is a credential by its
+// name alone. The recorder masks such values wherever they are printed,
+// and internal/creds registers the operator's --header values by the same
+// rule, so a server echoing one in a body is masked too.
+func SensitiveHeader(name string) bool {
+	lname := strings.ToLower(name)
+	if sensitiveHeaders[lname] {
+		return true
+	}
+	for _, part := range []string{"secret", "token", "key", "password", "passwd", "auth"} {
+		if strings.Contains(lname, part) {
+			return true
 		}
 	}
-	return r.maskPersonalValues(s)
+	return false
 }
 
 // Header masks a header value by name policy, then by registered secrets.
 func (r *Redactor) Header(name, value string) string {
-	lname := strings.ToLower(name)
-	if sensitiveHeaders[lname] || strings.Contains(lname, "secret") || strings.Contains(lname, "token") || strings.Contains(lname, "key") {
+	if SensitiveHeader(name) {
 		return maskKeepScheme(value)
 	}
 	return r.String(value)
@@ -126,16 +159,56 @@ var sensitiveJSONKeys = map[string]bool{
 // JSON masks sensitive keys in a JSON document (recursively) and registers
 // their values. Non-JSON input is returned through String.
 func (r *Redactor) JSON(body []byte) string {
-	var v any
-	if err := json.Unmarshal(body, &v); err != nil {
+	v, ok := decodeJSON(body)
+	if !ok {
 		return r.String(string(body))
 	}
+	return r.maskedJSON(v, body)
+}
+
+// maskedJSON masks the decoded document v of body by key, registering
+// what it masks, and renders it through String.
+func (r *Redactor) maskedJSON(v any, body []byte) string {
 	v = r.maskValue(v)
-	out, err := json.Marshal(v)
+	out, err := encodeJSON(v)
 	if err != nil {
 		return r.String(string(body))
 	}
 	return r.String(string(out))
+}
+
+// decodeJSON parses body as exactly one JSON value, as json.Unmarshal
+// would, but keeps each number as the text the server wrote. Decoding into
+// float64 rewrote an id above 2^53 as a different id, which is evidence a
+// report must not alter.
+//
+// json.Valid runs first, as it does inside json.Unmarshal: it rejects
+// trailing data, and it rejects a truncated body without the decoder's
+// buffering.
+func decodeJSON(body []byte) (any, bool) {
+	if !json.Valid(body) {
+		return nil, false
+	}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	var v any
+	if dec.Decode(&v) != nil {
+		return nil, false
+	}
+	return v, true
+}
+
+// encodeJSON marshals v without HTML escaping, so "<a>&" in a server's
+// body reads as "<a>&" in the report rather than "\u003ca\u003e\u0026".
+// Every renderer escapes for its own medium.
+func encodeJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 func (r *Redactor) maskValue(v any) any {
@@ -166,9 +239,8 @@ func (r *Redactor) maskValue(v any) any {
 // to a body truncated at the capture cap. Without the fallback a token in a
 // body larger than the cap would reach the report in the clear.
 func (r *Redactor) JSONOrKeys(body []byte) string {
-	var v any
-	if json.Unmarshal(body, &v) == nil {
-		return r.JSON(body)
+	if v, ok := decodeJSON(body); ok {
+		return r.maskedJSON(v, body)
 	}
 	return r.String(r.maskJSONKeysTextually(string(body)))
 }
