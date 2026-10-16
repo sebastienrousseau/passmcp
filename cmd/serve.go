@@ -55,15 +55,6 @@ Examples:
 					"  Without one it would send requests wherever it was asked to, which is the\n" +
 					"  thing passmcp reports other servers for")
 			}
-			// The overrides that make local debugging pleasant are the ones
-			// that make a public deployment dangerous, so they are refused
-			// here rather than ignored: a flag that appears to work and does
-			// nothing is worse than one that fails.
-			for _, f := range []string{"insecure-allow-private-hosts", "insecure-allow-http-auth", "allow-resource-mismatch"} {
-				if cmd.Flags().Changed(f) || cmd.Root().PersistentFlags().Changed(f) {
-					return fmt.Errorf("--%s cannot be combined with --public", f)
-				}
-			}
 			var err error
 			if allowed, err = web.LoadAllowlist(serveAllowFile); err != nil {
 				return err
