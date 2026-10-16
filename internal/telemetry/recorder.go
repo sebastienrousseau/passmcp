@@ -141,8 +141,11 @@ type Recorder struct {
 	// unbounded.
 	MaxEvents int
 
-	mu      sync.Mutex
+	mu sync.Mutex
+	// events is a ring once it holds MaxEvents: head is the index of the
+	// oldest event, and is zero whenever the ring is not full.
 	events  []Event
+	head    int
 	seq     int
 	dropped int
 	first   time.Time
@@ -181,24 +184,6 @@ func (r *Recorder) Wrap(base http.RoundTripper) http.RoundTripper {
 		base = http.DefaultTransport
 	}
 	return &roundTripper{rec: r, base: base}
-}
-
-// Events returns a copy of everything recorded so far.
-func (r *Recorder) Events() []Event {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	out := make([]Event, len(r.events))
-	copy(out, r.events)
-	return out
-}
-
-// maxEvents resolves the retention limit. It must be called with r.mu held
-// or from a context where concurrent mutation is impossible.
-func (r *Recorder) maxEvents() int {
-	if r.MaxEvents == 0 {
-		return DefaultMaxEvents
-	}
-	return r.MaxEvents
 }
 
 // accumulate folds one event into a Summary.
@@ -244,8 +229,7 @@ func (r *Recorder) Summary() Summary {
 	s := Summary{ByStatus: map[string]int{}, ByPhase: map[string]int{}, ByHost: map[string]int{}}
 	r.mu.Lock()
 	base := r.agg
-	evs := make([]Event, len(r.events))
-	copy(evs, r.events)
+	evs := r.ordered()
 	first, last := r.first, r.last
 	r.mu.Unlock()
 
@@ -267,34 +251,6 @@ func (r *Recorder) Summary() Summary {
 		s.Wall = last.Sub(first)
 	}
 	return s
-}
-
-func (r *Recorder) add(e Event) {
-	r.mu.Lock()
-	r.seq++
-	e.Seq = r.seq
-	r.events = append(r.events, e)
-	if maxEv := r.maxEvents(); maxEv > 0 && len(r.events) > maxEv {
-		// Fold the evicted events into the running aggregate so the summary
-		// still describes the whole run, then drop them.
-		drop := len(r.events) - maxEv
-		for _, old := range r.events[:drop] {
-			accumulate(&r.agg, old)
-		}
-		r.dropped += drop
-		r.events = append(r.events[:0], r.events[drop:]...)
-	}
-	if r.first.IsZero() {
-		r.first = e.Time
-	}
-	if end := e.Time.Add(e.Timings.Total); end.After(r.last) {
-		r.last = end
-	}
-	sink := r.Sink
-	r.mu.Unlock()
-	if sink != nil {
-		sink(e)
-	}
 }
 
 // PipeMethod is the Event.Method of an exchange that was not HTTP.
