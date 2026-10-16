@@ -4,6 +4,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -94,7 +95,7 @@ func (s *Stdio) read() {
 			s.failAll(err)
 			return
 		}
-		if len(strings.TrimSpace(string(line))) == 0 {
+		if blankLine(line) {
 			continue
 		}
 		var resp Response
@@ -111,6 +112,13 @@ func (s *Stdio) read() {
 		}
 		s.deliver(&resp, line)
 	}
+}
+
+// blankLine reports whether line holds nothing but white space. It works
+// on the bytes: converting a message of up to 16 MiB to a string only to
+// test it copied the whole message.
+func blankLine(line []byte) bool {
+	return len(bytes.TrimSpace(line)) == 0
 }
 
 // note records a line that was not a JSON-RPC message.
