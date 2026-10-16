@@ -12,22 +12,24 @@ import (
 
 func TestDefaultPathPrecedence(t *testing.T) {
 	t.Setenv("PASSMCP_CONFIG", "/explicit/config.json")
-	if DefaultPath() != "/explicit/config.json" {
-		t.Error("PASSMCP_CONFIG must win")
+	if p, err := DefaultPath(); err != nil || p != "/explicit/config.json" {
+		t.Errorf("PASSMCP_CONFIG must win: %s, %v", p, err)
 	}
 	t.Setenv("PASSMCP_CONFIG", "")
 	t.Setenv("XDG_CONFIG_HOME", "/xdg")
-	if DefaultPath() != filepath.Join("/xdg", "passmcp", "config.json") {
-		t.Errorf("xdg path = %s", DefaultPath())
+	if p, err := DefaultPath(); err != nil || p != filepath.Join("/xdg", "passmcp", "config.json") {
+		t.Errorf("xdg path = %s, %v", p, err)
 	}
 	t.Setenv("XDG_CONFIG_HOME", "")
 	home, _ := os.UserHomeDir()
-	if DefaultPath() != filepath.Join(home, ".config", "passmcp", "config.json") {
-		t.Errorf("home path = %s", DefaultPath())
+	if p, err := DefaultPath(); err != nil || p != filepath.Join(home, ".config", "passmcp", "config.json") {
+		t.Errorf("home path = %s, %v", p, err)
 	}
 	t.Setenv("HOME", "")
-	if !strings.HasSuffix(DefaultPath(), filepath.Join(".config", "passmcp", "config.json")) {
-		t.Errorf("fallback path = %s", DefaultPath())
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("home", "")
+	if p, err := DefaultPath(); err == nil {
+		t.Errorf("no home directory, yet a config path: %s", p)
 	}
 }
 

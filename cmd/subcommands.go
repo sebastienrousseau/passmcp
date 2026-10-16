@@ -320,15 +320,19 @@ func storeLogin(endpoint string, client *passmcp.Client, done *passmcp.ConnectRe
 	if err := store.Put(st); err != nil {
 		return err
 	}
+	where, err := creds.DefaultStorePath()
+	if err != nil {
+		return err
+	}
 	// Say where the secret actually went: "stored in tokens.json" would
 	// be wrong when the OS keychain holds it, and an operator auditing
 	// their machine needs to know which.
 	switch backend := store.Backend(); backend {
 	case "file":
-		fmt.Fprintf(os.Stderr, "authorized as a user of %s; token stored in %s (mode 0600)\n", termsafe.String(done.Initialize.ServerInfo.Name), creds.DefaultStorePath())
+		fmt.Fprintf(os.Stderr, "authorized as a user of %s; token stored in %s (mode 0600)\n", termsafe.String(done.Initialize.ServerInfo.Name), where)
 		fmt.Fprintf(os.Stderr, "note: no OS keyring was available, so the refresh token is on disk in the clear\n")
 	default:
-		fmt.Fprintf(os.Stderr, "authorized as a user of %s; secrets stored in the %s keyring, the rest in %s\n", termsafe.String(done.Initialize.ServerInfo.Name), backend, creds.DefaultStorePath())
+		fmt.Fprintf(os.Stderr, "authorized as a user of %s; secrets stored in the %s keyring, the rest in %s\n", termsafe.String(done.Initialize.ServerInfo.Name), backend, where)
 	}
 	return nil
 }

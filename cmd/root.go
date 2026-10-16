@@ -131,7 +131,7 @@ func init() {
 	}
 	installStyledHelp(rootCmd)
 	pf := rootCmd.PersistentFlags()
-	pf.StringVar(&configPath, "config", "", "config file (default "+tildePath(config.DefaultPath())+")")
+	pf.StringVar(&configPath, "config", "", "config file (default "+defaultConfigHelp()+")")
 	pf.StringVar(&profileName, "profile", "", "profile from the config file supplying the endpoint and settings")
 	pf.StringVar(&logLevel, "log-level", "info", "diagnostic verbosity on stderr: error, warn, info or debug ("+diag.EnvVar+")")
 	pf.StringVar(&logFormat, "log-format", "human", "diagnostic format on stderr: human or json")
@@ -140,6 +140,17 @@ func init() {
 
 // Root returns the root command, for documentation generators.
 func Root() *cobra.Command { return rootCmd }
+
+// defaultConfigHelp is the --config default as the help text shows it.
+// Without a home directory there is no default file, which is what the
+// help then says.
+func defaultConfigHelp() string {
+	p, err := config.DefaultPath()
+	if err != nil {
+		return "none: no home directory"
+	}
+	return tildePath(p)
+}
 
 // tildePath shortens a path under the home directory to ~/… for display.
 func tildePath(p string) string {

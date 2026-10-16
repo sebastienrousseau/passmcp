@@ -39,7 +39,10 @@ var configInitCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := configPath
 		if path == "" {
-			path = config.DefaultPath()
+			var err error
+			if path, err = config.DefaultPath(); err != nil {
+				return err
+			}
 		}
 		if _, err := os.Stat(path); err == nil {
 			return fmt.Errorf("%s already exists; remove it first", path)
