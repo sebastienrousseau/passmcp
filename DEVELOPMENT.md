@@ -79,6 +79,7 @@ make            # format, vet, lint, tests, build
 | `make test-race` | Race detector with randomised test order |
 | `make fuzz` | Run every fuzz target for a short, fixed budget |
 | `make docs` | Generate manpages and completions into `build/` |
+| `make notices` | Generate `build/THIRD_PARTY_NOTICES` from the build graph |
 | `make docs-lock` | Regenerate `docs/requirements.txt` after editing `docs/requirements.in` |
 | `make checks` | Regenerate `docs/checks.md` from the check call sites |
 | `make install` | Install under `PREFIX` (default `/usr/local`) |
@@ -270,6 +271,15 @@ make docs        # -> build/man/*.1, build/completions/*
 They are rendered from the live cobra command tree, which is what keeps them
 in step with `--help`. A committed `.1` drifts the first time a flag changes
 and nothing catches it.
+
+`build/THIRD_PARTY_NOTICES` is generated the same way (`make notices`, or
+`go run ./scripts/notices`): the licence and notice files of every module
+`./cmd/passmcp` links on Linux, macOS or Windows, plus the Go standard
+library's, as the binaries are static and those licences travel with them.
+Release archives, the deb and rpm packages, the container image and
+`make install` all carry it. A linked module that ships no licence file
+fails the script until what is known of its terms is recorded in
+`knownUnlicensed`.
 
 `build/` is git-ignored. It is deliberately **not** `dist/`: goreleaser owns
 that directory and cleans it after running its before-hooks, which would

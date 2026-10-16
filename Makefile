@@ -14,7 +14,7 @@ COVER_MIN ?= 85
 BRANCH_MIN ?= 80
 
 .PHONY: tools vulncheck complexity spec spec-verify reuse-lint reuse-lock web-shell all build docs test test-race vet lint format spdx-check example-check perf \
-        fuzz sbom sbom-check coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
+        fuzz sbom sbom-check notices coverage branchcover bench api-check checks checks-verify cra-check controls controls-verify soa-check docs-lock \
         ecosystem ecosystem-verify commitlint ssg-check readme-check demo verify-versions trace trace-check trace-refresh e2e-kind clean help name-guard
 
 all: format vet lint spdx-check example-check ecosystem-verify ssg-check test test-race build
@@ -283,6 +283,12 @@ fuzz:
 sbom-check:
 	scripts/sbom-check.sh
 
+# The licence and notice files of every module the binary links, from the
+# build graph, into build/THIRD_PARTY_NOTICES. Generated, never committed;
+# goreleaser's before-hook and `make install` both run it.
+notices:
+	go run ./scripts/notices -o $(DIST)/THIRD_PARTY_NOTICES
+
 # Condition coverage with gobco (several minutes); MODE=branch for branch
 # coverage. Fails under BRANCH_MIN percent.
 branchcover:
@@ -295,7 +301,7 @@ clean:
 	rm -rf $(DIST)
 
 help:
-	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check trace trace-check trace-refresh e2e-kind clean"
+	@printf '%s\n' "targets: all build docs install uninstall install-smoke test test-race coverage branchcover bench api-check tools vulncheck vet lint complexity format spdx-check example-check readme-check demo verify-versions fuzz sbom sbom-check notices trace trace-check trace-refresh e2e-kind clean"
 
 # The project was renamed to passmcp: the old name may appear only in the
 # provenance line (scripts/name-guard.sh).

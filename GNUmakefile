@@ -23,7 +23,7 @@ FISHCOMPDIR = $(DESTDIR)$(PREFIX)/share/fish/vendor_completions.d
 
 .PHONY: install uninstall install-smoke
 
-install: build docs
+install: build docs notices
 	install -d $(BINDIR)
 	install -m 0755 $(DIST)/$(BINARY_NAME) $(BINDIR)/$(BINARY_NAME)
 	install -d $(MANDIR)
@@ -33,7 +33,7 @@ install: build docs
 	install -m 0644 $(DIST)/completions/passmcp.zsh  $(ZSHCOMPDIR)/_$(BINARY_NAME)
 	install -m 0644 $(DIST)/completions/passmcp.fish $(FISHCOMPDIR)/$(BINARY_NAME).fish
 	install -d $(DOCDIR)
-	install -m 0644 README.md CHANGELOG.md LICENSE SECURITY.md $(DOCDIR)/
+	install -m 0644 README.md CHANGELOG.md LICENSE SECURITY.md $(DIST)/THIRD_PARTY_NOTICES $(DOCDIR)/
 
 uninstall:
 	rm -f $(BINDIR)/$(BINARY_NAME)
@@ -53,7 +53,8 @@ install-smoke:
 	         usr/share/bash-completion/completions/$(BINARY_NAME) \
 	         usr/share/zsh/site-functions/_$(BINARY_NAME) \
 	         usr/share/fish/vendor_completions.d/$(BINARY_NAME).fish \
-	         usr/share/doc/passmcp/README.md; do \
+	         usr/share/doc/passmcp/README.md \
+	         usr/share/doc/passmcp/THIRD_PARTY_NOTICES; do \
 	  test -f "/tmp/passmcp-stage/$$f" || { echo "MISSING: $$f" >&2; exit 1; }; \
 	done; \
 	test -x /tmp/passmcp-stage/usr/bin/$(BINARY_NAME) || { echo "binary not executable" >&2; exit 1; }

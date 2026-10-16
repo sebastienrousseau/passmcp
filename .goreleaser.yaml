@@ -20,9 +20,15 @@ release:
 # Manpages and shell completions are rendered from the cobra command tree
 # before anything is packaged. Generated, never committed: a checked-in .1
 # drifts from --help the first time a flag changes, and nothing catches it.
+#
+# THIRD_PARTY_NOTICES is generated the same way, from the build graph:
+# the binaries statically link MIT, BSD and Apache-2.0 code whose licences
+# (and yaml's Apache NOTICE) must travel with every archive, package and
+# image.
 before:
   hooks:
     - go run ./scripts/gen_docs.go build
+    - go run ./scripts/notices -o build/THIRD_PARTY_NOTICES
 
 builds:
   - env:
@@ -59,6 +65,8 @@ archives:
       - README.md
       - CHANGELOG.md
       - SECURITY.md
+      - src: build/THIRD_PARTY_NOTICES
+        strip_parent: true
       - src: build/man/*.1
         dst: man
       - src: build/completions/*
@@ -86,6 +94,11 @@ archives:
 dockers_v2:
   - id: passmcp
     dockerfile: Dockerfile
+    # The licence texts the image must carry; the Dockerfile copies them
+    # into /usr/share/doc/passmcp, where the packages put them.
+    extra_files:
+      - LICENSE
+      - build/THIRD_PARTY_NOTICES
     images:
       - ghcr.io/sebastienrousseau/passmcp
     tags:
@@ -169,6 +182,9 @@ nfpms:
         file_info: {mode: 0644}
       - src: CHANGELOG.md
         dst: /usr/share/doc/passmcp/CHANGELOG.md
+        file_info: {mode: 0644}
+      - src: build/THIRD_PARTY_NOTICES
+        dst: /usr/share/doc/passmcp/THIRD_PARTY_NOTICES
         file_info: {mode: 0644}
 
 # Homebrew formula, generated from the release's own checksums and
