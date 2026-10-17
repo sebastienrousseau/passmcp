@@ -14,6 +14,43 @@ patch bump. The slow climb is deliberate: it lets maturity be earned over
 many releases rather than declared, and a version number is not where this
 project announces that a change felt big.
 
+## [Unreleased]
+
+Work towards the family's 0.0.8. Version places stay at 0.0.7 until the
+family's release step.
+
+### Fixed
+
+- **The Nix flake builds.** `nix run` and `nix profile install`, which the
+  README offers, failed at 0.0.7: `vendorHash` was a placeholder, no
+  `flake.lock` was committed, and nixpkgs' default Go (1.26.8 at the
+  locked revision) is older than the 1.26.9 `go.mod` requires. The flake
+  now builds with nixpkgs' `go_1_27` (1.27.2, the release image's
+  toolchain) in the package, its manpage step and the dev shell, carries
+  the vendor hash `nix build` reported, and commits the lock `nix flake
+  lock` wrote. The package's check skips the two tests that need a
+  module-mode build, which CI still runs. Checked in a `nixos/nix`
+  container on Linux arm64: `nix build`, `nix run .#default -- version`
+  (passmcp 0.0.7, with manpages and completions installed), `nix develop`
+  (go1.27.2) and `nix flake check`.
+- **Two stdio tests no longer depend on `sed` in the shell's default
+  PATH.** `TestStdioEnvIsPassedWhenGiven` and
+  `TestStdioExplicitEmptyEnvIsHonoured` start a stub server with no PATH,
+  and its script used `sed`, which a Nix build sandbox does not have
+  there; the id is now read with shell parameter expansion.
+- **The family table describes passmcp-registry and passmcp-census as they
+  are.** Both read as published (a "signed public scorecard", "the
+  published reliability census"), but neither has published a run or an
+  edition yet, as their own READMEs say. The rows in `internal/ecosystem`,
+  and so `docs/ecosystem.md`, the README table and `ecosystem.json`, now
+  say so.
+- **The README no longer says passmcp-lsp and passmcp-census have no
+  tag.** Both are tagged through 0.0.7.
+- **Homebrew installs a cask, not a formula.** The README,
+  `docs/getting-started.md` and `docs/packaging.md` said formula;
+  goreleaser has published a cask, with macOS and Linux archives, since
+  `brews:` was deprecated.
+
 ## [0.0.7] - 2026-10-16
 
 ### Fixed

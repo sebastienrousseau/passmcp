@@ -409,9 +409,11 @@ done
 func TestStdioEnvIsPassedWhenGiven(t *testing.T) {
 	requireShell(t)
 	s := start(t, transport.StdioConfig{
+		// Only GIVEN reaches the server, so the script uses no program:
+		// sh's default PATH has no sed in a Nix build sandbox.
 		Command: script(t, `
 while IFS= read -r line; do
-  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+  rest=${line#*'"id":'}; id=${rest%%[!0-9]*}
   printf '{"jsonrpc":"2.0","id":%s,"result":{"secret":"%s"}}\n' "$id" "${GIVEN:-absent}"
 done
 `),
@@ -548,9 +550,11 @@ func TestStdioExplicitEmptyEnvIsHonoured(t *testing.T) {
 	requireShell(t)
 	t.Setenv("HOME", "/tmp/passmcp-home")
 	s := start(t, transport.StdioConfig{
+		// No PATH reaches the server, so the script uses no program: sh's
+		// default PATH has no sed in a Nix build sandbox.
 		Command: script(t, `
 while IFS= read -r line; do
-  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+  rest=${line#*'"id":'}; id=${rest%%[!0-9]*}
   printf '{"jsonrpc":"2.0","id":%s,"result":{"home":"%s"}}\n' "$id" "${HOME:-absent}"
 done
 `),

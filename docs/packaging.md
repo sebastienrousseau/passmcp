@@ -178,7 +178,7 @@ is no `KEYS.asc` to import and no key rotation for you to track.
 ## Pre-built packages
 
 The release pipeline publishes `.deb` and `.rpm` (via nfpm) and a
-Homebrew formula. On Arch Linux, the AUR package `passmcp` builds from the
+Homebrew cask. On Arch Linux, the AUR package `passmcp` builds from the
 release's source; its `PKGBUILD` is a reference for anyone packaging
 passmcp from source elsewhere. If you are packaging for an archive that
 prefers to build from source, use `make install` above; the pre-built
