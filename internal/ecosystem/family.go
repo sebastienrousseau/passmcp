@@ -216,8 +216,8 @@ var Family = []Repo{
 	{
 		Name:     "passmcp-registry",
 		Status:   Released,
-		Role:     "A signed public scorecard of the remote servers in the MCP Registry: each checked read-only and without credentials by a pinned passmcp release, every result an offline-verifiable attestation, and anything that would expose a vulnerability withheld for its owner first.",
-		Purpose:  "A signed public scorecard of the MCP Registry's remote servers",
+		Role:     "The tooling for a signed public scorecard of the remote servers in the MCP Registry: each checked read-only and without credentials by a pinned passmcp release, every result an offline-verifiable attestation, and anything that would expose a vulnerability withheld for its owner first. No run has been published yet.",
+		Purpose:  "A signed public scorecard of the MCP Registry's remote servers (no run published yet)",
 		UseCase:  "Check a public server's standing before connecting to it",
 		Language: "go",
 		Licence:  "AGPL-3.0-only AND CC-BY-4.0",
@@ -245,9 +245,9 @@ var Family = []Repo{
 	{
 		Name:     "passmcp-census",
 		Status:   Released,
-		Role:     "The published reliability census: the dataset, the methodology, the disclosure log and the reproduction command.",
-		Purpose:  "The published reliability census: dataset, methodology, disclosure log and reproduction command",
-		UseCase:  "Cite ecosystem-wide reliability figures, and reproduce them",
+		Role:     "The reliability census of the MCP Registry's remote servers: the methodology, the disclosure log and the command that reproduces the figures. No edition has been published yet.",
+		Purpose:  "The reliability census: methodology, disclosure log and reproduction command (no edition published yet)",
+		UseCase:  "Cite ecosystem-wide reliability figures, and reproduce them, once an edition is published",
 		Language: "data",
 		Licence:  "CC-BY-4.0",
 		Boundary: "Licence. A GPL repository cannot cleanly carry a CC-BY dataset.",

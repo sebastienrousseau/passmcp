@@ -77,9 +77,10 @@ the rest of your mise tools.
 brew install sebastienrousseau/tap/passmcp
 ```
 
-The tap ships a formula, so the same line works with Homebrew on Linux and
-installs the manpages and completions alongside the binary. The `.deb`/`.rpm`
-packages and the tarballs attached to each
+The tap ships a cask with macOS and Linux archives, so the same line works
+with Homebrew on Linux, and it installs the manpages and completions
+alongside the binary. The `.deb`/`.rpm` packages and the tarballs attached
+to each
 [release](https://github.com/sebastienrousseau/passmcp/releases/latest) are the
 alternatives, as are [mise](#mise-macos--linux) and the
 [Go toolchain](#go-toolchain).
@@ -367,9 +368,9 @@ Every component is released at **0.0.7** and moves in lockstep: one version acro
 | [passmcp-server](https://github.com/sebastienrousseau/passmcp-server) | passmcp's diagnostics as read-only MCP tools | Evaluate a server, or check an attestation, from inside the agent |
 | [passmcp-action](https://github.com/sebastienrousseau/passmcp-action) | passmcp in GitHub Actions and GitLab CI, the image pinned by digest | Fail a build on the findings you choose |
 | [passmcp-graph](https://github.com/sebastienrousseau/passmcp-graph) | A local graph of agents, servers, tools and identities built from attestations | Find inherited risk and over-privilege, and gate on policy |
-| [passmcp-registry](https://github.com/sebastienrousseau/passmcp-registry) | A signed public scorecard of the MCP Registry's remote servers | Check a public server's standing before connecting to it |
+| [passmcp-registry](https://github.com/sebastienrousseau/passmcp-registry) | A signed public scorecard of the MCP Registry's remote servers (no run published yet) | Check a public server's standing before connecting to it |
 | [passmcp-lsp](https://github.com/sebastienrousseau/passmcp-lsp) | A language server for MCP artefacts, with check-id hover from the guidance catalogue | Catch mistakes in server.json, tool schemas and client configuration while editing |
-| [passmcp-census](https://github.com/sebastienrousseau/passmcp-census) | The published reliability census: dataset, methodology, disclosure log and reproduction command | Cite ecosystem-wide reliability figures, and reproduce them |
+| [passmcp-census](https://github.com/sebastienrousseau/passmcp-census) | The reliability census: methodology, disclosure log and reproduction command (no edition published yet) | Cite ecosystem-wide reliability figures, and reproduce them, once an edition is published |
 | [satellion.com](https://github.com/sebastienrousseau/satellion.github.io) | The website, the Go module paths and the format URIs | Read the manual, and resolve `satellion.com/...` imports |
 <!-- END generated readme family table -->
 
@@ -379,8 +380,7 @@ heading, so neither can disagree with its source: `make ecosystem-verify` fails
 the build when they do. [`docs/ecosystem.md`](docs/ecosystem.md) carries the
 full entry for each repository — its licence, why it is a separate repository at
 all, and the criterion for archiving it — and the two ideas considered and
-rejected, with the reasons kept. `passmcp-lsp` and `passmcp-census` have no
-tag yet: nothing is installable from them until they do.
+rejected, with the reasons kept.
 
 ### Install the pieces
 
