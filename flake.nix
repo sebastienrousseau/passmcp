@@ -7,9 +7,8 @@
 #   nix build            # the passmcp package, with manpages + completions
 #   nix run . -- --help  # run it without installing
 #
-# flake.lock is not committed yet: nix was not available on the machine
-# that wrote this file, and a lock file written by hand is worse than none.
-# Run `nix flake lock` once and commit the result.
+# flake.lock pins nixpkgs and flake-utils; it was written by
+# `nix flake lock`, never by hand. Refresh it with `nix flake update`.
 {
   description = "passmcp: onboard, test and diagnose remote MCP servers end to end";
 
@@ -22,6 +21,12 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+
+        # go.mod requires Go 1.26.9 or later (the standard library's
+        # security fixes), and nixpkgs' default go is 1.26.8 at the locked
+        # revision; go_1_27 is 1.27.2, the toolchain the release image
+        # builds with. The package and the dev shell use the same one.
+        go = pkgs.go_1_27;
 
         # Read the version from CHANGELOG.md's newest release heading, so the
         # flake cannot drift from the changelog. Extracted by splitting
@@ -38,14 +43,14 @@
           in
           if releases == [ ] then "0.0.0" else extract (builtins.head releases);
 
-        passmcp = pkgs.buildGoModule {
+        passmcp = (pkgs.buildGoModule.override { inherit go; }) {
           pname = "passmcp";
           inherit version;
           src = ./.;
 
           # Never guessed: `nix build` reports the expected value when go.mod
-          # changes. Set on the first build and update on every go.mod change.
-          vendorHash = pkgs.lib.fakeHash;
+          # changes. Set from that report; update it on every go.mod change.
+          vendorHash = "sha256-iag3EFbUu0GXkn8LdC0TgXhMEbYeset+phx0wL5mxsU=";
 
           subPackages = [ "cmd/passmcp" ];
 
@@ -63,7 +68,7 @@
           # Manpages and completions are generated from the cobra command
           # tree, never committed, so they are generated here too.
           postInstall = ''
-            ${pkgs.go}/bin/go run ./scripts/gen_docs.go "$TMPDIR/artifacts"
+            ${go}/bin/go run ./scripts/gen_docs.go "$TMPDIR/artifacts"
             installManPage "$TMPDIR"/artifacts/man/*.1
             installShellCompletion --bash --name passmcp \
               "$TMPDIR/artifacts/completions/passmcp.bash"
@@ -80,10 +85,14 @@
           # The suite makes no network calls: every server it talks to is an
           # httptest server in the same process, so it runs in the sandbox.
           # subPackages narrows checkPhase too, so the whole module is tested
-          # explicitly.
+          # explicitly. Two tests need what only a module-mode build has, and
+          # CI runs them there: TestSBOMEmitsADocumentAScannerCanRead reads
+          # dependency checksums from the binary's build info, which a
+          # vendored build does not record, and TestTheShippedBinarysNotices
+          # reads licences from the module cache, which the sandbox has not.
           checkPhase = ''
             runHook preCheck
-            go test ./...
+            go test -skip '^(TestSBOMEmitsADocumentAScannerCanRead|TestTheShippedBinarysNotices)$' ./...
             runHook postCheck
           '';
 
@@ -107,8 +116,7 @@
         # Every tool DEVELOPMENT.md lists, pinned by the flake lock rather
         # than resolved at install time.
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            go
+          packages = [ go ] ++ (with pkgs; [
             gopls
             golangci-lint
             gotools
@@ -129,7 +137,7 @@
             cosign
             gh
             actionlint
-          ];
+          ]);
 
           shellHook = ''
             echo "passmcp dev shell: go $(go version | awk '{print $3}')"

@@ -48,8 +48,6 @@ cyclomatic 11 internal/creds/creds.go (*Credentials).Apply
 cyclomatic 11 internal/creds/keyring.go SelectKeyring
 cyclomatic 11 internal/discover/probe.go (*prober).statelessDiscover
 cyclomatic 11 internal/egress/proxy.go (*Proxy).forward
-cyclomatic 13 internal/engine/write.go (*Result).Render
-cyclomatic 12 internal/engine/write.go (*Result).WriteDir
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender
 cyclomatic 13 internal/probe/attacks.go privateReader
@@ -75,9 +73,7 @@ cyclomatic 12 transport/headervalue.go headerSafe
 cyclomatic 11 transport/raw.go (*Streamable).setRawHeaders
 cyclomatic 13 transport/stdio.go (*Stdio).Call
 file-lines 529 cmd/attest.go -
-file-lines 517 cmd/flags.go -
 file-lines 511 internal/discover/probe.go -
-file-lines 516 internal/engine/spec.go -
 file-lines 523 internal/probe/attacks.go -
 file-lines 520 internal/probe/phase_auth.go -
 file-lines 512 internal/probe/phase_exec.go -

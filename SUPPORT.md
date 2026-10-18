@@ -36,11 +36,12 @@ telemetry (`telemetry.ndjson`, `telemetry.har`) that a bug report needs.
 Once installed, `man passmcp` is available offline, and every subcommand has
 its own page (`man passmcp-check`).
 
-## Questions and discussion
+## Questions
 
-[GitHub Discussions](https://github.com/sebastienrousseau/passmcp/discussions)
-— for "how do I", "should passmcp do X", "is this finding right", and
-anything open-ended.
+Open a [GitHub issue](https://github.com/sebastienrousseau/passmcp/issues)
+for "how do I", "should passmcp do X", "is this finding right", and
+anything open-ended; a blank issue is fine when no template fits. The
+repository has no Discussions.
 
 ## Bugs and feature requests
 

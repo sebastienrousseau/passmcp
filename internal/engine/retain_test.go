@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"satellion.com/passmcp/internal/diag"
+	"satellion.com/passmcp/internal/report"
 )
 
 func TestParseRetention(t *testing.T) {
@@ -83,5 +84,18 @@ func TestSweepDeletesOnlyPassmcpsOldFilesAndLogsEach(t *testing.T) {
 
 	if err := sweepReportDir(filepath.Join(dir, "absent"), time.Hour, now); err == nil {
 		t.Error("an unreadable directory was not an error")
+	}
+}
+
+// Every file WriteDir can put in a report directory is one the retention
+// sweep recognises as passmcp's, so --retain ages all of them out.
+func TestRetentionCoversEveryFileWriteDirWrites(t *testing.T) {
+	spec := RunSpec{}
+	spec.Output.HTMLAssets = true
+	r := &Result{Report: &report.Report{}}
+	for _, f := range r.dirFiles(spec, "test") {
+		if !reportFiles[f.name] {
+			t.Errorf("WriteDir writes %s, which the retention sweep never deletes", f.name)
+		}
 	}
 }

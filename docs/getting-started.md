@@ -14,7 +14,7 @@ go install satellion.com/passmcp/cmd/passmcp@v0.0.7
 ```
 
 A binary installed this way reports the version it was installed at.
-Release archives, `.deb`/`.rpm` packages and the Homebrew formula are
+Release archives, `.deb`/`.rpm` packages and the Homebrew cask are
 described in the repository's `pkg/` directory.
 
 From source:

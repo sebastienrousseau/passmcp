@@ -58,7 +58,8 @@ func outputSpec(retainFor time.Duration) engine.OutputSpec {
 	return engine.OutputSpec{
 		Format: engine.Format(output), ReportDir: reportDir, Retain: retainFor,
 		CaptureBodies: captureBodies, WithEvents: withEvents, WithGuidance: withGuidance,
-		Verbose: verbose, NoColor: noColor, Interactive: interactive,
+		HTMLAssets: htmlAssets,
+		Verbose:    verbose, NoColor: noColor, Interactive: interactive,
 		OTLPEndpoint: otlpEndpoint, OTLPHeaders: otlpHeaders,
 		OCSFEndpoint: ocsfEndpoint, OCSFHeaders: ocsfHeaders,
 	}
