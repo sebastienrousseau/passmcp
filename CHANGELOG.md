@@ -40,6 +40,11 @@ family's release step.
 
 ### Fixed
 
+- **`--retain` deletes old OCSF files too.** `report.ocsf.json` is written
+  to every report directory but was missing from the list of passmcp's own
+  files that the retention sweep ages out, so it was kept forever. A test
+  now fails if the report directory gains a file the sweep does not know.
+
 - **The Nix flake builds.** `nix run` and `nix profile install`, which the
   README offers, failed at 0.0.7: `vendorHash` was a placeholder, no
   `flake.lock` was committed, and nixpkgs' default Go (1.26.8 at the

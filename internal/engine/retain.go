@@ -42,7 +42,8 @@ func ParseRetention(s string) (time.Duration, error) {
 var reportFiles = map[string]bool{
 	"report.json": true, "report.md": true, "report.html": true, "report.txt": true,
 	"report.sarif": true, "report.junit.xml": true, "attestation.json": true,
-	"telemetry.ndjson": true, "telemetry.har": true, "policy.json": true, "report.css": true,
+	"report.ocsf.json": true, "telemetry.ndjson": true, "telemetry.har": true, "policy.json": true,
+	"report.css": true,
 }
 
 // sweepReportDir deletes passmcp's own files in dir that are older than
