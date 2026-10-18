@@ -40,6 +40,10 @@ family's release step.
 
 ### Fixed
 
+- **SUPPORT.md and the issue chooser no longer send questions to GitHub
+  Discussions**, which are not enabled on this repository; a question is
+  a GitHub issue, blank when no template fits.
+
 - **`--retain` deletes old OCSF files too.** `report.ocsf.json` is written
   to every report directory but was missing from the list of passmcp's own
   files that the retention sweep ages out, so it was kept forever. A test
