@@ -16,8 +16,7 @@ project announces that a change felt big.
 
 ## [Unreleased]
 
-Work towards the family's 0.0.8. Version places stay at 0.0.7 until the
-family's release step.
+## [0.0.8] - 2026-10-18
 
 ### Added
 
@@ -37,6 +36,11 @@ family's release step.
   satellion.com's header and loading it in headless Chrome: 1 CSP
   violation (`style-src-elem`, inline) and an unstyled page before, 0 and
   the styled page with the flag.
+
+### Changed
+
+- **Require `satellion.com/passmcp-reporting` v0.0.8**, the family's
+  release that tags first, with `SBOM.md` updated to match.
 
 ### Fixed
 

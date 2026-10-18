@@ -311,7 +311,7 @@ hand.
 3. Tag and push: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
 4. The workflow builds the target matrix, signs with keyless cosign,
    attaches SLSA provenance and a CycloneDX SBOM, and publishes archives,
-   deb and rpm packages, the Homebrew formula, the AUR package and the
+   deb and rpm packages, the Homebrew cask, the AUR package and the
    container image.
 5. Its last step writes the release page in the family layout:
    title `passmcp X.Y.Z`, the highlights, GitHub's generated

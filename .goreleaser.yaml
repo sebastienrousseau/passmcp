@@ -187,7 +187,7 @@ nfpms:
         dst: /usr/share/doc/passmcp/THIRD_PARTY_NOTICES
         file_info: {mode: 0644}
 
-# Homebrew formula, generated from the release's own checksums and
+# The Homebrew cask, generated from the release's own checksums and
 # published afterwards by the `brew` job in release.yml, which cannot fail
 # the release: an unreachable package host must not cost a release its
 # provenance.
