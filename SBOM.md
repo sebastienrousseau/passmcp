@@ -25,7 +25,7 @@ is bumped.
 | `github.com/charmbracelet/x/term` | v0.2.2 | Terminal width, to fit `check` output and the help screen to the window | MIT |
 | `github.com/muesli/termenv` | v0.16.0 | Imported by tests only, to pin lipgloss's colour profile so coloured output can be asserted without a terminal; linked into the binary through lipgloss, which detects the terminal's profile with it | MIT |
 | `github.com/spf13/pflag` | v1.0.10 | CLI flag parsing; the shared flag groups and the flag-keyed config file | BSD-3-Clause |
-| `satellion.com/passmcp-reporting` | v0.0.7 | The attestation format's statement types and offline verifier, the A2A predicate and the graph model, first-party, split out so gateways can import it without this module's graph; standard library only | Apache-2.0 |
+| `satellion.com/passmcp-reporting` | v0.0.8 | The attestation format's statement types and offline verifier, the A2A predicate and the graph model, first-party, split out so gateways can import it without this module's graph; standard library only | Apache-2.0 |
 | `golang.org/x/sys` | v0.49.0 | Imported directly on Windows only (`x/sys/windows`): reads and sets the token store's access-control list (`internal/creds`), which Go's standard library cannot. Linked on every platform regardless: the terminal libraries (`go-isatty`, `x/term`, `termenv`, `cancelreader`) use `x/sys/unix` on Linux and macOS and `x/sys/windows` on Windows | BSD-3-Clause |
 | `go.yaml.in/yaml/v3` | v3.0.5 | Parses fleet files (`passmcp fleet run fleet.yaml`); `internal/fleet` is its only importer in the shipped binary. cobra imports it only from `cobra/doc`, which renders the manpages at build time and is not linked. Ships an Apache-2.0 `NOTICE`, passed on in `THIRD_PARTY_NOTICES` | MIT and Apache-2.0 |
 
