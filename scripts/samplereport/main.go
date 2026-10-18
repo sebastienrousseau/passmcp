@@ -47,10 +47,14 @@ func main() {
 
 	// The report directory gives the page every rendering at once, so a
 	// visitor can read the HTML and download the JSON their pipeline
-	// would consume.
+	// would consume. --html-assets puts the stylesheet beside the page as
+	// report.css, because the site serves it under a Content-Security-Policy
+	// that refuses an inline <style>; index.html, written below into the
+	// same directory, links it.
 	cmd := exec.Command(bin, "check", endpoint,
 		"--output", "html",
 		"--report-dir", outDir,
+		"--html-assets",
 		"--rps", "0",
 		"--samples", "2",
 		"--no-color",

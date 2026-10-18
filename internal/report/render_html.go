@@ -27,23 +27,38 @@ type HTMLOptions struct {
 	// evidence references. The default is the short document: what went
 	// wrong and what to do about it.
 	Verbose bool
+	// Stylesheet, when set, is the URL the document links its stylesheet
+	// from, in place of the <style> element it otherwise carries. The
+	// caller writes Stylesheet() there. This is the form a page served
+	// under a Content-Security-Policy without 'unsafe-inline' needs; the
+	// document has no style attribute and no script in either form.
+	Stylesheet string
 }
+
+// StylesheetFile is the name the stylesheet is written under beside a
+// report that links it.
+const StylesheetFile = "report.css"
+
+// Stylesheet is the report's stylesheet: the bytes the single-file document
+// inlines, and the contents of StylesheetFile when it links one instead.
+func Stylesheet() string { return htmlCSS }
 
 // htmlView is what the template sees. The report is passed through
 // unchanged; everything else is a value the template should not have to
 // compute, because a template that computes is a template nobody can read.
 type htmlView struct {
-	Report       *Report
-	CSS          template.CSS
-	Verbose      bool
-	Verdict      string
-	VerdictClass string
-	Explain      string
-	GradeWord    string
-	ScoreTotal   string
-	Started      string
-	AuthLine     string
-	FixFirst     []FixItem
+	Report        *Report
+	CSS           template.CSS
+	StylesheetURL string
+	Verbose       bool
+	Verdict       string
+	VerdictClass  string
+	Explain       string
+	GradeWord     string
+	ScoreTotal    string
+	Started       string
+	AuthLine      string
+	FixFirst      []FixItem
 }
 
 // FixItem is a finding with its guidance attached.
@@ -94,16 +109,17 @@ func HTML(w io.Writer, r *Report, opts HTMLOptions) error {
 		// #nosec G203 -- htmlCSS is this repository's own stylesheet, embedded
 		// at compile time. It is the one string in the document that is not
 		// server data, and template.CSS is the correct type for it.
-		CSS:          template.CSS(htmlCSS),
-		Verbose:      opts.Verbose,
-		Verdict:      phrase,
-		VerdictClass: class,
-		Explain:      explain(r),
-		GradeWord:    gradeWord(r.Score),
-		ScoreTotal:   fmt.Sprintf("%.0f", r.Score.Total),
-		Started:      r.Started.Format(time.RFC1123),
-		AuthLine:     htmlAuthLine(r),
-		FixFirst:     withGuidance(fixFirst(r)),
+		CSS:           template.CSS(htmlCSS),
+		StylesheetURL: opts.Stylesheet,
+		Verbose:       opts.Verbose,
+		Verdict:       phrase,
+		VerdictClass:  class,
+		Explain:       explain(r),
+		GradeWord:     gradeWord(r.Score),
+		ScoreTotal:    fmt.Sprintf("%.0f", r.Score.Total),
+		Started:       r.Started.Format(time.RFC1123),
+		AuthLine:      htmlAuthLine(r),
+		FixFirst:      withGuidance(fixFirst(r)),
 	}
 	return htmlTmpl.Execute(w, view)
 }

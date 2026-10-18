@@ -100,6 +100,7 @@ var specFields = map[string]string{
 	"capture-bodies": "Output.CaptureBodies",
 	"events":         "Output.WithEvents",
 	"guidance":       "Output.WithGuidance",
+	"html-assets":    "Output.HTMLAssets",
 	"verbose":        "Output.Verbose",
 	"no-color":       "Output.NoColor",
 	"otlp-endpoint":  "Output.OTLPEndpoint",

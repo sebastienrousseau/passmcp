@@ -15,7 +15,7 @@ description: >-
 | `md` | the same as a shareable Markdown document, failures and warnings first |
 | `json` | the full report; `--events` embeds every recorded request |
 | `ndjson` | phases, findings and requests streamed as they happen, one JSON object per line, ending with the report |
-| `html` | one self-contained document — the page `passmcp serve` shows, and the PDF its print stylesheet produces |
+| `html` | one self-contained document — the page `passmcp serve` shows, and the PDF its print stylesheet produces. `--html-assets` links its stylesheet instead, for a site with a strict Content-Security-Policy ([Hosting the HTML report](#hosting-the-html-report)) |
 | `sarif` | SARIF 2.1.0, for GitHub code scanning and anything else that reads it |
 | `junit` | JUnit XML, so a run appears beside the unit tests in the CI panel |
 | `attestation` | not a report: an in-toto statement about the server, for signing and for `passmcp verify`. See [Attestations](#attestations) |
@@ -29,12 +29,35 @@ description: >-
 |---|---|
 | `report.txt` | the verbose text report |
 | `report.md` | the Markdown report |
+| `report.html` | the verbose HTML report, one self-contained file |
+| `report.css` | with `--html-assets` only: the stylesheet `report.html` links instead of inlining |
 | `report.json` | the full report with every event embedded |
 | `report.sarif` | the SARIF 2.1.0 rendering |
 | `report.junit.xml` | the JUnit rendering |
+| `report.ocsf.json` | the OCSF events |
 | `attestation.json` | the in-toto statement — the only file here a machine can act on without reading prose |
 | `telemetry.ndjson` | one line per request |
 | `telemetry.har` | the same as an HTTP Archive 1.2, which any browser's devtools can open |
+
+### Hosting the HTML report
+
+The HTML report carries its stylesheet in a `<style>` element, so the one
+file can be mailed or opened offline. A site that sends a
+Content-Security-Policy without `'unsafe-inline'` in `style-src` blocks
+that element, and the page renders without its layout. `--html-assets`
+writes the stylesheet to `report.css` in the report directory and has the
+page link it:
+
+```bash
+passmcp check "$URL" --output html --report-dir site --html-assets > site/index.html
+```
+
+`site/report.html` and `site/index.html` both link `report.css`, which
+`style-src 'self'` allows. The report has no script, style attribute or
+event handler, so nothing else needs an exception. The flag needs
+`--report-dir`: the stylesheet has to be written somewhere the page can
+reach it, so a page saved outside that directory needs `report.css` copied
+beside it.
 
 ## Attestations
 

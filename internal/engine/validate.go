@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,6 +17,12 @@ import (
 func (s RunSpec) validateOutputAndPhases() error {
 	if !s.Output.Format.Valid() {
 		return fmt.Errorf("output format %q is not one of %v", s.Output.Format, Formats)
+	}
+	if s.Output.HTMLAssets && strings.TrimSpace(s.Output.ReportDir) == "" {
+		// The stylesheet has to land somewhere the page can reach it, and
+		// stdout carries one document. Asked for and silently not done
+		// would leave a page linking a file that does not exist.
+		return errors.New("--html-assets writes report.css into the report directory, so it needs --report-dir")
 	}
 	if s.Gate != nil {
 		if err := s.Gate.Validate(); err != nil {

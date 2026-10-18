@@ -19,6 +19,25 @@ project announces that a change felt big.
 Work towards the family's 0.0.8. Version places stay at 0.0.7 until the
 family's release step.
 
+### Added
+
+- **`--html-assets` writes the HTML report for a strict
+  Content-Security-Policy.** satellion.com serves the sample report under
+  a policy with `style-src 'self'` and no `'unsafe-inline'`, and the
+  report carries its stylesheet in an inline `<style>`, so the page
+  rendered unstyled. With `--report-dir DIR --html-assets`, passmcp writes
+  the stylesheet to `DIR/report.css`, and both `report.html` and the
+  `--output html` page on stdout link it instead of inlining it. The
+  report has no script, style attribute or event handler in either form.
+  Without `--report-dir` the flag is refused, because the page would link
+  a file nobody wrote. The default single-file report is unchanged, and
+  `--retain` treats `report.css` as one of passmcp's own files.
+  `scripts/samplereport` passes the flag, so the sample a site builds from
+  a release links its stylesheet. Checked by serving the sample with
+  satellion.com's header and loading it in headless Chrome: 1 CSP
+  violation (`style-src-elem`, inline) and an unstyled page before, 0 and
+  the styled page with the flag.
+
 ### Fixed
 
 - **The Nix flake builds.** `nix run` and `nix profile install`, which the

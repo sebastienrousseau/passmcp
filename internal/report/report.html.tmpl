@@ -13,7 +13,7 @@ escaping is doing real work here and must not be bypassed.
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>passmcp · {{ .Report.Target.Host }}</title>
-<style>{{ .CSS }}</style>
+{{ if .StylesheetURL }}<link rel="stylesheet" href="{{ .StylesheetURL }}">{{ else }}<style>{{ .CSS }}</style>{{ end }}
 </head>
 <body>
 
