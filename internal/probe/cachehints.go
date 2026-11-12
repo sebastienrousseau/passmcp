@@ -5,74 +5,115 @@ package probe
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"satellion.com/passmcp"
 )
 
 // The catalogue budget check says what a catalogue costs to look at. This
-// one says whether the server did anything about it.
+// one says whether the server sets the caching hints the 2026-07-28 revision
+// defines for list results (SEP-2549).
 //
-// A catalogue is fetched again by every client, on every session, and then
-// paid for in context on every call after that. The 2026-07-28 revision
-// answers that directly: any list result may carry `ttlMs`, how long a
-// client may keep it, and `cacheScope`, whether that cache may be shared
-// between users. A server that states them lets a client stop re-fetching
-// a catalogue it already has.
-//
-// Two things keep this honest. Both fields are optional, so their absence
-// is a missed opportunity and not a violation — it is reported as a
-// warning only on a catalogue large enough for the re-fetch to cost
-// something, and as an observation otherwise. And they do not exist before
-// 2026-07-28 at all, so a session-era server is not asked about them: it
-// would be a finding about the revision the operator is running, not about
-// the server.
+// Under SEP-2549, every complete list result (tools/list, resources/list,
+// prompts/list) carries `ttlMs` (integer >= 0; 0 means do not cache) and
+// `cacheScope` ("public" or "private"). Malformed values fail; missing or
+// half-stated hints on 2026-07-28 warn (noting token cost when the tool
+// catalogue exceeds the budget floor), and undeclared list endpoints are
+// never penalized. Before 2026-07-28 there are no such fields, so a
+// session-era server skips.
 
-// cacheHintFloor is the catalogue size, in the same estimated tokens the
-// budget check uses, above which saying nothing about caching is worth a
-// warning rather than a note.
-//
-// Set at the budget's own warn threshold so the two cannot disagree: the
-// point at which a catalogue stops being free is the point at which
-// re-fetching it starts to matter.
 const cacheHintFloor = CatalogueTokenBudget
 
-// checkCacheHints reports what the server said about caching its
-// catalogue.
-func checkCacheHints(s *Session, hints passmcp.CacheHints, tokens int) []Finding {
-	c := s.check("catalog.cache_hints", "The catalogue says whether it can be cached")
+const cacheHintsAdvice = "set ttlMs (integer >= 0; 0 for uncached) and cacheScope (\"public\" or \"private\") " +
+	"on every declared list result (SEP-2549). A catalogue without caching hints is re-fetched on every session"
 
-	// Before 2026-07-28 there are no such fields to state.
+// endpointCacheHints pairs one declared list RPC with the caching hints its
+// first page returned.
+type endpointCacheHints struct {
+	Endpoint string
+	Hints    passmcp.CacheHints
+}
+
+// checkCacheHints evaluates caching hints for a single list result.
+func checkCacheHints(s *Session, hints passmcp.CacheHints, tokens int) []Finding {
+	return checkEndpointCacheHints(s, []endpointCacheHints{{Endpoint: "tools/list", Hints: hints}}, tokens)
+}
+
+// checkEndpointCacheHints reports what the server's declared list endpoints
+// said about caching their responses.
+func checkEndpointCacheHints(s *Session, endpoints []endpointCacheHints, tokens int) []Finding {
+	c := s.check("catalog.cache_hints", "The catalogue says whether it can be cached")
 	if s.Era == nil || s.Era.Era != passmcp.EraStateless {
 		return []Finding{c.skip("cache hints on a list result arrived in the 2026-07-28 revision; " +
 			"this server speaks an earlier one, where there is nothing to state")}
 	}
+	if len(endpoints) == 0 {
+		return []Finding{c.skip("no declared list endpoint succeeded, so there are no caching hints to inspect")}
+	}
+	if bad := invalidCacheHint(endpoints); bad != "" {
+		return []Finding{c.fail(Minor, bad, cacheHintsAdvice)}
+	}
+	missing, stated := classifyCacheHints(endpoints)
+	if len(missing) == 0 {
+		return []Finding{c.pass(renderCacheHints(endpoints))}
+	}
+	if stated > 0 {
+		return []Finding{c.warn("incomplete caching hints (SEP-2549 requires both ttlMs and cacheScope): "+strings.Join(missing, "; "), cacheHintsAdvice)}
+	}
+	return []Finding{c.warn(unstatedCacheHintsDetail(tokens), cacheHintsAdvice)}
+}
 
-	if hints.Stated() {
-		var detail string
-		switch {
-		case hints.TTLMs != nil && hints.Scope != "":
-			detail = fmt.Sprintf("cacheable for %s, scope %q",
-				time.Duration(*hints.TTLMs)*time.Millisecond, hints.Scope)
-		case hints.TTLMs != nil:
-			detail = fmt.Sprintf("cacheable for %s; no cacheScope, so a client must assume private",
-				time.Duration(*hints.TTLMs)*time.Millisecond)
-		default:
-			detail = fmt.Sprintf("cacheScope %q, but no ttlMs, so a client is told how it may share "+
-				"the answer and not for how long", hints.Scope)
+func invalidCacheHint(endpoints []endpointCacheHints) string {
+	for _, ep := range endpoints {
+		if ep.Hints.TTLMs != nil && *ep.Hints.TTLMs < 0 {
+			return fmt.Sprintf("%s returned negative ttlMs (%d); SEP-2549 requires an integer >= 0", ep.Endpoint, *ep.Hints.TTLMs)
 		}
-		return []Finding{c.pass(detail)}
+		if ep.Hints.Scope != "" && ep.Hints.Scope != "public" && ep.Hints.Scope != "private" {
+			return fmt.Sprintf("%s returned cacheScope %q; SEP-2549 allows only \"public\" or \"private\"", ep.Endpoint, ep.Hints.Scope)
+		}
 	}
+	return ""
+}
 
-	const advice = "set ttlMs on the tools/list result, and cacheScope when the catalogue is the same " +
-		"for every user. A catalogue is re-fetched on every session and then costs context on every " +
-		"call; these two fields are the protocol's own way to stop the first half of that"
+func classifyCacheHints(endpoints []endpointCacheHints) (missing []string, stated int) {
+	multi := len(endpoints) > 1
+	for _, ep := range endpoints {
+		if ep.Hints.Stated() {
+			stated++
+		}
+		prefix := ""
+		if multi {
+			prefix = ep.Endpoint + ": "
+		}
+		switch {
+		case ep.Hints.TTLMs != nil && ep.Hints.Scope != "":
+		case ep.Hints.TTLMs != nil:
+			missing = append(missing, prefix+"missing cacheScope")
+		case ep.Hints.Scope != "":
+			missing = append(missing, prefix+"missing ttlMs")
+		default:
+			missing = append(missing, prefix+"missing ttlMs and cacheScope")
+		}
+	}
+	return missing, stated
+}
 
+func renderCacheHints(endpoints []endpointCacheHints) string {
+	if len(endpoints) == 1 {
+		h := endpoints[0].Hints
+		return fmt.Sprintf("cacheable for %s, scope %q", time.Duration(*h.TTLMs)*time.Millisecond, h.Scope)
+	}
+	parts := make([]string, 0, len(endpoints))
+	for _, ep := range endpoints {
+		parts = append(parts, fmt.Sprintf("%s: %s (%q)", ep.Endpoint, time.Duration(*ep.Hints.TTLMs)*time.Millisecond, ep.Hints.Scope))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func unstatedCacheHintsDetail(tokens int) string {
 	if tokens >= cacheHintFloor {
-		return []Finding{c.warn(fmt.Sprintf(
-			"neither ttlMs nor cacheScope, on a catalogue of about %d tokens that every client "+
-				"re-fetches each session", tokens), advice)}
+		return fmt.Sprintf("neither ttlMs nor cacheScope on a 2026-07-28 catalogue of about %d tokens (SEP-2549)", tokens)
 	}
-	return []Finding{c.info("neither ttlMs nor cacheScope; the catalogue is small enough that " +
-		"re-fetching it is cheap, so this is an opportunity rather than a cost")}
+	return "neither ttlMs nor cacheScope on 2026-07-28 list results (SEP-2549)"
 }

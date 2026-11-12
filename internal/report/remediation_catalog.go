@@ -126,30 +126,28 @@ var catalogRemediations = map[string]Remediation{
 	},
 
 	"catalog.cache_hints": {
-		Means: "The tools/list result says nothing about being cached. Every " +
-			"client fetches your catalogue again on every session, and then " +
-			"pays for it in context on every call after that. The 2026-07-28 " +
-			"revision lets you stop the first half of that with two optional " +
-			"fields, and this server sets neither.",
+		Means: "A declared list result (`tools/list`, `resources/list`, or " +
+			"`prompts/list`) omitted or sent an invalid caching hint on the " +
+			"2026-07-28 revision (SEP-2549). Without valid `ttlMs` and " +
+			"`cacheScope` fields, every client re-fetches the catalogue on " +
+			"every session.",
 		Steps: []Step{
-			{"Set ttlMs on the list result",
-				"How many milliseconds a client may keep the answer. Minutes " +
-					"is usually right: long enough to cover a session, short " +
-					"enough that a catalogue change reaches clients the same " +
-					"day."},
-			{"Set cacheScope when the catalogue is the same for everyone",
+			{"Set ttlMs to a non-negative integer",
+				"How many milliseconds a client may keep the answer (`0` " +
+					"explicitly marks a dynamic list as uncacheable). Minutes " +
+					"is usually right for a static catalogue."},
+			{"Set cacheScope to public or private",
 				"`public` lets a shared client cache one copy for all users. " +
-					"Leave it unset, or say `private`, when what a user sees " +
-					"depends on who they are -- an over-shared catalogue is a " +
-					"worse problem than a re-fetched one."},
+					"Use `private` when what a user sees depends on who they " +
+					"are -- an over-shared catalogue is a worse problem than a " +
+					"re-fetched one."},
 			{"Pair it with the catalogue's size",
 				"`catalog.budget.tokens` says what the catalogue costs to " +
 					"look at. This says whether anyone has to pay it twice."},
 		},
-		Note: "Both fields are optional, so this warns only on a catalogue " +
-			"large enough for re-fetching to cost something, and is an " +
-			"observation otherwise. It is skipped entirely before 2026-07-28, " +
-			"where there is nothing to state.",
+		Note: "SEP-2549 requires both fields on 2026-07-28 list results. " +
+			"Undeclared list endpoints are not queried against this check, " +
+			"and it is skipped entirely before 2026-07-28.",
 	},
 
 	"catalog.baseline": {

@@ -84,24 +84,37 @@ func (c *Client) Ping(ctx context.Context) error {
 
 // ListResources returns every resource, following pagination.
 func (c *Client) ListResources(ctx context.Context) ([]Resource, error) {
+	res, _, err := c.ListResourcesWithHints(ctx)
+	return res, err
+}
+
+// ListResourcesWithHints is ListResources, plus the caching hints on the
+// first page of the result (SEP-2549).
+func (c *Client) ListResourcesWithHints(ctx context.Context) ([]Resource, CacheHints, error) {
 	ctx = trace.Ensure(ctx)
 	var all []Resource
+	var hints CacheHints
 	cursor := ""
 	pg := pager{method: "resources/list"}
-	for {
+	for first := true; ; first = false {
 		var page struct {
 			Resources  []Resource `json:"resources"`
 			NextCursor string     `json:"nextCursor,omitempty"`
+			TTLMs      *int       `json:"ttlMs,omitempty"`
+			CacheScope string     `json:"cacheScope,omitempty"`
 		}
 		if err := c.call(ctx, "resources/list", cursorParams{Cursor: cursor}, &page); err != nil {
-			return nil, err
+			return nil, CacheHints{}, err
+		}
+		if first {
+			hints = CacheHints{TTLMs: page.TTLMs, Scope: page.CacheScope}
 		}
 		all = append(all, page.Resources...)
 		if page.NextCursor == "" || page.NextCursor == cursor {
-			return all, nil
+			return all, hints, nil
 		}
 		if err := pg.next(page.NextCursor); err != nil {
-			return nil, err
+			return nil, CacheHints{}, err
 		}
 		cursor = page.NextCursor
 	}
@@ -143,24 +156,37 @@ func (c *Client) ReadResource(ctx context.Context, uri string) (*ReadResourceRes
 
 // ListPrompts returns every prompt, following pagination.
 func (c *Client) ListPrompts(ctx context.Context) ([]Prompt, error) {
+	prompts, _, err := c.ListPromptsWithHints(ctx)
+	return prompts, err
+}
+
+// ListPromptsWithHints is ListPrompts, plus the caching hints on the first
+// page of the result (SEP-2549).
+func (c *Client) ListPromptsWithHints(ctx context.Context) ([]Prompt, CacheHints, error) {
 	ctx = trace.Ensure(ctx)
 	var all []Prompt
+	var hints CacheHints
 	cursor := ""
 	pg := pager{method: "prompts/list"}
-	for {
+	for first := true; ; first = false {
 		var page struct {
 			Prompts    []Prompt `json:"prompts"`
 			NextCursor string   `json:"nextCursor,omitempty"`
+			TTLMs      *int     `json:"ttlMs,omitempty"`
+			CacheScope string   `json:"cacheScope,omitempty"`
 		}
 		if err := c.call(ctx, "prompts/list", cursorParams{Cursor: cursor}, &page); err != nil {
-			return nil, err
+			return nil, CacheHints{}, err
+		}
+		if first {
+			hints = CacheHints{TTLMs: page.TTLMs, Scope: page.CacheScope}
 		}
 		all = append(all, page.Prompts...)
 		if page.NextCursor == "" || page.NextCursor == cursor {
-			return all, nil
+			return all, hints, nil
 		}
 		if err := pg.next(page.NextCursor); err != nil {
-			return nil, err
+			return nil, CacheHints{}, err
 		}
 		cursor = page.NextCursor
 	}

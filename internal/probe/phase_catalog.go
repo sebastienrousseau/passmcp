@@ -23,26 +23,45 @@ func phaseCatalog(ctx context.Context, s *Session) []Finding {
 	pctx := func(label string) context.Context { return telemetry.WithPhase(ctx, "catalog", label) }
 
 	// ---- tools ----
-	out = append(out, catalogTools(pctx, s, caps)...)
+	var listed []endpointCacheHints
+	tf, th := catalogTools(pctx, s, caps)
+	out = append(out, tf...)
+	listed = appendHint(listed, th)
 	tools := s.Tools
 	if len(tools) > 0 {
 		out = append(out, checkPersonalData(s, tools)...)
 	}
 
 	// ---- resources ----
-	out = append(out, catalogResources(pctx, s, caps)...)
+	rf, rh := catalogResources(pctx, s, caps)
+	out = append(out, rf...)
+	listed = appendHint(listed, rh)
 	res := s.Resources
 
 	// ---- prompts ----
-	out = append(out, catalogPrompts(pctx, s, caps)...)
+	pf, ph := catalogPrompts(pctx, s, caps)
+	out = append(out, pf...)
+	listed = appendHint(listed, ph)
 	prompts := s.Prompts
 
-	// ---- what the catalog says to the model ----
-	//
-	// Everything above asks whether the catalog is well formed. This asks
-	// whether it is honest, which is a different question and the one an
-	// agent is exposed to: a description is not documentation, it is input
-	// the model reads before deciding what to call.
+	out = append(out, catalogCacheHints(s, listed, tools)...)
+	out = append(out, catalogPostAudit(ctx, s, tools, res, prompts)...)
+	return out
+}
+
+func catalogCacheHints(s *Session, listed []endpointCacheHints, tools []passmcp.Tool) []Finding {
+	if len(listed) == 0 {
+		return nil
+	}
+	return checkEndpointCacheHints(s, listed, catalogueTokens(tools))
+}
+
+// catalogPostAudit asks whether the catalog is honest, which is a different
+// question from whether it is well formed and the one an agent is exposed to:
+// a description is not documentation, it is input the model reads before
+// deciding what to call.
+func catalogPostAudit(ctx context.Context, s *Session, tools []passmcp.Tool, res []passmcp.Resource, prompts []passmcp.Prompt) []Finding {
+	var out []Finding
 	if len(tools) > 0 || len(res) > 0 || len(prompts) > 0 {
 		out = append(out, scanCatalog(s, res, prompts)...)
 	}
@@ -52,16 +71,32 @@ func phaseCatalog(ctx context.Context, s *Session) []Finding {
 	if f, ok := checkCrossServerShadowing(ctx, s); ok {
 		out = append(out, f)
 	}
-
 	if len(tools) == 0 && len(res) == 0 && len(prompts) == 0 {
 		out = append(out, s.check("catalog.empty", "Server exposes something").fail(Critical, "no tools, resources or prompts", "an MCP server with an empty catalog has nothing for an agent to use"))
 	}
 	return out
 }
 
+func listedHint(endpoint string, err error, declared bool, count int, hints passmcp.CacheHints) *endpointCacheHints {
+	if err != nil {
+		return nil
+	}
+	if !declared && count == 0 {
+		return nil
+	}
+	return &endpointCacheHints{Endpoint: endpoint, Hints: hints}
+}
+
+func appendHint(list []endpointCacheHints, h *endpointCacheHints) []endpointCacheHints {
+	if h == nil {
+		return list
+	}
+	return append(list, *h)
+}
+
 // catalogTools lists the tools, records them on the session, and audits
 // them when there are any.
-func catalogTools(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) []Finding {
+func catalogTools(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) ([]Finding, *endpointCacheHints) {
 	var out []Finding
 	c := s.check("catalog.tools.list", "tools/list")
 	from := s.Opts.Recorder.Count()
@@ -79,10 +114,10 @@ func catalogTools(pctx func(string) context.Context, s *Session, caps passmcp.Se
 	}
 	s.Tools = tools
 	if len(tools) > 0 {
-		out = append(out, auditTools(s, tools, cacheHints)...)
+		out = append(out, auditTools(s, tools)...)
 		out = append(out, checkToolOrder(pctx, s, tools))
 	}
-	return out
+	return out, listedHint("tools/list", err, caps.Tools != nil, len(tools), cacheHints)
 }
 
 // toolGaps names the tools missing each property the audit looks for.
@@ -127,7 +162,7 @@ func findToolGaps(tools []passmcp.Tool) toolGaps {
 
 // auditTools judges a non-empty tool list: names, descriptions, schemas,
 // annotations, then what the catalogue costs and whether it changed.
-func auditTools(s *Session, tools []passmcp.Tool, cacheHints passmcp.CacheHints) []Finding {
+func auditTools(s *Session, tools []passmcp.Tool) []Finding {
 	g := findToolGaps(tools)
 	out := toolShapeFindings(s, g)
 	out = append(out, checkSchemaValidity(s, tools))
@@ -147,9 +182,6 @@ func auditTools(s *Session, tools []passmcp.Tool, cacheHints passmcp.CacheHints)
 	// specification does not require and an agent pays for anyway.
 	out = append(out, checkCatalogueBudget(s)...)
 	out = append(out, checkParameterAmbiguity(s)...)
-
-	// Whether the server did anything about that cost.
-	out = append(out, checkCacheHints(s, cacheHints, catalogueTokens(tools))...)
 
 	// And whether this is still the catalogue somebody signed off.
 	out = append(out, checkBaseline(s)...)
@@ -214,10 +246,10 @@ func outputSchemaFinding(s *Session, g toolGaps, total int) Finding {
 
 // catalogResources lists the resources and their templates, records them
 // on the session, and audits the URIs and MIME types.
-func catalogResources(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) []Finding {
+func catalogResources(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) ([]Finding, *endpointCacheHints) {
 	var out []Finding
 	c := s.check("catalog.resources.list", "resources/list")
-	res, err := s.Client.ListResources(pctx("resources/list"))
+	res, cacheHints, err := s.Client.ListResourcesWithHints(pctx("resources/list"))
 	switch {
 	case err != nil && caps.Resources != nil:
 		out = append(out, c.fail(Major, "capability advertised but listing failed: "+err.Error(), "implement resources/list"))
@@ -242,7 +274,7 @@ func catalogResources(pctx func(string) context.Context, s *Session, caps passmc
 			out = append(out, c.pass(fmt.Sprintf("%d templates", len(tpl))))
 		}
 	}
-	return out
+	return out, listedHint("resources/list", err, caps.Resources != nil, len(res), cacheHints)
 }
 
 // auditResources judges a non-empty resource list: absolute URIs and
@@ -272,10 +304,10 @@ func auditResources(s *Session, res []passmcp.Resource) []Finding {
 
 // catalogPrompts lists the prompts, records them on the session, and
 // checks that each prompt and argument is described.
-func catalogPrompts(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) []Finding {
+func catalogPrompts(pctx func(string) context.Context, s *Session, caps passmcp.ServerCapabilities) ([]Finding, *endpointCacheHints) {
 	var out []Finding
 	c := s.check("catalog.prompts.list", "prompts/list")
-	prompts, err := s.Client.ListPrompts(pctx("prompts/list"))
+	prompts, cacheHints, err := s.Client.ListPromptsWithHints(pctx("prompts/list"))
 	switch {
 	case err != nil && caps.Prompts != nil:
 		out = append(out, c.fail(Major, "capability advertised but listing failed: "+err.Error(), "implement prompts/list"))
@@ -296,7 +328,7 @@ func catalogPrompts(pctx func(string) context.Context, s *Session, caps passmcp.
 			out = append(out, c.pass("all described"))
 		}
 	}
-	return out
+	return out, listedHint("prompts/list", err, caps.Prompts != nil, len(prompts), cacheHints)
 }
 
 // undescribedPrompts names each prompt, and each prompt.argument, that
