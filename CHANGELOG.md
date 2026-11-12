@@ -16,6 +16,8 @@ project announces that a change felt big.
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-11-12
+
 ### Added
 
 - **`protocol.unknown_resource` checks SEP-2164 missing-resource errors
@@ -39,6 +41,9 @@ project announces that a change felt big.
   incomplete or missing hints warn, and `resources/list` and `prompts/list`
   are inspected alongside `tools/list` without penalizing undeclared
   capabilities.
+- **Require `satellion.com/passmcp-reporting` v0.0.9**, the family's
+  release that tags first, with `SBOM.md` updated to match (alongside
+  `go.yaml.in/yaml/v3` v3.0.6 and `github.com/spf13/pflag` v1.1.0).
 
 ### Fixed
 
