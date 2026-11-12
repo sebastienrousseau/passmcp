@@ -335,6 +335,10 @@ func (p *Proxy) connect(w http.ResponseWriter, r *http.Request) {
 	if p.fail(w, r, host, port) {
 		return
 	}
+	if isRFC6761Invalid(host) {
+		http.Error(w, "upstream: no such host (.invalid)", http.StatusBadGateway)
+		return
+	}
 
 	// The destination comes from the request, which is exactly the point:
 	// this is a proxy, and forwarding to the host the client named is its
@@ -394,16 +398,10 @@ func (p *Proxy) forward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read it once, look at it, and put it back. A proxy that consumed the
-	// body would break the request it exists to observe.
-	if r.Body != nil && len(p.watch) > 0 {
-		body, err := io.ReadAll(io.LimitReader(r.Body, bodyScanLimit))
-		_ = r.Body.Close()
-		if err == nil {
-			p.scan(body, net.JoinHostPort(host, port))
-			r.Body = io.NopCloser(bytes.NewReader(body))
-			r.ContentLength = int64(len(body))
-		}
+	p.scanRequestBody(r, net.JoinHostPort(host, port))
+	if isRFC6761Invalid(host) {
+		http.Error(w, "upstream: no such host (.invalid)", http.StatusBadGateway)
+		return
 	}
 
 	out := r.Clone(r.Context())
@@ -434,6 +432,29 @@ func (p *Proxy) forward(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	_, _ = io.Copy(w, resp.Body)
+}
+
+// scanRequestBody reads up to bodyScanLimit bytes for watched markers and
+// restores r.Body so forwarding still sends the full payload unchanged.
+func (p *Proxy) scanRequestBody(r *http.Request, target string) {
+	if r.Body == nil || len(p.watch) == 0 {
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, bodyScanLimit))
+	_ = r.Body.Close()
+	if err == nil {
+		p.scan(body, target)
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
+	}
+}
+
+// isRFC6761Invalid reports whether host is in the RFC 6761 §6.4 .invalid
+// top-level domain, which is permanently non-existent and must not be looked
+// up in upstream DNS.
+func isRFC6761Invalid(host string) bool {
+	h := strings.TrimSuffix(strings.ToLower(host), ".")
+	return h == "invalid" || strings.HasSuffix(h, ".invalid")
 }
 
 // splitTarget separates host and port, defaulting the port.
