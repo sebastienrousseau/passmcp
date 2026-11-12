@@ -83,7 +83,7 @@ ICONS = favicon.ico favicon.svg apple-touch-icon.png icon-192.png icon-512.png i
 # The SSG release the shell is built with, and the one ssgcheck compares with
 # each theme's minimum. The public site moved to its own repository,
 # satellion.github.io, which pins its own.
-SSG_VERSION ?= 0.0.63
+SSG_VERSION ?= 0.0.75
 
 web-shell:
 	@v=$$(ssg --version 2>/dev/null | awk '{print $$2}'); [ "$$v" = "$(SSG_VERSION)" ] || { \

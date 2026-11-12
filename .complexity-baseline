@@ -47,7 +47,6 @@ cyclomatic 13 internal/commitlint/lint.go Lint
 cyclomatic 11 internal/creds/creds.go (*Credentials).Apply
 cyclomatic 11 internal/creds/keyring.go SelectKeyring
 cyclomatic 11 internal/discover/probe.go (*prober).statelessDiscover
-cyclomatic 11 internal/egress/proxy.go (*Proxy).forward
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
 cyclomatic 11 internal/probe/attacks.go outboundSender
 cyclomatic 13 internal/probe/attacks.go privateReader
@@ -77,7 +76,6 @@ file-lines 511 internal/discover/probe.go -
 file-lines 523 internal/probe/attacks.go -
 file-lines 520 internal/probe/phase_auth.go -
 file-lines 512 internal/probe/phase_exec.go -
-file-lines 579 internal/probe/phase_protocol.go -
 file-lines 808 internal/probe/probe.go -
 file-lines 554 internal/report/render_text.go -
 file-lines 520 internal/supply/osv.go -

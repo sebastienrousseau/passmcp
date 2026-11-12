@@ -163,8 +163,8 @@ func (s *Session) firstContact(ctx context.Context) (*transport.RawResult, error
 		})
 	}
 
-	// On the stateless revision, tools/list is the cheapest request that
-	// every server implements and that authorization applies to.
+	// Pick a read-only list method the server actually declared, falling
+	// back to server/discover or tools/list when none was advertised.
 	caps, err := json.Marshal(struct{}{})
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (s *Session) firstContact(ctx context.Context) (*transport.RawResult, error
 		ClientInfo:      transport.Implementation{Name: "passmcp", Version: s.Opts.Version},
 		Capabilities:    caps,
 	}
-	rpc := &transport.Request{JSONRPC: "2.0", ID: &id, Method: "tools/list", Params: json.RawMessage(`{}`)}
+	rpc := &transport.Request{JSONRPC: "2.0", ID: &id, Method: s.statelessFirstContactMethod(), Params: json.RawMessage(`{}`)}
 	if err := d.PrepareBody(rpc); err != nil {
 		return nil, err
 	}
@@ -187,6 +187,23 @@ func (s *Session) firstContact(ctx context.Context) (*transport.RawResult, error
 		headers[k] = hdr.Get(k)
 	}
 	return tr.Do(cctx, transport.RawOptions{Request: rpc, Headers: headers, OmitSession: true, OmitProtocolVersion: true})
+}
+
+func (s *Session) statelessFirstContactMethod() string {
+	if s.Era == nil || s.Era.Discovered == nil {
+		return "tools/list"
+	}
+	c := s.Era.Discovered.Capabilities
+	switch {
+	case c.Tools != nil:
+		return "tools/list"
+	case c.Resources != nil:
+		return "resources/list"
+	case c.Prompts != nil:
+		return "prompts/list"
+	default:
+		return "server/discover"
+	}
 }
 
 // setupStateless prepares the session for a server on the stateless

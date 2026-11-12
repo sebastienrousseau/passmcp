@@ -957,6 +957,12 @@
         "A.8.29"
       ]
     },
+    "protocol.unknown_resource": {
+      "controls": [
+        "A.8.26",
+        "A.8.29"
+      ]
+    },
     "protocol.unknown_tool": {
       "controls": [
         "A.8.26",

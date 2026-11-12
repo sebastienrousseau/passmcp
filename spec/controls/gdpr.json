@@ -463,6 +463,9 @@
     "protocol.unknown_method": {
       "none": "no data protection obligation is evidenced by this check"
     },
+    "protocol.unknown_resource": {
+      "none": "no data protection obligation is evidenced by this check"
+    },
     "protocol.unknown_tool": {
       "none": "no data protection obligation is evidenced by this check"
     },

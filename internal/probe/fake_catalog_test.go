@@ -64,14 +64,17 @@ func (f *fakeServer) listTools() (tools []map[string]any, ok bool) {
 }
 
 // readContents is what resources/read answers, shaped by the knobs.
-func (f *fakeServer) readContents(params json.RawMessage) map[string]any {
-	if f.q.resourcesEmpty {
-		return map[string]any{"contents": []map[string]any{}}
-	}
+func (f *fakeServer) readContents(params json.RawMessage) (map[string]any, int) {
 	var p struct {
 		URI string `json:"uri"`
 	}
 	_ = json.Unmarshal(params, &p)
+	if p.URI != "" && p.URI != "fake://doc/1" && p.URI != "doc/1" {
+		return nil, -32602
+	}
+	if f.q.resourcesEmpty {
+		return map[string]any{"contents": []map[string]any{}}, 0
+	}
 	item := map[string]any{"uri": p.URI, "mimeType": "text/plain", "text": "hello"}
 	switch f.q.readURI {
 	case "":
@@ -80,7 +83,7 @@ func (f *fakeServer) readContents(params json.RawMessage) map[string]any {
 	default:
 		item["uri"] = f.q.readURI
 	}
-	return map[string]any{"contents": []map[string]any{item}}
+	return map[string]any{"contents": []map[string]any{item}}, 0
 }
 
 // renderPrompt is what prompts/get answers, shaped by the knobs: a result,

@@ -9,13 +9,13 @@ description: >-
 
 # The check inventory
 
-passmcp runs **138 checks** across **9 phases**.
+passmcp runs **139 checks** across **9 phases**.
 
 22 of them apply only to a server that is a program rather than a URL, and
 replace the ones that have no meaning over a pipe. A run reports every check it
 did not make, by id and with the reason, rather than leaving it out.
 
-137 of those are fixed, and 1 is a family whose id is built at run time —
+138 of those are fixed, and 1 is a family whose id is built at run time —
 one check per value the run encounters, marked `*` below.
 
 This file is generated from the source: every check is created through
@@ -86,7 +86,7 @@ that is what a reader sees in a report.
 | <span id="check-handshake-session" data-can-fail="false"></span>`handshake.session` | Mcp-Session-Id issued |
 | <span id="check-handshake-stateless" data-can-fail="true"></span>`handshake.stateless` | Stateless session setup |
 
-## protocol — 22 checks
+## protocol — 23 checks
 
 | Check | What it looks for |
 |---|---|
@@ -110,6 +110,7 @@ that is what a reader sees in a report.
 | <span id="check-protocol-tasks-undeclared" data-can-fail="false"></span>`protocol.tasks.undeclared` | No task is returned to a client that did not ask for one |
 | <span id="check-protocol-tasks-unknown_id" data-can-fail="false"></span>`protocol.tasks.unknown_id` | An unknown task id is refused |
 | <span id="check-protocol-unknown_method" data-can-fail="true"></span>`protocol.unknown_method` | Unknown method returns -32601 |
+| <span id="check-protocol-unknown_resource" data-can-fail="true"></span>`protocol.unknown_resource` | Unknown resource URI is rejected |
 | <span id="check-protocol-unknown_tool" data-can-fail="true"></span>`protocol.unknown_tool` | Unknown tool is reported |
 | <span id="check-protocol-version_header" data-can-fail="false"></span>`protocol.version_header` | Bad MCP-Protocol-Version is rejected |
 

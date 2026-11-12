@@ -662,6 +662,11 @@
         "CC7.1"
       ]
     },
+    "protocol.unknown_resource": {
+      "controls": [
+        "CC7.1"
+      ]
+    },
     "protocol.unknown_tool": {
       "controls": [
         "CC7.1"

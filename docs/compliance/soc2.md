@@ -47,7 +47,7 @@ builds a dated evidence bundle from attestations over an audit period.
 | CC6.6 | Security measures against threats from outside the system boundaries | `a2a.unauthenticated`, `auth.unauthenticated_tools`, `egress.hosts`, `egress.undeclared_host`, `performance.rate_limit`, `protocol.origin`, `stdio.bind_all` |
 | CC6.7 | Restriction of the transmission, movement and removal of information | `a2a.transport`, `catalog.toxic_combination`, `discovery.as.https`, `egress.hosts`, `egress.undeclared_host`, `fs.canary_exfiltrated`, `net.scheme`, `net.tls`, `net.tls.cert`, `net.tls.version`, `stdio.post_init_connections` |
 | CC6.8 | Prevention or detection of unauthorised or malicious software | `stdio.post_init_processes`, `stdio.post_init_writes` |
-| CC7.1 | Detection of configuration changes and newly discovered vulnerabilities | `catalog.baseline`, `catalog.names.confusable`, `catalog.text.comments`, `catalog.text.cross_server_shadowing`, `catalog.text.encoded`, `catalog.text.hidden`, `catalog.text.instructions`, `catalog.text.secret_paths`, `catalog.text.shadowing`, `execution.output_injection`, `handshake.instructions`, `protocol.invalid_params`, `protocol.malformed_json`, `protocol.unknown_method`, `protocol.unknown_tool` |
+| CC7.1 | Detection of configuration changes and newly discovered vulnerabilities | `catalog.baseline`, `catalog.names.confusable`, `catalog.text.comments`, `catalog.text.cross_server_shadowing`, `catalog.text.encoded`, `catalog.text.hidden`, `catalog.text.instructions`, `catalog.text.secret_paths`, `catalog.text.shadowing`, `execution.output_injection`, `handshake.instructions`, `protocol.invalid_params`, `protocol.malformed_json`, `protocol.unknown_method`, `protocol.unknown_resource`, `protocol.unknown_tool` |
 | CC7.2 | Monitoring of system components for anomalies | Not covered by passmcp: Anomaly monitoring of production systems is the operator's monitoring, not a point-in-time test. |
 | CC7.3 | Evaluation of security events | Not covered by passmcp: Evaluating security events is an incident process run by people. |
 | CC7.4 | Response to identified security incidents | Not covered by passmcp: Incident response is an organisational process. |
@@ -182,6 +182,7 @@ builds a dated evidence bundle from attestations over an audit period.
 | `protocol.tasks.undeclared` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.tasks.unknown_id` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.unknown_method` | CC7.1 |
+| `protocol.unknown_resource` | CC7.1 |
 | `protocol.unknown_tool` | CC7.1 |
 | `protocol.version_header` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `resilience.session_reinit` | A1.2 |

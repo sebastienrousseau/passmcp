@@ -44,6 +44,22 @@ var protocolRemediations = map[string]Remediation{
 		},
 	},
 
+	"protocol.unknown_resource": {
+		Means: "Reading a resource URI that does not exist returned contents, or " +
+			"failed with an unexpected error code. A client relies on the JSON-RPC " +
+			"error to distinguish a missing resource from valid content.",
+		Steps: []Step{
+			{"Return -32602 Invalid params for a missing resource URI",
+				"The 2026-07-28 revision (SEP-2164) retired -32002 and standardized " +
+					"unknown resource URIs on -32602; earlier revisions accept -32002 " +
+					"or -32602."},
+			{"Echo the requested URI in error.data.uri",
+				"Include `data: {\"uri\": \"...\"}` on -32602 responses from " +
+					"`resources/read` so callers with concurrent reads can identify " +
+					"which URI failed."},
+		},
+	},
+
 	"protocol.routing_headers": {
 		Means: "`Mcp-Method` and `Mcp-Name` mirror the method and target outside " +
 			"the JSON body so a gateway can route without parsing it. That only " +
