@@ -553,7 +553,12 @@ func (f *fakeServer) handle(w http.ResponseWriter, r *http.Request) {
 			rpcErr(-32002, "read failed")
 			return
 		}
-		reply(f.readContents(req.Params))
+		res, code := f.readContents(req.Params)
+		if code < 0 {
+			rpcErr(code, "resource not found")
+			return
+		}
+		reply(res)
 	case "prompts/list":
 		if f.q.catalog == "nocap" {
 			rpcErr(-32601, "no prompts")

@@ -128,8 +128,9 @@ MCP specification require.
 | `protocol.unknown_method` | an unknown method returns JSON-RPC -32601, not an HTTP error |
 | `protocol.id_echo` | the response id matches the request id and `jsonrpc` is "2.0" |
 | `protocol.malformed_json` | a truncated body is refused with 400 or -32700 |
-| `protocol.invalid_params` | `tools/call` without a name is refused |
-| `protocol.unknown_tool` | calling a tool that does not exist is reported, not answered with success |
+| `protocol.invalid_params` | `tools/call` without a name is refused; skipped when the server does not declare `tools` |
+| `protocol.unknown_tool` | calling a tool that does not exist is reported, not answered with success; skipped when the server does not declare `tools` |
+| `protocol.unknown_resource` | reading a resource URI that does not exist returns `-32602` (with `error.data.uri` on `2026-07-28`, or `-32002`/`-32602` on earlier revisions); skipped when the server does not declare `resources` |
 | `protocol.accept_header`, `protocol.get_stream` | informational: strictness about `Accept`, and whether GET opens a server event stream |
 | `protocol.bogus_session` | a session id the server never issued is rejected |
 | `protocol.missing_session` | once a session id was issued, a `ping` sent with credentials but without `Mcp-Session-Id` is refused, with 400 as the transport asks; serving it is a warning. Skipped when no session id was issued and on `2026-07-28`, which has no sessions |

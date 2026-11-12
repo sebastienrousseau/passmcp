@@ -438,3 +438,36 @@ func TestProxyCloseReleasesHeldConnections(t *testing.T) {
 		t.Errorf("close waited %s on a held connection", d)
 	}
 }
+
+// RFC 6761 §6.4 reserves .invalid as permanently non-existent so resolvers do
+// not query upstream DNS. On hosts whose stub resolver forwards .invalid
+// anyway, a real lookup stalls fixture dials past caller timeouts; the proxy
+// answers 502 immediately after recording and scanning the request.
+func TestProxyRefusesRFC6761InvalidWithoutDNS(t *testing.T) {
+	const marker = "passmcp-canary-invalid-domain"
+	p := startProxy(t, nil)
+	p.WatchFor([]string{marker})
+	c := proxyClient(t, p)
+
+	t0 := time.Now()
+	res, err := c.Post("http://dependency.passmcp-fixture.invalid/lookup", "text/plain", strings.NewReader(marker))
+	if err != nil {
+		t.Fatalf("plain .invalid through proxy: %v", err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusBadGateway {
+		t.Errorf("plain .invalid status %d, want 502", res.StatusCode)
+	}
+	if _, err := c.Get("https://Tunnel.PassMCP-Fixture.INVALID./lookup"); err == nil {
+		t.Error("expected CONNECT to .invalid to fail with 502")
+	}
+	if elapsed := time.Since(t0); elapsed > 250*time.Millisecond {
+		t.Errorf(".invalid requests took %s (expected immediate 502 without upstream DNS)", elapsed)
+	}
+	if len(p.Dials()) != 2 {
+		t.Errorf("want 2 recorded dials, got %+v", p.Dials())
+	}
+	if got := p.Escaped()[marker]; got != "dependency.passmcp-fixture.invalid:80" {
+		t.Errorf("escaped = %q, want dependency.passmcp-fixture.invalid:80", got)
+	}
+}

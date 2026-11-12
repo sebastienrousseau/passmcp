@@ -152,6 +152,7 @@ builds a dated evidence bundle from attestations over an audit period.
 | `protocol.tasks.undeclared` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.tasks.unknown_id` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `protocol.unknown_method` | None: no data protection obligation is evidenced by this check |
+| `protocol.unknown_resource` | None: no data protection obligation is evidenced by this check |
 | `protocol.unknown_tool` | None: no data protection obligation is evidenced by this check |
 | `protocol.version_header` | None: protocol conformance and interoperability: it shows the server speaks MCP correctly, which no control in this framework requires |
 | `resilience.session_reinit` | None: no data protection obligation is evidenced by this check |

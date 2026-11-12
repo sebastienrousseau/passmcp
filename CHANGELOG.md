@@ -16,6 +16,43 @@ project announces that a change felt big.
 
 ## [Unreleased]
 
+### Added
+
+- **`protocol.unknown_resource` checks SEP-2164 missing-resource errors
+  (139 checks in all).** When `capabilities.resources` is declared,
+  passmcp reads a non-existent resource URI (`passmcp://no-such-resource`)
+  and verifies the server refuses it with JSON-RPC `-32602` (`Invalid
+  params`) and `error.data.uri` on `2026-07-28` (warning on retired
+  `-32002` or a missing `data.uri`), or `-32002`/`-32602` on earlier
+  revisions. Servers that do not declare `resources` skip the check.
+- **`Client.ListResourcesWithHints` and `Client.ListPromptsWithHints`**,
+  plus a migration and comparison guide for
+  `@modelcontextprotocol/conformance` (`docs/migrating/from-mcp-conformance.md`
+  and `docs/COMPARISON.md`).
+
+### Changed
+
+- **`catalog.cache_hints` validates SEP-2549 across all declared list
+  endpoints.** On `2026-07-28`, `ttlMs` (integer `>= 0`) and `cacheScope`
+  (`"public"` or `"private"`) are required on complete list responses
+  rather than optional: negative `ttlMs` or an unknown `cacheScope` fails,
+  incomplete or missing hints warn, and `resources/list` and `prompts/list`
+  are inspected alongside `tools/list` without penalizing undeclared
+  capabilities.
+
+### Fixed
+
+- **Capability gating on `protocol.invalid_params`,
+  `protocol.unknown_tool`, and stateless `firstContact`.** Servers that do
+  not declare `capabilities.tools` now skip the two `tools/call` protocol
+  probes instead of passing `protocol.unknown_tool` on `-32601 Method not
+  found` (ADR-0002), and stateless first contact selects a list RPC the
+  server actually declared rather than hardcoding `tools/list`.
+- **The egress proxy answers `502 Bad Gateway` immediately for RFC 6761
+  `.invalid` hosts** after recording and scanning the request, so stub
+  resolvers that forward `.invalid` upstream cannot stall fault-injection
+  fixtures past caller timeouts.
+
 ## [0.0.8] - 2026-10-18
 
 ### Added

@@ -115,20 +115,17 @@ type listToolsParams struct {
 type listToolsResult struct {
 	Tools      []Tool `json:"tools"`
 	NextCursor string `json:"nextCursor,omitempty"`
-	// The 2026-07-28 revision makes every list result cacheable: ttlMs is
-	// how long a client MAY keep it and cacheScope is whether that cache
-	// may be shared. Both are optional, and both are how a server tells a
-	// client to stop re-fetching a catalogue it already has.
+	// Under SEP-2549 (2026-07-28), every complete list result carries ttlMs
+	// (integer >= 0; 0 means do not cache) and cacheScope ("public" or
+	// "private").
 	TTLMs      *int   `json:"ttlMs,omitempty"`
 	CacheScope string `json:"cacheScope,omitempty"`
 }
 
-// CacheHints are what a list result said about being cached.
+// CacheHints are what a list result said about being cached (SEP-2549).
 //
-// A catalogue is re-fetched by every client on every session, and a large
-// one is paid for in context on every call after that. These two fields
-// are the protocol's own answer to that cost, which makes their absence
-// worth reporting on a catalogue big enough for it to matter.
+// On 2026-07-28, list responses state both ttlMs (how long a client may keep
+// the result, or 0 for uncached) and cacheScope ("public" or "private").
 type CacheHints struct {
 	// TTLMs is how long a client may cache the result, or nil when the
 	// server said nothing.

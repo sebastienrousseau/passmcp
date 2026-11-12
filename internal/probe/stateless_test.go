@@ -220,7 +220,7 @@ func statelessFake(t *testing.T, o statelessOpts) *httptest.Server {
 			for i := 0; i < n; i++ {
 				tools = append(tools, fmt.Sprintf(`{"name":"t%d","description":%q,"annotations":{"readOnlyHint":true},"inputSchema":{"type":"object","required":["q"],"properties":{"q":{"type":"string"}}}}`, i, desc))
 			}
-			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"resultType":"complete","tools":[%s]}}`, id, strings.Join(tools, ","))
+			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"resultType":"complete","tools":[%s],"ttlMs":60000,"cacheScope":"public"}}`, id, strings.Join(tools, ","))
 		case "tools/call":
 			if req.Params.Name == "" {
 				fail(http.StatusBadRequest, -32602, "name is required")

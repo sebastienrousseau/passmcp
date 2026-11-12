@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only
 description: >-
-  passmcp is a diagnostic for Model Context Protocol servers: nine phases, 138 checks, run from your own machine against a live server.
+  passmcp is a diagnostic for Model Context Protocol servers: nine phases, 139 checks, run from your own machine against a live server.
 ---
 
 # passmcp
@@ -32,7 +32,7 @@ as passing without one.
 | [Reports and telemetry](reports.md) | output formats, the report directory, HAR and NDJSON, scoring |
 | [Configuration](configuration.md) | the config file, profiles, precedence, the token store |
 | [Library use](library.md) | the Go packages the CLI is built on |
-| [Comparison](COMPARISON.md) | passmcp beside MCP Inspector, curl scripts and hosted playgrounds |
+| [Comparison](COMPARISON.md) | passmcp beside `@modelcontextprotocol/conformance`, MCP Inspector, curl scripts and hosted playgrounds |
 | [Benchmarks](BENCHMARKS.md) | what passmcp's own work costs, and which budgets CI gates |
 
 ## Safety, in one paragraph

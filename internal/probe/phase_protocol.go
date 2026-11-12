@@ -10,129 +10,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 
 	"satellion.com/passmcp"
-	"satellion.com/passmcp/internal/creds"
 	"satellion.com/passmcp/internal/telemetry"
 	"satellion.com/passmcp/transport"
 )
-
-// phaseHandshake runs initialize with credentials and inspects the result.
-func phaseHandshake(ctx context.Context, s *Session) []Finding {
-	var out []Finding
-	// Which generation the server speaks was decided in the discovery phase,
-	// because on the current revision there is no handshake to decide it.
-	out = append(out, checkEra(ctx, s))
-	if s.Stateless() {
-		out = append(out, s.setupStateless(ctx)...)
-		return out
-	}
-	c := s.check("handshake.initialize", "initialize succeeds")
-	res, err := s.Client.Initialize(telemetry.WithPhase(ctx, "handshake", "initialize"))
-	if err != nil {
-		return append(out, initializeFailed(s, c, err))
-	}
-	s.Init = res
-	s.Reached = true
-	out = append(out, c.pass(fmt.Sprintf("%s %s", res.ServerInfo.Name, res.ServerInfo.Version)))
-
-	out = append(out, protocolVersionFinding(s.check("handshake.protocol_version", "Negotiated protocol version"), res.ProtocolVersion))
-
-	c = s.check("handshake.server_info", "serverInfo populated")
-	switch {
-	case res.ServerInfo.Name == "":
-		out = append(out, c.fail(Minor, "serverInfo.name is empty", "set name and version"))
-	case res.ServerInfo.Version == "":
-		out = append(out, c.warn("serverInfo.version is empty", "set version so clients can report it"))
-	default:
-		out = append(out, c.pass(res.ServerInfo.Name+" "+res.ServerInfo.Version))
-	}
-
-	out = append(out, capabilitiesFinding(s.check("handshake.capabilities", "Capabilities advertised"), res.Capabilities))
-
-	c = s.check("handshake.instructions", "Server instructions")
-	if res.Instructions == "" {
-		out = append(out, c.info("none provided"))
-	} else {
-		out = append(out, c.pass(fmt.Sprintf("%d characters", len(res.Instructions))))
-	}
-
-	return append(out, sessionIssuedFinding(s))
-}
-
-// initializeFailed is the handshake.initialize verdict when initialize did
-// not return a result, and blocks every later phase with the reason.
-func initializeFailed(s *Session, c *check, err error) Finding {
-	if ch, ok := passmcp.Unauthorized(err); ok {
-		detail := unauthorizedDetail(ch.Params)
-		advice := "the token is not accepted here: check it has not expired, that --resource matches the audience the server expects, that --scope covers what it requires, and that any tenant parameter is passed with --param"
-		if s.Opts.Creds.Effective() == creds.ModeBearer {
-			advice = "the supplied token is not accepted here: confirm it was issued for this endpoint (audience/resource), has not expired, and carries the scope the server requires; if the operator gave you a client id and secret instead, use --auth client-credentials"
-		}
-		f := c.fail(Critical, detail, advice)
-		s.blocked = "credentials rejected at initialize"
-		return f
-	}
-	f := c.fail(Critical, err.Error(), "initialize must return a result")
-	s.blocked = "initialize failed"
-	return f
-}
-
-// unauthorizedDetail says what a 401 at initialize carried in its
-// WWW-Authenticate challenge.
-func unauthorizedDetail(params map[string]string) string {
-	detail := "the server answered 401 to a request carrying the token"
-	e := params["error"]
-	if e == "" {
-		return detail + " and gave no error code in WWW-Authenticate"
-	}
-	detail += " (" + e
-	if d := params["error_description"]; d != "" {
-		detail += ": " + d
-	}
-	return detail + ")"
-}
-
-// capabilitiesFinding is the handshake.capabilities verdict: which of the
-// listable capabilities the server declared.
-func capabilitiesFinding(c *check, capabilities passmcp.ServerCapabilities) Finding {
-	var caps []string
-	if capabilities.Tools != nil {
-		caps = append(caps, "tools")
-	}
-	if capabilities.Resources != nil {
-		caps = append(caps, "resources")
-	}
-	if capabilities.Prompts != nil {
-		caps = append(caps, "prompts")
-	}
-	if capabilities.Logging != nil {
-		caps = append(caps, "logging")
-	}
-	if len(caps) == 0 {
-		return c.warn("no capabilities declared", "declare tools/resources/prompts so clients know what to list")
-	}
-	return c.pass(strings.Join(caps, ", "))
-}
-
-// sessionIssuedFinding is the handshake.session verdict: whether the server
-// issued an Mcp-Session-Id.
-func sessionIssuedFinding(s *Session) Finding {
-	c := s.check("handshake.session", "Mcp-Session-Id issued")
-	switch {
-	case s.overStdio():
-		// Not an absence to report as a finding about the server: the
-		// connection is the session over a pipe, so there is no id for a
-		// correct server to issue.
-		return c.skip("sessions are an HTTP binding; over stdio the connection is the session")
-	case s.Client.Conn().SessionID() != "":
-		s.SessionID = true
-		return c.pass("session id present")
-	default:
-		return c.info("stateless server (no session id)")
-	}
-}
 
 // phaseProtocol sends deliberately unusual requests and checks the server
 // answers them the way the JSON-RPC and MCP specifications require.
@@ -171,6 +53,7 @@ func phaseProtocol(ctx context.Context, s *Session) []Finding {
 	out = append(out, probeMalformedJSON(s, raw))
 	out = append(out, probeInvalidParams(s, raw))
 	out = append(out, probeUnknownTool(s, pctx))
+	out = append(out, probeUnknownResource(s, pctx))
 
 	// And what it has not removed. Transport-agnostic like the four above,
 	// so it runs over a pipe too.
@@ -296,46 +179,6 @@ func probeMalformedJSON(s *Session, raw rawProbe) Finding {
 		return c.info(fmt.Sprintf("HTTP %d", rep.Status))
 	default:
 		return c.fail(Minor, "a truncated message drew a reply that was not an error: "+truncate(string(rep.Body), 120), "return -32700")
-	}
-}
-
-// probeInvalidParams is the protocol.invalid_params verdict: a tools/call
-// with no name is rejected.
-func probeInvalidParams(s *Session, raw rawProbe) Finding {
-	c := s.check("protocol.invalid_params", "tools/call without a name is rejected")
-	id := s.nextID()
-	rep, err := raw("invalid params", rawSend{Request: &transport.Request{JSONRPC: "2.0", ID: &id, Method: "tools/call", Params: json.RawMessage(`{}`)}})
-	switch {
-	case err != nil:
-		return c.warn("request failed: "+err.Error(), "")
-	case rep.Response != nil && rep.Response.Error != nil:
-		if rep.Response.Error.Code == -32602 {
-			return c.pass("-32602 Invalid params")
-		}
-		return c.info(fmt.Sprintf("error %d: %s", rep.Response.Error.Code, rep.Response.Error.Message))
-	case rep.HTTP && rep.Status >= 400:
-		return c.info(fmt.Sprintf("HTTP %d", rep.Status))
-	default:
-		return c.fail(Minor, "a tools/call with no name succeeded", "validate params and return -32602")
-	}
-}
-
-// probeUnknownTool is the protocol.unknown_tool verdict: calling a tool
-// that does not exist is reported as an error.
-func probeUnknownTool(s *Session, pctx func(string) context.Context) Finding {
-	c := s.check("protocol.unknown_tool", "Unknown tool is reported")
-	res, err := s.Client.CallTool(pctx("unknown tool"), "passmcp_no_such_tool", map[string]any{})
-	switch {
-	case err != nil:
-		var rpc *transport.RPCError
-		if asRPC(err, &rpc) {
-			return c.pass(fmt.Sprintf("JSON-RPC error %d", rpc.Code))
-		}
-		return c.warn(err.Error(), "")
-	case res.IsError:
-		return c.pass("isError result: " + truncate(res.Text(), 80))
-	default:
-		return c.fail(Major, "calling a non-existent tool returned success", "return -32602 or an isError result")
 	}
 }
 
