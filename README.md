@@ -416,7 +416,7 @@ language server, once outside it, are now inside it.
 
 | Area | Capability | Status |
 | :--- | :--- | :--- |
-| Diagnosis | Nine phases from DNS to token recovery, 138 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
+| Diagnosis | Nine phases from DNS to token recovery, 139 checks, each finding citing the requests that showed it | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Transports | Streamable HTTP, and stdio servers run under process custody with `--stdio` | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Credentials | Bearer, API key, basic, OAuth 2.1 client credentials, user login with PKCE, dynamic and metadata-document registration | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
 | Safety | Read-only by default; mutations and destructive tools only by explicit opt-in | Released in [0.0.1](https://github.com/sebastienrousseau/passmcp/releases/tag/v0.0.1) |
@@ -449,21 +449,23 @@ connection phases and the catalog.
 
 ## Ecosystem comparison
 
-MCP Inspector, a hand-written curl script and a hosted playground are what most people use before passmcp. Each is good at something passmcp does not do; the table is what passmcp adds. The [migration guides](docs/migrating/README.md) are the evidence, one per tool.
+`@modelcontextprotocol/conformance`, MCP Inspector, a hand-written curl script and a hosted playground cover adjacent jobs. Each is good at something passmcp does not do; the table shows where they differ. The [migration guides](docs/migrating/README.md) carry the full detail, one per tool.
 
-| Project | Unattended, gates CI | Negative-path probes | Findings cite requests | Runs on your network |
-| :--- | :---: | :---: | :---: | :---: |
-| **passmcp** | yes | yes | yes | yes |
-| MCP Inspector | no | no | no | yes |
-| curl script | yes | no | no | yes |
-| Hosted playground | no | no | no | no |
+| Project | Unattended, gates CI | Zero-fixture production servers | Negative-path & `stdio` custody probes | Findings cite requests (HAR) | SDK tiering & client tests |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **passmcp** | yes | yes | yes | yes | no |
+| `@modelcontextprotocol/conformance` | yes | baseline needed | partial | no | yes |
+| MCP Inspector | no | yes | no | no | no |
+| curl script | yes | yes | no | no | no |
+| Hosted playground | no | yes | no | no | no |
 
 See [`docs/COMPARISON.md`](docs/COMPARISON.md) for the evidence and complete matrix.
 
 ### Coming from another tool
 
 Migration guides live in [`docs/migrating/`](docs/migrating/README.md):
-from [MCP Inspector](docs/migrating/from-mcp-inspector.md), from
+from [`@modelcontextprotocol/conformance`](docs/migrating/from-mcp-conformance.md), from
+[MCP Inspector](docs/migrating/from-mcp-inspector.md), from
 [a curl script](docs/migrating/from-a-curl-script.md), or from
 [an online playground](docs/migrating/from-an-online-playground.md).
 

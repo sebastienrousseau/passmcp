@@ -81,6 +81,7 @@ nav:
   - Library use: library.md
   - Coming from another tool:
       - Overview: migrating/README.md
+      - "From @modelcontextprotocol/conformance": migrating/from-mcp-conformance.md
       - From MCP Inspector: migrating/from-mcp-inspector.md
       - From a curl script: migrating/from-a-curl-script.md
       - From an online playground: migrating/from-an-online-playground.md
