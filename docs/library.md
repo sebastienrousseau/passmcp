@@ -8,7 +8,10 @@ description: >-
 # Library use
 
 The CLI is built on public Go packages you can use directly. The module
-is `satellion.com/passmcp`.
+is `satellion.com/passmcp` (GPL-3.0-only, client-side packages). For an
+Apache-2.0 client and server SDK across Go, Python, Java, C++, TypeScript,
+and Rust (`passmcp-sdk-<lang>`, not yet released), see
+[ADR 0013](adr/0013-language-sdks-are-apache-satellites.md).
 
 ## Connect and call
 

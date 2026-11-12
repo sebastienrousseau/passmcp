@@ -16,6 +16,17 @@ project announces that a change felt big.
 
 ## [Unreleased]
 
+### Added
+
+- **Registered six Apache-2.0 MCP SDK satellites in the family manifest**
+  (`passmcp-sdk-go`, `passmcp-sdk-python`, `passmcp-sdk-java`,
+  `passmcp-sdk-cpp`, `passmcp-sdk-typescript`, and `passmcp-sdk-rust`) at
+  `Status: Unreleased` with `Lockstep: true`, together with
+  [ADR 0013](docs/adr/0013-language-sdks-are-apache-satellites.md) defining
+  their shared conformance (`2025-06-18` through `2026-07-28`, SEP-2164,
+  SEP-2549, `server/discover`, read-only defaults) and offline `in-toto`
+  attestation verification contract.
+
 ## [0.0.9] - 2026-11-12
 
 ### Added

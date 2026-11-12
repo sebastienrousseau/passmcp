@@ -108,3 +108,4 @@ nav:
           - 0010 Provenance is reported, not verified: adr/0010-provenance-is-reported-not-verified.md
           - 0011 The attestation format is Apache-2.0: adr/0011-attestation-format-is-apache.md
           - 0012 Everything stays open for now: adr/0012-everything-stays-open.md
+          - 0013 Language SDKs are Apache-2.0 satellites: adr/0013-language-sdks-are-apache-satellites.md

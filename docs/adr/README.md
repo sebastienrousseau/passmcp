@@ -35,3 +35,4 @@ made on a weaker basis than it appeared.
 | [0010](0010-provenance-is-reported-not-verified.md) | Provenance is reported from the binary; signatures are verified with cosign or gh | Accepted |
 | [0011](0011-attestation-format-is-apache.md) | The attestation schema and rubric are Apache-2.0; the engine stays GPL-3.0 | Accepted |
 | [0012](0012-everything-stays-open.md) | No paid tier yet: every roadmap feature is built in the open until adoption says where the line goes | Accepted |
+| [0013](0013-language-sdks-are-apache-satellites.md) | Language SDKs (`passmcp-sdk-{go,python,java,cpp,typescript,rust}`) are Apache-2.0 lockstep satellites | Accepted |
