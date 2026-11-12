@@ -13,7 +13,7 @@ require (
 	github.com/spf13/pflag v1.1.0
 	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/sys v0.49.0
-	satellion.com/passmcp-reporting v0.0.8
+	satellion.com/passmcp-reporting v0.0.9
 )
 
 require (
