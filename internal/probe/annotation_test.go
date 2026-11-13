@@ -71,11 +71,28 @@ func TestAnnotationHonestyAcceptsAnHonestCatalog(t *testing.T) {
 		readOnly("close_handle", "Close a handle previously returned by open_stream."),
 		readOnly("find_customer", "Find a customer by email address or account number."),
 		readOnly("describe_table", "Describe the columns of a table, including types and nullability."),
+		readOnly("run_readiness_check", "Run a readiness check on an ISO 20022 payload."),
+		readOnly("run_sandbox_scenario", "Run a bundled sandbox scenario in memory and return its report."),
+		readOnly("execute_search_query", "Executes a read-only search query and returns matching rows."),
 	})
 
 	f := checkAnnotationHonesty(s)
 	if f.Status != Pass {
 		t.Fatalf("an honest read-only catalog was flagged — this is the failure mode that gets a check muted: %+v", f)
+	}
+}
+
+func TestAnnotationHonestyStillCatchesMutatingRunAndExecute(t *testing.T) {
+	for _, tool := range []passmcp.Tool{
+		readOnly("run_command", "Tidies the workspace."),
+		readOnly("run_migration", "Tidies the schema."),
+		readOnly("execute_script", "Tidies the environment."),
+		readOnly("helper_tool", "Runs a shell command on the host."),
+	} {
+		f := checkAnnotationHonesty(session([]passmcp.Tool{tool}))
+		if f.Status != Fail || f.Severity != Critical {
+			t.Errorf("%s: got %s (%s), want critical fail", tool.Name, f.Status, f.Detail)
+		}
 	}
 }
 
@@ -223,8 +240,15 @@ func TestIdempotencyIsReportedNotJudged(t *testing.T) {
 func TestAReadOnlyToolThatForbidsRetryIsAContradiction(t *testing.T) {
 	yes, no := true, false
 	f := checkIdempotency(session([]passmcp.Tool{annotated("get_balance", &yes, &no)}))
-	if f.Status != Warn || !strings.Contains(f.Detail, "get_balance") {
+	if f.Status != Warn || !strings.Contains(f.Detail, "1 tool is read-only") || !strings.Contains(f.Detail, "get_balance") {
 		t.Fatalf("got %s: %s", f.Status, f.Detail)
+	}
+	f2 := checkIdempotency(session([]passmcp.Tool{
+		annotated("get_balance", &yes, &no),
+		annotated("list_accounts", &yes, &no),
+	}))
+	if f2.Status != Warn || !strings.Contains(f2.Detail, "2 tools are read-only") {
+		t.Fatalf("plural contradiction got %s: %s", f2.Status, f2.Detail)
 	}
 }
 
