@@ -27,6 +27,26 @@ project announces that a change felt big.
   SEP-2549, `server/discover`, read-only defaults) and offline `in-toto`
   attestation verification contract.
 
+### Fixed
+
+- **`catalog.toxic_combination` excludes closed-world bundled-fixture readers.**
+  Tools marked `readOnlyHint: true` and `openWorldHint: false` whose schema
+  carries no path, file, or URL parameter and whose description explicitly
+  states bundled/in-package fixtures (`bundled`, `built-in`, `in-package`,
+  `preloaded`) no longer count as arbitrary untrusted-content readers.
+- **`catalog.tools.annotation_honesty` accepts read-only inspection and
+  simulation `run_*` / `execute_*` tools** (`run_readiness_check`,
+  `run_sandbox_scenario`, `execute_query`) while continuing to fail mutating
+  command, script, and migration tools (`run_command`, `run_migration`,
+  `execute_script`), and `catalog.tools.idempotency` pluralizes `"N tools are"`
+  instead of `"N tool iss"`.
+- **`telemetry.Redactor.KeepIdentifier` preserves server and catalogue names
+  from personal-data self-masking.** Protocol identifiers (`serverInfo.name`
+  and listed tool, resource, template, and prompt names) are kept out of field
+  PII registration even when echoed under `"name"` in `resources/read` or
+  `tools/call` responses, while credential secrets registered via `Add` still
+  mask unconditionally.
+
 ## [0.0.9] - 2026-11-12
 
 ### Added
