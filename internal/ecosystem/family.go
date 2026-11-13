@@ -267,7 +267,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-sdk-go",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "MCP client and server SDK for Go covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
 		Purpose:  "Apache-2.0 Go MCP client and server SDK with offline attestation verification (not yet released)",
 		UseCase:  "Build an MCP server or client in Go that clears passmcp's checks and verifies attestations offline",
@@ -284,7 +284,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-sdk-python",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "MCP client and server SDK for Python covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
 		Purpose:  "Apache-2.0 Python MCP client and server SDK with offline attestation verification (not yet released)",
 		UseCase:  "Build an MCP server or client in Python that clears passmcp's checks and verifies attestations offline",
@@ -301,7 +301,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-sdk-java",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "MCP client and server SDK for Java covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
 		Purpose:  "Apache-2.0 Java MCP client and server SDK with offline attestation verification (not yet released)",
 		UseCase:  "Build an MCP server or client in Java that clears passmcp's checks and verifies attestations offline",
@@ -318,7 +318,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-sdk-cpp",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "MCP client and server SDK for C++20 covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
 		Purpose:  "Apache-2.0 C++20 MCP client and server SDK with offline attestation verification (not yet released)",
 		UseCase:  "Build an MCP server or client in C++ that clears passmcp's checks and verifies attestations offline",
@@ -335,7 +335,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-sdk-typescript",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "MCP client and server SDK for TypeScript covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
 		Purpose:  "Apache-2.0 TypeScript MCP client and server SDK with offline attestation verification (not yet released)",
 		UseCase:  "Build an MCP server or client in TypeScript that clears passmcp's checks and verifies attestations offline",
@@ -352,7 +352,7 @@ var Family = []Repo{
 	},
 	{
 		Name:     "passmcp-sdk-rust",
-		Status:   Unreleased,
+		Status:   Released,
 		Role:     "MCP client and server SDK for Rust covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
 		Purpose:  "Apache-2.0 Rust MCP client and server SDK with offline attestation verification (not yet released)",
 		UseCase:  "Build an MCP server or client in Rust that clears passmcp's checks and verifies attestations offline",

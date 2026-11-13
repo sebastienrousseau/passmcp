@@ -32,61 +32,12 @@ build when they do.
 | [`passmcp-lsp`](https://github.com/sebastienrousseau/passmcp-lsp) | Apache-2.0 | yes | A language server over MCP artefacts — server.json, tool schemas, client configuration, passmcp policy and attestation files — with check-id hover from the guidance catalogue. |
 | [`passmcp-census`](https://github.com/sebastienrousseau/passmcp-census) | CC-BY-4.0 | yes | The reliability census of the MCP Registry's remote servers: the methodology, the disclosure log and the command that reproduces the figures. No edition has been published yet. |
 | [`satellion.com`](https://github.com/sebastienrousseau/satellion.github.io) | GPL-3.0-only | yes | The public site at satellion.com, built with SSG against passmcp's latest release: the home page, the manual and a sample report passmcp generates. |
-
-### Not yet released
-
-**Nothing is installable from these yet.** Each starts at the family's
-version and joins the release with its first tag. Every row states the
-boundary that forces a separate repository and the criterion for
-archiving it.
-
-#### [`passmcp-sdk-go`](https://github.com/sebastienrousseau/passmcp-sdk-go)
-
-MCP client and server SDK for Go covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.
-
-- **Licence** Apache-2.0 · **go** · **Lockstep** yes
-- **Why separate** Go library and server boundary. satellion.com/passmcp is GPL-3.0-only, client-only, and pulls CLI dependencies into go.sum; embedders building Go MCP servers and clients need a clean Apache-2.0 module importing only the standard library and passmcp-reporting (ADR 0013).
-- **Archive when** Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Go SDK.
-
-#### [`passmcp-sdk-python`](https://github.com/sebastienrousseau/passmcp-sdk-python)
-
-MCP client and server SDK for Python covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.
-
-- **Licence** Apache-2.0 · **python** · **Lockstep** yes
-- **Why separate** Python toolchain and PyPI boundary. Ships as a wheel and sdist with Python typing, pytest gates and PEP 740 provenance under Apache-2.0, which a Go repository's CI and module graph should not carry (ADR 0013).
-- **Archive when** Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Python SDK.
-
-#### [`passmcp-sdk-java`](https://github.com/sebastienrousseau/passmcp-sdk-java)
-
-MCP client and server SDK for Java covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.
-
-- **Licence** Apache-2.0 · **java** · **Lockstep** yes
-- **Why separate** Java toolchain and Maven Central boundary. Ships signed JARs, Javadoc and Maven coordinates under Apache-2.0 on Java 21+, with its own JDK matrix and Sonatype release pipeline (ADR 0013).
-- **Archive when** Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Java SDK.
-
-#### [`passmcp-sdk-cpp`](https://github.com/sebastienrousseau/passmcp-sdk-cpp)
-
-MCP client and server SDK for C++20 covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.
-
-- **Licence** Apache-2.0 · **cpp** · **Lockstep** yes
-- **Why separate** C++20 toolchain and CMake boundary. Ships CMake targets, sanitizer and compiler matrices (Clang, GCC, MSVC), and vcpkg/Conan packaging metadata under Apache-2.0 (ADR 0013).
-- **Archive when** Fewer than ten external dependents twelve months after its first release, or when native C++ MCP server adoption does not justify the multi-compiler maintenance cost.
-
-#### [`passmcp-sdk-typescript`](https://github.com/sebastienrousseau/passmcp-sdk-typescript)
-
-MCP client and server SDK for TypeScript covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.
-
-- **Licence** Apache-2.0 · **typescript** · **Lockstep** yes
-- **Why separate** TypeScript toolchain and npm/JSR boundary. Ships ESM declarations and npm provenance attestations for Node.js, Deno and Bun under Apache-2.0 (ADR 0013).
-- **Archive when** Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official TypeScript SDK.
-
-#### [`passmcp-sdk-rust`](https://github.com/sebastienrousseau/passmcp-sdk-rust)
-
-MCP client and server SDK for Rust covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.
-
-- **Licence** Apache-2.0 · **rust** · **Lockstep** yes
-- **Why separate** Rust toolchain and crates.io boundary. Ships a Cargo crate with MSRV, clippy, cargo-deny and docs.rs guarantees under Apache-2.0 (ADR 0013).
-- **Archive when** Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Rust SDK.
+| [`passmcp-sdk-go`](https://github.com/sebastienrousseau/passmcp-sdk-go) | Apache-2.0 | yes | MCP client and server SDK for Go covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification. |
+| [`passmcp-sdk-python`](https://github.com/sebastienrousseau/passmcp-sdk-python) | Apache-2.0 | yes | MCP client and server SDK for Python covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification. |
+| [`passmcp-sdk-java`](https://github.com/sebastienrousseau/passmcp-sdk-java) | Apache-2.0 | yes | MCP client and server SDK for Java covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification. |
+| [`passmcp-sdk-cpp`](https://github.com/sebastienrousseau/passmcp-sdk-cpp) | Apache-2.0 | yes | MCP client and server SDK for C++20 covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification. |
+| [`passmcp-sdk-typescript`](https://github.com/sebastienrousseau/passmcp-sdk-typescript) | Apache-2.0 | yes | MCP client and server SDK for TypeScript covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification. |
+| [`passmcp-sdk-rust`](https://github.com/sebastienrousseau/passmcp-sdk-rust) | Apache-2.0 | yes | MCP client and server SDK for Rust covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification. |
 
 ### The ssg surfaces
 

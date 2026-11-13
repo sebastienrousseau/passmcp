@@ -247,7 +247,7 @@
     {
       "name": "passmcp-sdk-go",
       "repository": "passmcp-sdk-go",
-      "status": "unreleased",
+      "status": "released",
       "role": "MCP client and server SDK for Go covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
       "language": "go",
       "license": "Apache-2.0",
@@ -280,7 +280,7 @@
     {
       "name": "passmcp-sdk-python",
       "repository": "passmcp-sdk-python",
-      "status": "unreleased",
+      "status": "released",
       "role": "MCP client and server SDK for Python covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
       "language": "python",
       "license": "Apache-2.0",
@@ -313,7 +313,7 @@
     {
       "name": "passmcp-sdk-java",
       "repository": "passmcp-sdk-java",
-      "status": "unreleased",
+      "status": "released",
       "role": "MCP client and server SDK for Java covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
       "language": "java",
       "license": "Apache-2.0",
@@ -346,7 +346,7 @@
     {
       "name": "passmcp-sdk-cpp",
       "repository": "passmcp-sdk-cpp",
-      "status": "unreleased",
+      "status": "released",
       "role": "MCP client and server SDK for C++20 covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
       "language": "cpp",
       "license": "Apache-2.0",
@@ -379,7 +379,7 @@
     {
       "name": "passmcp-sdk-typescript",
       "repository": "passmcp-sdk-typescript",
-      "status": "unreleased",
+      "status": "released",
       "role": "MCP client and server SDK for TypeScript covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
       "language": "typescript",
       "license": "Apache-2.0",
@@ -412,7 +412,7 @@
     {
       "name": "passmcp-sdk-rust",
       "repository": "passmcp-sdk-rust",
-      "status": "unreleased",
+      "status": "released",
       "role": "MCP client and server SDK for Rust covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
       "language": "rust",
       "license": "Apache-2.0",
