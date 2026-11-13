@@ -95,3 +95,40 @@ func TestPersonalWalkIsBounded(t *testing.T) {
 		t.Errorf("personal = %q", r.personal)
 	}
 }
+
+func TestKeepIdentifierPreservesCatalogueNamesWithoutWeakeningSecrets(t *testing.T) {
+	var nilR *Redactor
+	nilR.KeepIdentifier("agtmls")
+
+	r := &Redactor{}
+	r.KeepIdentifier("", "ab", "agtmls-mcp", "agtmls", "agtmls_audit", "noya_parse", "agtmls")
+	body := `{"result":{"contents":[{"text":"{\"name\":\"agtmls\",\"tools\":[{\"name\":\"noya_parse\"}],\"customer_name\":\"Ada Lovelace\"}"}]}}`
+	r.registerPersonalFromResponse(&RPCInfo{Method: "resources/read"}, []byte(body))
+
+	got := r.String("agtmls-mcp tool agtmls_audit and noya_parse for Ada Lovelace")
+	for _, want := range []string{"agtmls-mcp", "agtmls_audit", "noya_parse"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("catalogue identifier %q was masked: %q", want, got)
+		}
+	}
+	if strings.Contains(got, "Ada Lovelace") {
+		t.Errorf("customer name leaked: %q", got)
+	}
+
+	// An identifier registered from an earlier phase's resources/read before
+	// KeepIdentifier runs is also evicted from personal masking.
+	r2 := &Redactor{}
+	r2.registerPersonalFromResponse(&RPCInfo{Method: "resources/read"}, []byte(`{"result":{"contents":[{"text":"{\"name\":\"reconcile\",\"customer_name\":\"Grace Hopper\"}"}]}}`))
+	r2.KeepIdentifier("reconcile")
+	got2 := r2.String("tool reconcile and reconcile_many_to_many for Grace Hopper")
+	if !strings.Contains(got2, "reconcile_many_to_many") || strings.Contains(got2, "Grace Hopper") {
+		t.Errorf("retroactive KeepIdentifier got %q", got2)
+	}
+
+	// An actual credential registered via Add is still masked even if it
+	// collides with a kept identifier.
+	r.Add("noya_parse")
+	if strings.Contains(r.String("token noya_parse"), "noya_parse") {
+		t.Error("KeepIdentifier weakened secret masking")
+	}
+}

@@ -44,9 +44,52 @@ func phaseCatalog(ctx context.Context, s *Session) []Finding {
 	listed = appendHint(listed, ph)
 	prompts := s.Prompts
 
+	keepCatalogueIdentifiers(s)
 	out = append(out, catalogCacheHints(s, listed, tools)...)
 	out = append(out, catalogPostAudit(ctx, s, tools, res, prompts)...)
 	return out
+}
+
+var genericServerWords = map[string]bool{
+	"mcp": true, "server": true, "stdio": true, "http": true, "https": true,
+}
+
+func keepCatalogueIdentifiers(s *Session) {
+	if s.Opts.Recorder == nil || s.Opts.Recorder.Redactor == nil {
+		return
+	}
+	ids := append(serverIdentifierParts(s.Init), catalogueItemNames(s)...)
+	s.Opts.Recorder.Redactor.KeepIdentifier(ids...)
+}
+
+func serverIdentifierParts(init *passmcp.InitializeResult) []string {
+	if init == nil || init.ServerInfo.Name == "" {
+		return nil
+	}
+	ids := []string{init.ServerInfo.Name}
+	for _, w := range splitName(init.ServerInfo.Name) {
+		if !genericServerWords[w] {
+			ids = append(ids, w)
+		}
+	}
+	return ids
+}
+
+func catalogueItemNames(s *Session) []string {
+	var ids []string
+	for _, t := range s.Tools {
+		ids = append(ids, t.Name)
+	}
+	for _, r := range s.Resources {
+		ids = append(ids, r.Name)
+	}
+	for _, rt := range s.Templates {
+		ids = append(ids, rt.Name)
+	}
+	for _, p := range s.Prompts {
+		ids = append(ids, p.Name)
+	}
+	return ids
 }
 
 func catalogCacheHints(s *Session, listed []endpointCacheHints, tools []passmcp.Tool) []Finding {

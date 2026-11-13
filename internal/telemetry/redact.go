@@ -30,6 +30,7 @@ type Redactor struct {
 	personal     []string
 	personalSet  map[string]bool
 	personalMask maskSet
+	keepPersonal map[string]bool
 
 	// cmu guards counts, which String updates while holding mu for
 	// reading.

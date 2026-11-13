@@ -55,6 +55,29 @@ var mutationVerbs = map[string]bool{
 	"update": true, "upload": true, "wipe": true, "write": true,
 }
 
+// inspectionNouns disambiguate "run" and "execute" when their object is an
+// in-memory check, query, audit or simulation rather than a host command or
+// state migration (e.g. run_readiness_check, execute_search_query).
+var inspectionNouns = map[string]bool{
+	"audit": true, "audits": true, "check": true, "checks": true,
+	"diagnostics": true, "lint": true, "probe": true, "query": true,
+	"queries": true, "report": true, "reports": true, "sandbox": true,
+	"scan": true, "scenario": true, "scenarios": true, "search": true,
+	"simulation": true, "validation": true,
+}
+
+func isReadOnlyRunOrExecute(verb string, words []string) bool {
+	if verb != "run" && verb != "execute" {
+		return false
+	}
+	for _, w := range words {
+		if inspectionNouns[w] {
+			return true
+		}
+	}
+	return false
+}
+
 // mutationVerb reports whether word is a mutation verb, accepting the
 // third-person and gerund forms a description is written in: a name says
 // "delete_issue", a description says "Deletes the issue" or "Deleting an
@@ -149,27 +172,44 @@ type dishonestAnnotation struct {
 	quote string
 }
 
+func firstSentenceWords(desc string) []string {
+	first := desc
+	if i := strings.IndexAny(first, ".!?\n"); i > 0 {
+		first = first[:i]
+	}
+	words := strings.Fields(first)
+	out := make([]string, 0, len(words))
+	for _, f := range words {
+		if w := strings.ToLower(strings.Trim(f, ".,;:!?()[]\"'`")); w != "" {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+func dishonestTool(t passmcp.Tool) (dishonestAnnotation, bool) {
+	if !t.IsReadOnly() {
+		return dishonestAnnotation{}, false
+	}
+	if verb, ok := mutationVerb(nameVerb(t.Name)); ok && !isReadOnlyRunOrExecute(verb, splitName(t.Name)) {
+		return dishonestAnnotation{tool: t.Name, verb: verb, from: "name", quote: t.Name}, true
+	}
+	desc := strings.TrimSpace(t.Description)
+	if desc == "" {
+		return dishonestAnnotation{}, false
+	}
+	if verb, ok := mutationVerb(leadVerb(desc)); ok && !isReadOnlyRunOrExecute(verb, firstSentenceWords(desc)) {
+		return dishonestAnnotation{tool: t.Name, verb: verb, from: "description", quote: excerpt(desc, 0)}, true
+	}
+	return dishonestAnnotation{}, false
+}
+
 // findDishonestAnnotations reports read-only tools that describe writing.
 func findDishonestAnnotations(tools []passmcp.Tool) []dishonestAnnotation {
 	var out []dishonestAnnotation
 	for _, t := range tools {
-		if !t.IsReadOnly() {
-			continue
-		}
-		if verb, ok := mutationVerb(nameVerb(t.Name)); ok {
-			out = append(out, dishonestAnnotation{
-				tool: t.Name, verb: verb, from: "name", quote: t.Name,
-			})
-			continue
-		}
-		desc := strings.TrimSpace(t.Description)
-		if desc == "" {
-			continue
-		}
-		if verb, ok := mutationVerb(leadVerb(desc)); ok {
-			out = append(out, dishonestAnnotation{
-				tool: t.Name, verb: verb, from: "description", quote: excerpt(desc, 0),
-			})
+		if d, ok := dishonestTool(t); ok {
+			out = append(out, d)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].tool < out[j].tool })
@@ -242,8 +282,12 @@ func checkIdempotency(s *Session) Finding {
 	}
 	g := sortByIdempotency(s.Tools)
 	if len(g.contradicted) > 0 {
+		subject := "1 tool is"
+		if len(g.contradicted) != 1 {
+			subject = fmt.Sprintf("%d tools are", len(g.contradicted))
+		}
 		return c.warn(
-			fmt.Sprintf("%s read-only and declared not idempotent: %s", plural(len(g.contradicted), "tool is"), list(g.contradicted)),
+			fmt.Sprintf("%s read-only and declared not idempotent: %s", subject, list(g.contradicted)),
 			"drop idempotentHint: false from read-only tools, or drop readOnlyHint if the call changes something. A client told a read is unsafe to repeat will not retry it after a timeout")
 	}
 	changing := len(g.repeatable) + len(g.notRepeatable) + len(g.unstated)

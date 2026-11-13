@@ -16,12 +16,6 @@
 // arrangement as the generated check inventory, for the same reason.
 package ecosystem
 
-import (
-	"fmt"
-	"sort"
-	"strings"
-)
-
 // Status is how far a repository has actually got.
 //
 // A status names a fact that can be checked, a tag or its absence, rather
@@ -272,6 +266,108 @@ var Family = []Repo{
 		Kill: "The page's numbers stop coming from a passmcp release.",
 	},
 	{
+		Name:     "passmcp-sdk-go",
+		Status:   Released,
+		Role:     "MCP client and server SDK for Go covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
+		Purpose:  "Apache-2.0 Go MCP client and server SDK with offline attestation verification (not yet released)",
+		UseCase:  "Build an MCP server or client in Go that clears passmcp's checks and verifies attestations offline",
+		Language: "go",
+		Licence:  "Apache-2.0",
+		Boundary: "Go library and server boundary. satellion.com/passmcp is GPL-3.0-only, client-only, and pulls CLI dependencies into go.sum; embedders building Go MCP servers and clients need a clean Apache-2.0 module importing only the standard library and passmcp-reporting (ADR 0013).",
+		Lockstep: true,
+		Artefacts: []Artefact{
+			Readme, Changelog, Licence, Licences, Reuse, Development, Security, Support,
+			Governance, Conduct, Contributing, Agents, Citation, Makefile,
+			Docs, ADRs, Examples, Scripts, EditorConfig, Workflows,
+		},
+		Kill: "Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Go SDK.",
+	},
+	{
+		Name:     "passmcp-sdk-python",
+		Status:   Released,
+		Role:     "MCP client and server SDK for Python covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
+		Purpose:  "Apache-2.0 Python MCP client and server SDK with offline attestation verification (not yet released)",
+		UseCase:  "Build an MCP server or client in Python that clears passmcp's checks and verifies attestations offline",
+		Language: "python",
+		Licence:  "Apache-2.0",
+		Boundary: "Python toolchain and PyPI boundary. Ships as a wheel and sdist with Python typing, pytest gates and PEP 740 provenance under Apache-2.0, which a Go repository's CI and module graph should not carry (ADR 0013).",
+		Lockstep: true,
+		Artefacts: []Artefact{
+			Readme, Changelog, Licence, Licences, Reuse, Development, Security, Support,
+			Governance, Conduct, Contributing, Agents, Citation, Makefile,
+			Docs, ADRs, Examples, Scripts, EditorConfig, Workflows,
+		},
+		Kill: "Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Python SDK.",
+	},
+	{
+		Name:     "passmcp-sdk-java",
+		Status:   Released,
+		Role:     "MCP client and server SDK for Java covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
+		Purpose:  "Apache-2.0 Java MCP client and server SDK with offline attestation verification (not yet released)",
+		UseCase:  "Build an MCP server or client in Java that clears passmcp's checks and verifies attestations offline",
+		Language: "java",
+		Licence:  "Apache-2.0",
+		Boundary: "Java toolchain and Maven Central boundary. Ships signed JARs, Javadoc and Maven coordinates under Apache-2.0 on Java 21+, with its own JDK matrix and Sonatype release pipeline (ADR 0013).",
+		Lockstep: true,
+		Artefacts: []Artefact{
+			Readme, Changelog, Licence, Licences, Reuse, Development, Security, Support,
+			Governance, Conduct, Contributing, Agents, Citation, Makefile,
+			Docs, ADRs, Examples, Scripts, EditorConfig, Workflows,
+		},
+		Kill: "Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Java SDK.",
+	},
+	{
+		Name:     "passmcp-sdk-cpp",
+		Status:   Released,
+		Role:     "MCP client and server SDK for C++20 covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
+		Purpose:  "Apache-2.0 C++20 MCP client and server SDK with offline attestation verification (not yet released)",
+		UseCase:  "Build an MCP server or client in C++ that clears passmcp's checks and verifies attestations offline",
+		Language: "cpp",
+		Licence:  "Apache-2.0",
+		Boundary: "C++20 toolchain and CMake boundary. Ships CMake targets, sanitizer and compiler matrices (Clang, GCC, MSVC), and vcpkg/Conan packaging metadata under Apache-2.0 (ADR 0013).",
+		Lockstep: true,
+		Artefacts: []Artefact{
+			Readme, Changelog, Licence, Licences, Reuse, Development, Security, Support,
+			Governance, Conduct, Contributing, Agents, Citation, Makefile,
+			Docs, ADRs, Examples, Scripts, EditorConfig, Workflows,
+		},
+		Kill: "Fewer than ten external dependents twelve months after its first release, or when native C++ MCP server adoption does not justify the multi-compiler maintenance cost.",
+	},
+	{
+		Name:     "passmcp-sdk-typescript",
+		Status:   Released,
+		Role:     "MCP client and server SDK for TypeScript covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
+		Purpose:  "Apache-2.0 TypeScript MCP client and server SDK with offline attestation verification (not yet released)",
+		UseCase:  "Build an MCP server or client in TypeScript that clears passmcp's checks and verifies attestations offline",
+		Language: "typescript",
+		Licence:  "Apache-2.0",
+		Boundary: "TypeScript toolchain and npm/JSR boundary. Ships ESM declarations and npm provenance attestations for Node.js, Deno and Bun under Apache-2.0 (ADR 0013).",
+		Lockstep: true,
+		Artefacts: []Artefact{
+			Readme, Changelog, Licence, Licences, Reuse, Development, Security, Support,
+			Governance, Conduct, Contributing, Agents, Citation, Makefile,
+			Docs, ADRs, Examples, Scripts, EditorConfig, Workflows,
+		},
+		Kill: "Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official TypeScript SDK.",
+	},
+	{
+		Name:     "passmcp-sdk-rust",
+		Status:   Released,
+		Role:     "MCP client and server SDK for Rust covering revisions 2025-06-18 through 2026-07-28 (stdio and Streamable HTTP, OAuth 2.1 with PKCE, SEP-2164, SEP-2549, stateless server/discover, read-only defaults) and offline passmcp attestation verification.",
+		Purpose:  "Apache-2.0 Rust MCP client and server SDK with offline attestation verification (not yet released)",
+		UseCase:  "Build an MCP server or client in Rust that clears passmcp's checks and verifies attestations offline",
+		Language: "rust",
+		Licence:  "Apache-2.0",
+		Boundary: "Rust toolchain and crates.io boundary. Ships a Cargo crate with MSRV, clippy, cargo-deny and docs.rs guarantees under Apache-2.0 (ADR 0013).",
+		Lockstep: true,
+		Artefacts: []Artefact{
+			Readme, Changelog, Licence, Licences, Reuse, Development, Security, Support,
+			Governance, Conduct, Contributing, Agents, Citation, Makefile,
+			Docs, ADRs, Examples, Scripts, EditorConfig, Workflows,
+		},
+		Kill: "Fewer than ten external dependents twelve months after its first release, or superseded by first-class conformance and attestation support in the official Rust SDK.",
+	},
+	{
 		Name:     "passmcp-gateway",
 		Status:   Rejected,
 		Role:     "An in-path MCP gateway.",
@@ -299,138 +395,4 @@ var Family = []Repo{
 		Language: "—",
 		Reason:   "An adversarial mode in its own repository, which ADR 0008 rules out behind a flag and behind a verb alike: the read-only posture is what lets a security team approve passmcp. Resilience is already a phase of the check, and passmcp fuzzes its own parsers.",
 	},
-}
-
-// Validate reports every way the manifest contradicts itself.
-//
-// It returns all the problems rather than the first, because a contributor
-// fixing a manifest wants the list.
-func Validate() []error {
-	var errs []error
-	seen := map[string]bool{}
-	for _, r := range Family {
-		switch {
-		case r.Name == "":
-			errs = append(errs, fmt.Errorf("a row has no name"))
-			continue
-		case seen[r.Name]:
-			errs = append(errs, fmt.Errorf("%s: listed twice", r.Name))
-			continue
-		}
-		seen[r.Name] = true
-		errs = append(errs, rowProblems(r)...)
-	}
-	if !seen["passmcp"] {
-		errs = append(errs, fmt.Errorf("the manifest does not list passmcp, which is the one row that cannot be missing"))
-	}
-	return errs
-}
-
-// rowProblems reports what one row, already known to be named and not a
-// duplicate, says that contradicts itself.
-func rowProblems(r Repo) []error {
-	var errs []error
-	if r.Role == "" {
-		errs = append(errs, fmt.Errorf("%s: no role; a row that cannot say what it is for is sprawl", r.Name))
-	}
-	errs = append(errs, statusProblems(r)...)
-	art := map[Artefact]bool{}
-	for _, a := range r.Artefacts {
-		if art[a] {
-			errs = append(errs, fmt.Errorf("%s: artefact %s listed twice", r.Name, a))
-		}
-		art[a] = true
-	}
-	return errs
-}
-
-// statusProblems reports what a row's status requires of it and it lacks.
-func statusProblems(r Repo) []error {
-	switch r.Status {
-	case Released, Unreleased:
-		return liveProblems(r)
-	case Rejected:
-		var errs []error
-		if r.Reason == "" {
-			errs = append(errs, fmt.Errorf("%s: rejected with no reason, so it will be re-argued in six months", r.Name))
-		}
-		if len(r.Artefacts) > 0 || r.Lockstep {
-			errs = append(errs, fmt.Errorf("%s: rejected but carries artefacts or lockstep", r.Name))
-		}
-		return errs
-	default:
-		return []error{fmt.Errorf("%s: unknown status %q", r.Name, r.Status)}
-	}
-}
-
-// liveProblems reports what a released or unreleased row lacks. Every such
-// row is a real repository in the family, so it needs what the family table
-// and the manual say about it, and it carries the family's version.
-func liveProblems(r Repo) []error {
-	var errs []error
-	if r.Licence == "" {
-		errs = append(errs, fmt.Errorf("%s: no licence, and the licence boundaries are the reason this family has the shape it does", r.Name))
-	}
-	if r.Purpose == "" || r.UseCase == "" {
-		errs = append(errs, fmt.Errorf("%s: no purpose or use case, so the family table every README carries has an empty cell", r.Name))
-	}
-	if !r.Lockstep {
-		errs = append(errs, fmt.Errorf("%s: not in lockstep; every repository in the family carries one version", r.Name))
-	}
-	if r.Name != "passmcp" && r.Boundary == "" {
-		errs = append(errs, fmt.Errorf("%s: no boundary; every repository other than the centre must say why it is not a directory", r.Name))
-	}
-	if r.Name != "passmcp" && r.Kill == "" {
-		errs = append(errs, fmt.Errorf("%s: no kill criterion; a satellite without one is a permanent obligation nobody agreed to", r.Name))
-	}
-	if r.Reason != "" {
-		errs = append(errs, fmt.Errorf("%s: has a rejection reason but is not rejected", r.Name))
-	}
-	return errs
-}
-
-// RepoName is the GitHub repository that holds the row: Repository when it
-// is set, and Name otherwise.
-func (r Repo) RepoName() string {
-	if r.Repository != "" {
-		return r.Repository
-	}
-	return r.Name
-}
-
-// URL is the row's repository on GitHub.
-func (r Repo) URL() string {
-	return "https://github.com/sebastienrousseau/" + r.RepoName()
-}
-
-// Lookup returns the row for name.
-func Lookup(name string) (Repo, bool) {
-	for _, r := range Family {
-		if r.Name == name {
-			return r, true
-		}
-	}
-	return Repo{}, false
-}
-
-// ByStatus returns the rows with the given status, in manifest order.
-func ByStatus(s Status) []Repo {
-	var out []Repo
-	for _, r := range Family {
-		if r.Status == s {
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-// ArtefactList renders a row's artefacts as a sorted, comma-separated string,
-// for a generated table.
-func (r Repo) ArtefactList() string {
-	out := make([]string, len(r.Artefacts))
-	for i, a := range r.Artefacts {
-		out[i] = string(a)
-	}
-	sort.Strings(out)
-	return strings.Join(out, ", ")
 }

@@ -109,7 +109,7 @@ The flake ships the binary with its manpages and shell completions, and
 ### Go toolchain
 
 ```bash
-go install satellion.com/passmcp/cmd/passmcp@v0.0.9
+go install satellion.com/passmcp/cmd/passmcp@v0.0.10
 ```
 
 Installs into `$(go env GOPATH)/bin` (or `$GOBIN` when set). A binary
@@ -359,7 +359,7 @@ The full picture is in [the manual](https://satellion.com/passmcp/docs/stdio/).
 
 <!-- BEGIN generated readme family table — run `make ecosystem`; do not edit by hand -->
 
-Every component is released at **0.0.9** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
+Every component is released at **0.0.10** and moves in lockstep: one version across the family, released together ([docs/ecosystem.md](https://github.com/sebastienrousseau/passmcp/blob/main/docs/ecosystem.md)).
 
 | Component | Purpose | Use case |
 | :--- | :--- | :--- |
@@ -372,6 +372,12 @@ Every component is released at **0.0.9** and moves in lockstep: one version acro
 | [passmcp-lsp](https://github.com/sebastienrousseau/passmcp-lsp) | A language server for MCP artefacts, with check-id hover from the guidance catalogue | Catch mistakes in server.json, tool schemas and client configuration while editing |
 | [passmcp-census](https://github.com/sebastienrousseau/passmcp-census) | The reliability census: methodology, disclosure log and reproduction command (no edition published yet) | Cite ecosystem-wide reliability figures, and reproduce them, once an edition is published |
 | [satellion.com](https://github.com/sebastienrousseau/satellion.github.io) | The website, the Go module paths and the format URIs | Read the manual, and resolve `satellion.com/...` imports |
+| [passmcp-sdk-go](https://github.com/sebastienrousseau/passmcp-sdk-go) | Apache-2.0 Go MCP client and server SDK with offline attestation verification (not yet released) | Build an MCP server or client in Go that clears passmcp's checks and verifies attestations offline |
+| [passmcp-sdk-python](https://github.com/sebastienrousseau/passmcp-sdk-python) | Apache-2.0 Python MCP client and server SDK with offline attestation verification (not yet released) | Build an MCP server or client in Python that clears passmcp's checks and verifies attestations offline |
+| [passmcp-sdk-java](https://github.com/sebastienrousseau/passmcp-sdk-java) | Apache-2.0 Java MCP client and server SDK with offline attestation verification (not yet released) | Build an MCP server or client in Java that clears passmcp's checks and verifies attestations offline |
+| [passmcp-sdk-cpp](https://github.com/sebastienrousseau/passmcp-sdk-cpp) | Apache-2.0 C++20 MCP client and server SDK with offline attestation verification (not yet released) | Build an MCP server or client in C++ that clears passmcp's checks and verifies attestations offline |
+| [passmcp-sdk-typescript](https://github.com/sebastienrousseau/passmcp-sdk-typescript) | Apache-2.0 TypeScript MCP client and server SDK with offline attestation verification (not yet released) | Build an MCP server or client in TypeScript that clears passmcp's checks and verifies attestations offline |
+| [passmcp-sdk-rust](https://github.com/sebastienrousseau/passmcp-sdk-rust) | Apache-2.0 Rust MCP client and server SDK with offline attestation verification (not yet released) | Build an MCP server or client in Rust that clears passmcp's checks and verifies attestations offline |
 <!-- END generated readme family table -->
 
 The table is generated from [`internal/ecosystem`](internal/ecosystem/family.go),

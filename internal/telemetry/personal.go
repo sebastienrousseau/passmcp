@@ -151,6 +151,45 @@ func (r *Redactor) walkPersonal(v any, depth int) {
 	}
 }
 
+// KeepIdentifier marks protocol identifiers (server, tool, resource and
+// prompt names) so a result that echoes them under a "name" key does not
+// register them as personal data and mask the server's own catalogue.
+// Registered secrets (Add) still mask unconditionally.
+func (r *Redactor) KeepIdentifier(ids ...string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.keepPersonal == nil {
+		r.keepPersonal = map[string]bool{}
+	}
+	evicted := false
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if utf8.RuneCountInString(id) < minPersonal {
+			continue
+		}
+		r.keepPersonal[id] = true
+		if r.personalSet[id] {
+			delete(r.personalSet, id)
+			evicted = true
+		}
+	}
+	if evicted {
+		r.rebuildPersonalMask()
+	}
+}
+
+func (r *Redactor) rebuildPersonalMask() {
+	r.personal = slices.DeleteFunc(r.personal, func(v string) bool { return r.keepPersonal[v] })
+	var m maskSet
+	for i, v := range r.personal {
+		m.insert(i, []string{v})
+	}
+	r.personalMask = m
+}
+
 // addPersonal registers one personal value.
 func (r *Redactor) addPersonal(v string) {
 	v = strings.TrimSpace(v)
@@ -159,7 +198,7 @@ func (r *Redactor) addPersonal(v string) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.personalSet[v] {
+	if r.personalSet[v] || r.keepPersonal[v] {
 		return
 	}
 	if r.personalSet == nil {
