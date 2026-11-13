@@ -48,8 +48,6 @@ cyclomatic 11 internal/creds/creds.go (*Credentials).Apply
 cyclomatic 11 internal/creds/keyring.go SelectKeyring
 cyclomatic 11 internal/discover/probe.go (*prober).statelessDiscover
 cyclomatic 13 internal/policy/policy.go (*Policy).validateLimits
-cyclomatic 11 internal/probe/attacks.go outboundSender
-cyclomatic 13 internal/probe/attacks.go privateReader
 cyclomatic 13 internal/probe/era.go (listToolsShape).differsFrom
 cyclomatic 11 internal/probe/phase_protocol.go probeGetStream
 cyclomatic 13 internal/probe/phase_protocol.go probeMalformedJSON
@@ -73,7 +71,6 @@ cyclomatic 11 transport/raw.go (*Streamable).setRawHeaders
 cyclomatic 13 transport/stdio.go (*Stdio).Call
 file-lines 529 cmd/attest.go -
 file-lines 511 internal/discover/probe.go -
-file-lines 523 internal/probe/attacks.go -
 file-lines 520 internal/probe/phase_auth.go -
 file-lines 512 internal/probe/phase_exec.go -
 file-lines 808 internal/probe/probe.go -

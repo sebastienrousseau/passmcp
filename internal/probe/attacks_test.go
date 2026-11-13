@@ -189,6 +189,46 @@ func TestCapabilityReadings(t *testing.T) {
 		{passmcp.Tool{Name: "browse", Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &yes, ReadOnlyHint: &yes}}, false, false},
 		{passmcp.Tool{Name: "get_time", Description: "Returns the current time."}, false, false},
 		{passmcp.Tool{Name: "url"}, false, false},
+		// Closed-world bundled-fixture readers (corpus, example, sample, fixture,
+		// template) with no host-path parameter or local-disk description do not
+		// read private user data, whereas unclosed, path-taking, local-disk, or
+		// personal/credential nouns still do.
+		{passmcp.Tool{
+			Name:        "list_corpus_files",
+			Description: "List the example files the library ships.",
+			Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &no},
+		}, false, false},
+		{passmcp.Tool{
+			Name:        "get_corpus_file",
+			Description: "Return the XML of one validated example file from the market corpus.",
+			InputSchema: []byte(`{"type":"object","properties":{"scenario_id":{"type":"string"}}}`),
+			Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &no},
+		}, false, false},
+		{passmcp.Tool{
+			Name:        "get_document",
+			Description: "Returns a bundled template document.",
+			Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &no},
+		}, false, false},
+		{passmcp.Tool{
+			Name:        "list_corpus_files",
+			Description: "List the example files the library ships.",
+		}, true, false},
+		{passmcp.Tool{
+			Name:        "get_example_file",
+			Description: "Return an example file.",
+			InputSchema: []byte(`{"type":"object","properties":{"path":{"type":"string"}}}`),
+			Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &no},
+		}, true, false},
+		{passmcp.Tool{
+			Name:        "get_example_file",
+			Description: "Reads local files on disk.",
+			Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &no},
+		}, true, false},
+		{passmcp.Tool{
+			Name:        "get_sample_secrets",
+			Description: "Return sample secrets.",
+			Annotations: &passmcp.ToolAnnotations{OpenWorldHint: &no},
+		}, true, false},
 	} {
 		if got := privateReader(c.tool) != nil; got != c.reader {
 			t.Errorf("%s: reader = %v", c.tool.Name, got)
